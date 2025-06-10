@@ -37,6 +37,7 @@ database:
   path: "/tmp/test.db"
 library:
   path: "/tmp/test-manga"
+unknown_setting: "should be ignored"
 `
 		// Create the config file in the current directory so Viper can find it.
 		// Note: `t.TempDir()` is not used here because Viper looks in the CWD.
@@ -61,6 +62,9 @@ library:
 		}
 		if cfg.Library.Path != "/tmp/test-manga" {
 			t.Errorf("Expected library path '/tmp/test-manga', got '%s'", cfg.Library.Path)
+		}
+		if cfg.ScanInterval != 60 {
+			t.Errorf("Expected default scan interval of 60, got %d", cfg.ScanInterval)
 		}
 	})
 }
