@@ -1,13 +1,9 @@
-// This is the new configuration file, similar to the original Mango.
-// It allows users to specify the library path and database location.
-// The CLI will look for this file in the current directory.
-
+---
 port: 8080
-scan_interval: 60 # in minutes
+scan_interval: 60 # The interval in minutes between scans of the manga library.
 database:
   # The path to the SQLite database file.
   path: "./mango.db"
 library:
   # The root directory of your manga library.
   path: "./manga"
-

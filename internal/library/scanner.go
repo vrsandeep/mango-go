@@ -5,20 +5,35 @@
 package library
 
 import (
+	"database/sql"
 	"io/fs"
 	"log"
 	"path/filepath"
 	"strings"
 
 	"github.com/vrsandeep/mango-go/internal/config"
-	"github.com/vrsandeep/mango-go/internal/models"
+	"github.com/vrsandeep/mango-go/internal/store"
 )
 
-// ScanLibrary walks the configured library path and builds a collection of manga.
-func ScanLibrary(cfg *config.Config) (map[string]*models.Manga, error) {
-	mangaCollection := make(map[string]*models.Manga)
+// Scanner is responsible for scanning the library and updating the database.
+type Scanner struct {
+	cfg *config.Config
+	db  *sql.DB
+	st  *store.Store // The data access layer
+}
 
-	err := filepath.WalkDir(cfg.LibraryPath, func(path string, d fs.DirEntry, err error) error {
+// NewScanner creates a new Scanner instance.
+func NewScanner(cfg *config.Config, db *sql.DB) *Scanner {
+	return &Scanner{
+		cfg: cfg,
+		db:  db,
+		st:  store.New(db),
+	}
+}
+
+// Scan walks the configured library path and updates the database.
+func (s *Scanner) Scan() error {
+	return filepath.WalkDir(s.cfg.Library.Path, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -26,49 +41,42 @@ func ScanLibrary(cfg *config.Config) (map[string]*models.Manga, error) {
 			return nil // Skip directories
 		}
 
-		// Check for supported archive file extensions
 		ext := strings.ToLower(filepath.Ext(path))
 		if ext == ".cbz" || ext == ".cbr" {
-			log.Printf("Found potential archive: %s", path)
+			log.Printf("Processing archive: %s", path)
 
-			// Extract metadata from the file path
-			seriesTitle, chapterName := ExtractMetadataFromPath(path, cfg.LibraryPath)
+			seriesTitle, _ := ExtractMetadataFromPath(path, s.cfg.Library.Path)
 
-			// Get or create the manga series in our collection
-			manga, exists := mangaCollection[seriesTitle]
-			if !exists {
-				manga = &models.Manga{
-					Title:    seriesTitle,
-					Path:     filepath.Dir(path),
-					Chapters: []*models.Chapter{},
-				}
-				mangaCollection[seriesTitle] = manga
+			// Begin a transaction for this file.
+			tx, err := s.db.Begin()
+			if err != nil {
+				return err
+			}
+			// Defer a rollback in case of error. Commit will be called on success.
+			defer tx.Rollback()
+
+			// Get or create the manga series ID.
+			seriesID, err := s.st.GetOrCreateSeries(tx, seriesTitle, filepath.Dir(path))
+			if err != nil {
+				return err
 			}
 
-			// Parse the archive to get page information
+			// Parse the archive to get page information.
 			pages, err := ParseArchive(path)
 			if err != nil {
 				log.Printf("Warning: could not parse archive %s: %v", path, err)
 				return nil // Continue scanning even if one file is corrupt
 			}
 
-			// Create a new chapter model
-			chapter := &models.Chapter{
-				FileName:  chapterName,
-				Path:      path,
-				PageCount: len(pages),
-				Pages:     pages,
+			// Add or update the chapter in the database.
+			_, err = s.st.AddOrUpdateChapter(tx, seriesID, path, len(pages))
+			if err != nil {
+				return err
 			}
 
-			// Add the chapter to the manga series
-			manga.Chapters = append(manga.Chapters, chapter)
+			// Commit the transaction if everything was successful.
+			return tx.Commit()
 		}
 		return nil
 	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	return mangaCollection, nil
 }

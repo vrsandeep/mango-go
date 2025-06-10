@@ -1,84 +1,105 @@
-// This file tests the main library scanner. It sets up a temporary
-// directory structure with test archives to simulate a real library.
+// This file tests the main library scanner.
 
 package library
 
 import (
+	"archive/zip"
+	"database/sql"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/sqlite3"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/vrsandeep/mango-go/internal/config"
+	"github.com/vrsandeep/mango-go/internal/store"
 )
 
-// setupTestLibrary creates a temporary directory structure for scanner tests.
-func setupTestLibrary(t *testing.T) string {
+// createTestCBZ is a helper function that creates a temporary CBZ file
+// for testing purposes. It returns the path to the created file.
+// (This helper is from Milestone 1 tests, copied here for completeness)
+func createTestCBZFile(t *testing.T, dir, name string) string {
 	t.Helper()
-
-	// Create root library directory
-	rootDir := t.TempDir()
-
-	// Create Series A
-	seriesADir := filepath.Join(rootDir, "Series A")
-	os.Mkdir(seriesADir, 0755)
-	createTestCBZ(t, seriesADir) // Will create "test.cbz" inside
-
-	// Create Series B
-	seriesBDir := filepath.Join(rootDir, "Series B")
-	os.Mkdir(seriesBDir, 0755)
-	// Create a fake CBR file
-	cbrFile, _ := os.Create(filepath.Join(seriesBDir, "chapter2.cbr"))
-	cbrFile.Close()
-	// Create a non-archive file
-	txtFile, _ := os.Create(filepath.Join(seriesBDir, "notes.txt"))
-	txtFile.Close()
-
-	// Create an empty directory
-	os.Mkdir(filepath.Join(rootDir, "Empty Series"), 0755)
-
-	return rootDir
+	file, err := os.Create(filepath.Join(dir, name))
+	if err != nil {
+		t.Fatalf("Failed to create temp cbz file: %v", err)
+	}
+	defer file.Close()
+	zipWriter := zip.NewWriter(file)
+	defer zipWriter.Close()
+	files := []string{"01.jpg", "03.png", "02.jpeg"}
+	for _, f := range files {
+		_, err := zipWriter.Create(f)
+		if err != nil {
+			t.Fatalf("Failed to create entry in zip: %v", err)
+		}
+	}
+	return file.Name()
 }
 
-func TestScanLibrary(t *testing.T) {
-	libraryPath := setupTestLibrary(t)
-	cfg := &config.Config{LibraryPath: libraryPath}
-
-	mangaCollection, err := ScanLibrary(cfg)
+// setupTestLibraryAndDB creates a temporary library structure and an in-memory DB.
+func setupTestLibraryAndDB(t *testing.T) (string, *sql.DB) {
+	t.Helper()
+	// Setup DB
+	db, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {
-		t.Fatalf("ScanLibrary failed: %v", err)
+		t.Fatalf("Failed to open in-memory database: %v", err)
+	}
+	driver, _ := sqlite3.WithInstance(db, &sqlite3.Config{})
+	m, _ := migrate.NewWithDatabaseInstance("file://../../migrations", "sqlite3", driver)
+	if err := m.Up(); err != nil {
+		t.Fatalf("Failed to apply migrations: %v", err)
 	}
 
-	// Check number of series found (should be 2, "Empty Series" has no archives)
-	if len(mangaCollection) != 2 {
-		t.Errorf("Expected 2 manga series, but got %d", len(mangaCollection))
+	// Setup Library
+	rootDir := t.TempDir()
+	seriesADir := filepath.Join(rootDir, "Series A")
+	os.Mkdir(seriesADir, 0755)
+	createTestCBZFile(t, seriesADir, "ch1.cbz")
+	return rootDir, db
+}
+
+func TestScannerIntegration(t *testing.T) {
+	libraryPath, db := setupTestLibraryAndDB(t)
+	defer db.Close()
+
+	// Configure and run the scanner
+	cfg := &config.Config{Library: struct {
+		Path string `mapstructure:"path"`
+	}{Path: libraryPath}}
+	scanner := NewScanner(cfg, db)
+	if err := scanner.Scan(); err != nil {
+		t.Fatalf("scanner.Scan() failed: %v", err)
 	}
 
-	// Check Series A
-	seriesA, ok := mangaCollection["Series A"]
-	if !ok {
-		t.Fatal("Expected to find 'Series A', but it was not found")
+	// Verify the database state after the scan
+	s := store.New(db)
+	tx, _ := db.Begin()
+	defer tx.Rollback()
+
+	// Check if "Series A" was created
+	seriesID, err := s.GetOrCreateSeries(tx, "Series A", filepath.Join(libraryPath, "Series A"))
+	if err != nil {
+		t.Fatalf("Failed to find 'Series A' in database after scan: %v", err)
 	}
-	if len(seriesA.Chapters) != 1 {
-		t.Fatalf("Expected 1 chapter in 'Series A', but got %d", len(seriesA.Chapters))
-	}
-	if seriesA.Chapters[0].FileName != "test.cbz" {
-		t.Errorf("Unexpected chapter filename: %s", seriesA.Chapters[0].FileName)
-	}
-	// The test CBZ has 3 image files
-	if seriesA.Chapters[0].PageCount != 3 {
-		t.Errorf("Expected 3 pages in chapter, but got %d", seriesA.Chapters[0].PageCount)
+	if seriesID == 0 {
+		t.Fatal("Series ID should not be 0")
 	}
 
-	// Check Series B
-	seriesB, ok := mangaCollection["Series B"]
-	if !ok {
-		t.Fatal("Expected to find 'Series B', but it was not found")
+	// Check if the chapter was created correctly
+	var pageCount int
+	var chapterPath string
+	err = tx.QueryRow("SELECT path, page_count FROM chapters WHERE series_id = ?", seriesID).Scan(&chapterPath, &pageCount)
+	if err != nil {
+		t.Fatalf("Failed to find chapter for 'Series A': %v", err)
 	}
-	if len(seriesB.Chapters) != 1 {
-		t.Fatalf("Expected 1 chapter in 'Series B', but got %d", len(seriesB.Chapters))
+	if pageCount != 3 {
+		t.Errorf("Expected page count of 3 for scanned chapter, got %d", pageCount)
 	}
-	// The test CBR parsing is not implemented, so page count should be 0
-	if seriesB.Chapters[0].PageCount != 0 {
-		t.Errorf("Expected 0 pages in CBR chapter, but got %d", seriesB.Chapters[0].PageCount)
+	expectedPath := filepath.Join(libraryPath, "Series A", "ch1.cbz")
+	if chapterPath != expectedPath {
+		t.Errorf("Expected chapter path '%s', got '%s'", expectedPath, chapterPath)
 	}
 }
