@@ -4,7 +4,6 @@
 package api
 
 import (
-	"archive/zip"
 	"database/sql"
 	"encoding/json"
 	"net/http"
@@ -14,39 +13,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database/sqlite3"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/vrsandeep/mango-go/internal/config"
 	"github.com/vrsandeep/mango-go/internal/models"
+	"github.com/vrsandeep/mango-go/internal/testutil"
 )
-
-var testServer *Server
 
 // setupTestServer initializes an in-memory database, populates it with test
 // data, and sets up a test server instance.
-func setupTestServer(t *testing.T) {
+func setupTestServer(t *testing.T) (*Server, *sql.DB) {
 	t.Helper()
-
-	// Use in-memory database for testing
-	db, err := sql.Open("sqlite3", ":memory:")
-	if err != nil {
-		t.Fatalf("Failed to open in-memory database: %v", err)
-	}
-
-	// Run migrations
-	driver, err := sqlite3.WithInstance(db, &sqlite3.Config{})
-	if err != nil {
-		t.Fatalf("Failed to create migration driver: %v", err)
-	}
-	m, err := migrate.NewWithDatabaseInstance("file://../../migrations", "sqlite3", driver)
-	if err != nil {
-		t.Fatalf("Failed to create migrate instance: %v", err)
-	}
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		t.Fatalf("Failed to apply migrations: %v", err)
-	}
+	db := testutil.SetupTestDB(t)
 
 	// Create a temporary directory for test archives
 	tempDir := t.TempDir()
@@ -54,42 +30,20 @@ func setupTestServer(t *testing.T) {
 	// Populate database with test data
 	series1Path := filepath.Join(tempDir, "Series 1")
 	os.Mkdir(series1Path, 0755)
-	chapter1Path := createTestCBZ(t, series1Path, "ch1.cbz", []string{"page1.jpg", "page2.jpg"})
+	chapter1Path := testutil.CreateTestCBZ(t, series1Path, "ch1.cbz", []string{"page1.jpg", "page2.jpg"})
 
-	_, err = db.Exec(`INSERT INTO series (id, title, path, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
-		1, "Series 1", series1Path, time.Now(), time.Now())
+	_, err := db.Exec(`INSERT INTO series (id, title, path, created_at, updated_at) VALUES (1, 'Series 1', ?, ?, ?)`, series1Path, time.Now(), time.Now())
 	if err != nil {
 		t.Fatalf("Failed to insert test series: %v", err)
 	}
-	_, err = db.Exec(`INSERT INTO chapters (id, series_id, path, page_count, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
-		1, 1, chapter1Path, 2, time.Now(), time.Now())
+	_, err = db.Exec(`INSERT INTO chapters (id, series_id, path, page_count, created_at, updated_at) VALUES (1, 1, ?, 2, ?, ?)`, chapter1Path, time.Now(), time.Now())
 	if err != nil {
 		t.Fatalf("Failed to insert test chapter: %v", err)
 	}
 
-	// Setup the server instance
-	cfg := &config.Config{} // Config is not needed for these tests
-	testServer = NewServer(cfg, db)
-}
-
-// createTestCBZ is a helper to create a test archive.
-func createTestCBZ(t *testing.T, dir, name string, pages []string) string {
-	t.Helper()
-	filePath := filepath.Join(dir, name)
-	file, err := os.Create(filePath)
-	if err != nil {
-		t.Fatalf("Failed to create temp cbz file: %v", err)
-	}
-	defer file.Close()
-	zipWriter := zip.NewWriter(file)
-	defer zipWriter.Close()
-	for _, page := range pages {
-		_, err := zipWriter.Create(page)
-		if err != nil {
-			t.Fatalf("Failed to create entry in zip: %v", err)
-		}
-	}
-	return filePath
+	cfg := &config.Config{}
+	server := NewServer(cfg, db)
+	return server, db
 }
 
 func TestMain(m *testing.M) {
@@ -99,8 +53,8 @@ func TestMain(m *testing.M) {
 }
 
 func TestHandleListSeries(t *testing.T) {
-	setupTestServer(t)
-	router := testServer.Router()
+	server, _ := setupTestServer(t)
+	router := server.Router()
 
 	req, _ := http.NewRequest("GET", "/api/series", nil)
 	rr := httptest.NewRecorder()
@@ -123,8 +77,8 @@ func TestHandleListSeries(t *testing.T) {
 }
 
 func TestHandleGetSeries(t *testing.T) {
-	setupTestServer(t)
-	router := testServer.Router()
+	server, _ := setupTestServer(t)
+	router := server.Router()
 
 	t.Run("Success", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/api/series/1", nil)
@@ -155,8 +109,8 @@ func TestHandleGetSeries(t *testing.T) {
 }
 
 func TestHandleGetPage(t *testing.T) {
-	setupTestServer(t)
-	router := testServer.Router()
+	server, _ := setupTestServer(t)
+	router := server.Router()
 
 	t.Run("Success", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/api/series/1/chapters/1/pages/2", nil)

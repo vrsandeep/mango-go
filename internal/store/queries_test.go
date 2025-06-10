@@ -1,5 +1,3 @@
-// A NEW test file specifically for the read-only database queries used by the API.
-
 package store
 
 import (
@@ -7,25 +5,8 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/golang-migrate/migrate/v4/source/file"
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/vrsandeep/mango-go/internal/testutil"
 )
-
-// // setupTestDB is a helper function from store_test.go, duplicated here for clarity.
-// // In a real project, you might move this to a shared test helper package.
-// func setupTestDB(t *testing.T) *sql.DB {
-// 	t.Helper()
-// 	db, err := sql.Open("sqlite3", ":memory:")
-// 	if err != nil {
-// 		t.Fatalf("Failed to open in-memory database: %v", err)
-// 	}
-// 	driver, _ := sqlite3.WithInstance(db, &sqlite3.Config{})
-// 	m, _ := migrate.NewWithDatabaseInstance("file://../../migrations", "sqlite3", driver)
-// 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-// 		t.Fatalf("Failed to apply migrations: %v", err)
-// 	}
-// 	return db
-// }
 
 // populateDB adds test data to the database for query tests.
 func populateDB(t *testing.T, db *sql.DB) {
@@ -35,7 +16,7 @@ func populateDB(t *testing.T, db *sql.DB) {
 }
 
 func TestListSeries(t *testing.T) {
-	db := setupTestDB(t)
+	db := testutil.SetupTestDB(t)
 	defer db.Close()
 	populateDB(t, db)
 	s := New(db)

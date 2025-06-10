@@ -7,33 +7,21 @@ import (
 	"time"
 
 	"github.com/vrsandeep/mango-go/internal/api"
-	"github.com/vrsandeep/mango-go/internal/config"
-	"github.com/vrsandeep/mango-go/internal/db"
+	"github.com/vrsandeep/mango-go/internal/core"
 	"github.com/vrsandeep/mango-go/internal/library"
 )
 
 func main() {
-	// Load configuration from config.yml
-	cfg, err := config.Load()
+	// Initialize the core application components
+	app, err := core.New()
 	if err != nil {
-		log.Fatalf("Failed to load configuration: %v", err)
+		log.Fatalf("Fatal error during application setup: %v", err)
 	}
-
-	// Initialize the database connection
-	database, err := db.InitDB(cfg.Database.Path)
-	if err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
-	}
-	defer database.Close()
-
-	// Run database migrations (same as in CLI)
-	if err := db.RunMigrations(database); err != nil {
-		log.Fatalf("Failed to run database migrations: %v", err)
-	}
+	defer app.Close()
 
 	// Initial library scan on startup
 	log.Println("Performing initial library scan...")
-	scanner := library.NewScanner(cfg, database)
+	scanner := library.NewScanner(app.Config, app.DB)
 	if err := scanner.Scan(); err != nil {
 		log.Printf("Warning: initial library scan failed: %v", err)
 	}
@@ -41,7 +29,7 @@ func main() {
 
 	// Start periodic scanning in the background
 	go func() {
-		ticker := time.NewTicker(time.Duration(cfg.ScanInterval) * time.Minute)
+		ticker := time.NewTicker(time.Duration(app.Config.ScanInterval) * time.Minute)
 		for range ticker.C {
 			log.Println("Performing periodic library scan...")
 			if err := scanner.Scan(); err != nil {
@@ -52,8 +40,8 @@ func main() {
 	}()
 
 	// Setup the API server
-	server := api.NewServer(cfg, database)
-	addr := fmt.Sprintf(":%d", cfg.Port)
+	server := api.NewServer(app.Config, app.DB)
+	addr := fmt.Sprintf(":%d", app.Config.Port)
 	log.Printf("Starting web server on %s", addr)
 
 	// Start the HTTP server
