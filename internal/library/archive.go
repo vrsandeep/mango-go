@@ -14,8 +14,8 @@ import (
 	"github.com/vrsandeep/mango-go/internal/models"
 )
 
-// isImageFile checks if a filename has a common image file extension.
-func isImageFile(name string) bool {
+// IsImageFile checks if a filename has a common image file extension.
+func IsImageFile(name string) bool {
 	ext := strings.ToLower(filepath.Ext(name))
 	return ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".gif" || ext == ".webp"
 }
@@ -44,7 +44,7 @@ func parseCBZ(filePath string) ([]*models.Page, error) {
 	var pages []*models.Page
 	for _, f := range r.File {
 		// Skip directories and non-image files
-		if f.FileInfo().IsDir() || !isImageFile(f.Name) {
+		if f.FileInfo().IsDir() || !IsImageFile(f.Name) {
 			continue
 		}
 		pages = append(pages, &models.Page{FileName: f.Name})

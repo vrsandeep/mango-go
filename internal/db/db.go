@@ -3,6 +3,11 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"log"
+
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/sqlite3"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 
 	// Import the sqlite3 driver. The blank import is used because we only
 	// need the driver to be registered with database/sql.
@@ -30,4 +35,29 @@ func InitDB(path string) (*sql.DB, error) {
 	}
 
 	return db, nil
+}
+
+func RunMigrations(database *sql.DB) error {
+	driver, err := sqlite3.WithInstance(database, &sqlite3.Config{})
+	if err != nil {
+		return fmt.Errorf("could not create sqlite3 migration driver: %w", err)
+	}
+
+	m, err := migrate.NewWithDatabaseInstance(
+		"file://migrations",
+		"sqlite3",
+		driver,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create migrate instance: %w", err)
+	}
+
+	log.Println("Applying database migrations...")
+	err = m.Up()
+	if err != nil && err != migrate.ErrNoChange {
+		return fmt.Errorf("an error occurred while applying migrations: %w", err)
+	}
+
+	log.Println("Migrations applied successfully.")
+	return nil
 }

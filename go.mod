@@ -3,6 +3,7 @@ module github.com/vrsandeep/mango-go
 go 1.24.4
 
 require (
+	github.com/go-chi/chi/v5 v5.2.1
 	github.com/golang-migrate/migrate/v4 v4.18.3
 	github.com/mattn/go-sqlite3 v1.14.28
 	github.com/spf13/viper v1.20.1
