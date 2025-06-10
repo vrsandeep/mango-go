@@ -37,8 +37,8 @@ jobs:
       # default runner. The tests also require the migrate CLI tool.
       - name: Install dependencies
         run: |
-          sudo apt-get update && sudo apt-get install -y libsqlite3-dev
-          go install -tags 'sqlite3' [github.com/golang-migrate/migrate/v4/cmd/migrate@latest](https://github.com/golang-migrate/migrate/v4/cmd/migrate@latest)
+          sudo apt-get update && sudo apt-get install -y libsqlite3-dev && \
+          go install -tags 'sqlite3' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 
       # Step 4: Download Go module dependencies
       - name: Install Go dependencies
