@@ -157,8 +157,8 @@ func (s *Server) handleUpdateProgress(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var payload struct {
-		CurrentPage int  `json:"current_page"`
-		Read        bool `json:"read"`
+		ProgressPercent int  `json:"progress_percent"`
+		Read            bool `json:"read"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
@@ -166,7 +166,7 @@ func (s *Server) handleUpdateProgress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = s.store.UpdateChapterProgress(chapterID, payload.CurrentPage, payload.Read)
+	err = s.store.UpdateChapterProgress(chapterID, payload.ProgressPercent, payload.Read)
 	if err != nil {
 		log.Printf("Failed to update progress for chapter %d: %v", chapterID, err)
 		RespondWithError(w, http.StatusInternalServerError, "Failed to update progress")

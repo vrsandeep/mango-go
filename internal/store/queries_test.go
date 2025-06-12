@@ -12,7 +12,7 @@ import (
 func populateDB(t *testing.T, db *sql.DB) {
 	t.Helper()
 	db.Exec(`INSERT INTO series (id, title, path, created_at, updated_at) VALUES (1, 'Series B', '/path/b', ?, ?), (2, 'Series A', '/path/a', ?, ?)`, time.Now(), time.Now(), time.Now(), time.Now())
-	// Insert with default read=false and current_page=0
+	// Insert with default read=false and progress_percent=0
 	db.Exec(`INSERT INTO chapters (id, series_id, path, page_count, created_at, updated_at) VALUES (1, 1, '/path/b/ch1.cbz', 10, ?, ?), (2, 2, '/path/a/ch1.cbz', 20, ?, ?)`, time.Now(), time.Now(), time.Now(), time.Now())
 }
 
@@ -60,8 +60,8 @@ func TestGetSeriesByID(t *testing.T) {
 		if series.Chapters[0].Read != false {
 			t.Errorf("Expected chapter 'read' status to be false, got true")
 		}
-		if series.Chapters[0].CurrentPage != 0 {
-			t.Errorf("Expected chapter 'current_page' to be 0, got %d", series.Chapters[0].CurrentPage)
+		if series.Chapters[0].ProgressPercent != 0 {
+			t.Errorf("Expected chapter 'progress_percent' to be 0, got %d", series.Chapters[0].ProgressPercent)
 		}
 	})
 
@@ -93,8 +93,8 @@ func TestGetChapterByID(t *testing.T) {
 		if chapter.Read != false {
 			t.Errorf("Expected chapter 'read' status to be false, got true")
 		}
-		if chapter.CurrentPage != 0 {
-			t.Errorf("Expected chapter 'current_page' to be 0, got %d", chapter.CurrentPage)
+		if chapter.ProgressPercent != 0 {
+			t.Errorf("Expected chapter 'progress_percent' to be 0, got %d", chapter.ProgressPercent)
 		}
 	})
 
@@ -112,10 +112,10 @@ func TestUpdateChapterProgress(t *testing.T) {
 	s := New(db)
 
 	chapterID := int64(1)
-	newPage := 50
+	newProgress := 50
 	newReadStatus := true
 
-	err := s.UpdateChapterProgress(chapterID, newPage, newReadStatus)
+	err := s.UpdateChapterProgress(chapterID, newProgress, newReadStatus)
 	if err != nil {
 		t.Fatalf("UpdateChapterProgress failed: %v", err)
 	}
@@ -126,8 +126,8 @@ func TestUpdateChapterProgress(t *testing.T) {
 		t.Fatalf("Failed to get chapter after update: %v", err)
 	}
 
-	if chapter.CurrentPage != newPage {
-		t.Errorf("Expected current_page to be %d, got %d", newPage, chapter.CurrentPage)
+	if chapter.ProgressPercent != newProgress {
+		t.Errorf("Expected progress_percent to be %d, got %d", newProgress, chapter.ProgressPercent)
 	}
 	if chapter.Read != newReadStatus {
 		t.Errorf("Expected read status to be %t, got %t", newReadStatus, chapter.Read)

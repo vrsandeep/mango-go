@@ -36,7 +36,7 @@ func (s *Store) GetSeriesByID(id int64) (*models.Series, error) {
 		return nil, err
 	}
 
-	rows, err := s.db.Query("SELECT id, path, page_count, read, current_page FROM chapters WHERE series_id = ? ORDER BY path", id)
+	rows, err := s.db.Query("SELECT id, path, page_count, read, progress_percent FROM chapters WHERE series_id = ? ORDER BY path", id)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +44,7 @@ func (s *Store) GetSeriesByID(id int64) (*models.Series, error) {
 
 	for rows.Next() {
 		var chapter models.Chapter
-		if err := rows.Scan(&chapter.ID, &chapter.Path, &chapter.PageCount, &chapter.Read, &chapter.CurrentPage); err != nil {
+		if err := rows.Scan(&chapter.ID, &chapter.Path, &chapter.PageCount, &chapter.Read, &chapter.ProgressPercent); err != nil {
 			return nil, err
 		}
 		chapter.SeriesID = id
@@ -56,7 +56,7 @@ func (s *Store) GetSeriesByID(id int64) (*models.Series, error) {
 // GetChapterByID fetches a single chapter by its ID.
 func (s *Store) GetChapterByID(id int64) (*models.Chapter, error) {
 	var chapter models.Chapter
-	err := s.db.QueryRow("SELECT id, series_id, path, page_count, read, current_page FROM chapters WHERE id = ?", id).Scan(&chapter.ID, &chapter.SeriesID, &chapter.Path, &chapter.PageCount, &chapter.Read, &chapter.CurrentPage)
+	err := s.db.QueryRow("SELECT id, series_id, path, page_count, read, progress_percent FROM chapters WHERE id = ?", id).Scan(&chapter.ID, &chapter.SeriesID, &chapter.Path, &chapter.PageCount, &chapter.Read, &chapter.ProgressPercent)
 	if err != nil {
 		return nil, err
 	}
@@ -64,8 +64,8 @@ func (s *Store) GetChapterByID(id int64) (*models.Chapter, error) {
 }
 
 // UpdateChapterProgress updates the reading progress for a given chapter.
-func (s *Store) UpdateChapterProgress(chapterID int64, currentPage int, read bool) error {
-	_, err := s.db.Exec("UPDATE chapters SET current_page = ?, read = ?, updated_at = ? WHERE id = ?",
-		currentPage, read, time.Now(), chapterID)
+func (s *Store) UpdateChapterProgress(chapterID int64, progressPercent int, read bool) error {
+	_, err := s.db.Exec("UPDATE chapters SET progress_percent = ?, read = ?, updated_at = ? WHERE id = ?",
+		progressPercent, read, time.Now(), chapterID)
 	return err
 }

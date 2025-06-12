@@ -151,11 +151,11 @@
                 findNeighboringChapters();
             };
 
-            const updateProgress = (currentPage, isRead) => {
+            const updateProgress = (progressPercent, isRead) => {
                 fetch(`/api/chapters/${chapterId}/progress`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ current_page: currentPage, read: isRead }),
+                    body: JSON.stringify({ progress_percent: progressPercent, read: isRead }),
                 });
             };
 
@@ -193,14 +193,14 @@
                     progressBar.style.width = '100%';
                     return;
                 }
-                const progress = (window.scrollY / scrollableHeight) * 100;
+                const progress = Math.round((window.scrollY / scrollableHeight) * 100);
                 progressBar.style.width = `${progress}%`;
 
                 // Persist progress (debounced)
                 clearTimeout(window.progressTimeout);
                 window.progressTimeout = setTimeout(() => {
                     const isRead = progress >= 99;
-                    updateProgress(Math.round(progress), isRead);
+                    updateProgress(progress, isRead);
                 }, 500);
             };
 
@@ -239,7 +239,7 @@
                 // Restore scroll position after images have loaded
                 setTimeout(() => {
                      const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
-                     const savedProgress = chapterData.current_page || 0;
+                     const savedProgress = chapterData.progress_percent || 0;
                      window.scrollTo(0, (scrollableHeight * savedProgress) / 100);
                      calculateAndUpdateProgress(); // Initial calculation
                 }, 500); // Delay to allow images to start rendering

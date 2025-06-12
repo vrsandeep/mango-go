@@ -54,7 +54,7 @@ func TestHandleUpdateProgress(t *testing.T) {
 	s := store.New(db)
 
 	t.Run("Success", func(t *testing.T) {
-		payload := `{"current_page": 75, "read": true}`
+		payload := `{"progress_percent": 75, "read": true}`
 		req, _ := http.NewRequest("POST", "/api/chapters/1/progress", bytes.NewBufferString(payload))
 		req.Header.Set("Content-Type", "application/json")
 
@@ -70,8 +70,8 @@ func TestHandleUpdateProgress(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to get chapter after update: %v", err)
 		}
-		if chapter.CurrentPage != 75 {
-			t.Errorf("DB value for current_page was not updated: want 75, got %d", chapter.CurrentPage)
+		if chapter.ProgressPercent != 75 {
+			t.Errorf("DB value for progress_percent was not updated: want 75, got %d", chapter.ProgressPercent)
 		}
 		if !chapter.Read {
 			t.Error("DB value for read was not updated: want true, got false")
@@ -96,7 +96,7 @@ func TestHandleUpdateProgress(t *testing.T) {
 	})
 
 	t.Run("Malformed JSON", func(t *testing.T) {
-		payload := `{"current_page": 75,` // Malformed
+		payload := `{"progress_percent": 75,`
 		req, _ := http.NewRequest("POST", "/api/chapters/1/progress", bytes.NewBufferString(payload))
 		req.Header.Set("Content-Type", "application/json")
 
