@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -142,4 +143,47 @@ func TestHandleGetPage(t *testing.T) {
 			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusNotFound)
 		}
 	})
+}
+
+// test to ensure the reader.html serves chapters correctly.
+func TestServeReaderHTML(t *testing.T) {
+	server, _ := setupTestServer(t)
+	router := server.Router()
+
+	// The handler's http.ServeFile uses "./web/reader.html", which assumes
+	// the app is run from the project root. We must replicate this condition.
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current working directory: %v", err)
+	}
+	// Change to project root (which is two levels up from internal/api)
+	if err := os.Chdir("../../"); err != nil {
+		t.Fatalf("Failed to change directory to project root: %v", err)
+	}
+	// Ensure we change back to the original directory after the test
+	defer os.Chdir(originalWD)
+
+	// Now that we are in the project root, we can read the actual file.
+	expectedBody, err := os.ReadFile("./web/reader.html")
+	if err != nil {
+		t.Fatalf("Could not read actual reader.html file: %v", err)
+	}
+
+	// Perform the request
+	req, _ := http.NewRequest("GET", "/reader/series/1/chapters/1", nil)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	// Assertions
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+	}
+
+	if contentType := rr.Header().Get("Content-Type"); !strings.HasPrefix(contentType, "text/html") {
+		t.Errorf("handler returned wrong content type: got %v want %v", contentType, "text/html")
+	}
+
+	if rr.Body.String() != string(expectedBody) {
+		t.Error("handler returned body that does not match web/reader.html content")
+	}
 }

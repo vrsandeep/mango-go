@@ -34,7 +34,6 @@ func NewServer(cfg *config.Config, db *sql.DB) *Server {
 func (s *Server) Router() http.Handler {
 	r := chi.NewRouter()
 
-	// A good base middleware stack
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)    // Logs requests to the console
@@ -45,8 +44,19 @@ func (s *Server) Router() http.Handler {
 	r.Route("/api", func(r chi.Router) {
 		r.Get("/series", s.handleListSeries)
 		r.Get("/series/{seriesID}", s.handleGetSeries)
+		r.Get("/series/{seriesID}/chapters/{chapterID}", s.handleGetChapterDetails)
 		r.Get("/series/{seriesID}/chapters/{chapterID}/pages/{pageNumber}", s.handleGetPage)
+		// New endpoints for progress tracking
+		r.Post("/chapters/{chapterID}/progress", s.handleUpdateProgress)
 	})
+
+	// Route to serve the web reader frontend
+	r.Get("/reader/series/{seriesID}/chapters/{chapterID}", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./web/reader.html")
+	})
+
+	// Serve static files for the web reader
+	// r.Handle("/reader/static/*", http.StripPrefix("/reader/static/", http.FileServer(http.Dir("./web/static"))))
 
 	return r
 }

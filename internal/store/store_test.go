@@ -4,47 +4,15 @@
 package store
 
 import (
-	"database/sql"
 	"testing"
 
-	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database/sqlite3"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/vrsandeep/mango-go/internal/testutil"
 )
 
-// setupTestDB creates an in-memory SQLite database and applies migrations.
-func setupTestDB(t *testing.T) *sql.DB {
-	t.Helper()
-
-	// Use in-memory database for testing
-	db, err := sql.Open("sqlite3", ":memory:")
-	if err != nil {
-		t.Fatalf("Failed to open in-memory database: %v", err)
-	}
-
-	// Run migrations
-	driver, err := sqlite3.WithInstance(db, &sqlite3.Config{})
-	if err != nil {
-		t.Fatalf("Failed to create migration driver: %v", err)
-	}
-
-	// We need to find the migrations directory.
-	// This path assumes tests are run from the project root.
-	m, err := migrate.NewWithDatabaseInstance("file://../../migrations", "sqlite3", driver)
-	if err != nil {
-		t.Fatalf("Failed to create migrate instance: %v", err)
-	}
-
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		t.Fatalf("Failed to apply migrations: %v", err)
-	}
-
-	return db
-}
-
 func TestGetOrCreateSeries(t *testing.T) {
-	db := setupTestDB(t)
+	db := testutil.SetupTestDB(t)
 	defer db.Close()
 	s := New(db)
 
@@ -77,7 +45,7 @@ func TestGetOrCreateSeries(t *testing.T) {
 }
 
 func TestAddOrUpdateChapter(t *testing.T) {
-	db := setupTestDB(t)
+	db := testutil.SetupTestDB(t)
 	defer db.Close()
 	s := New(db)
 

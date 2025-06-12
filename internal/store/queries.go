@@ -3,7 +3,11 @@
 
 package store
 
-import "github.com/vrsandeep/mango-go/internal/models"
+import (
+	"time"
+
+	"github.com/vrsandeep/mango-go/internal/models"
+)
 
 // ListSeries fetches all series from the database.
 func (s *Store) ListSeries() ([]*models.Series, error) {
@@ -32,7 +36,7 @@ func (s *Store) GetSeriesByID(id int64) (*models.Series, error) {
 		return nil, err
 	}
 
-	rows, err := s.db.Query("SELECT id, path, page_count FROM chapters WHERE series_id = ? ORDER BY path", id)
+	rows, err := s.db.Query("SELECT id, path, page_count, read, current_page FROM chapters WHERE series_id = ? ORDER BY path", id)
 	if err != nil {
 		return nil, err
 	}
@@ -40,10 +44,9 @@ func (s *Store) GetSeriesByID(id int64) (*models.Series, error) {
 
 	for rows.Next() {
 		var chapter models.Chapter
-		if err := rows.Scan(&chapter.ID, &chapter.Path, &chapter.PageCount); err != nil {
+		if err := rows.Scan(&chapter.ID, &chapter.Path, &chapter.PageCount, &chapter.Read, &chapter.CurrentPage); err != nil {
 			return nil, err
 		}
-		// Set the SeriesID as it's not stored in this query
 		chapter.SeriesID = id
 		series.Chapters = append(series.Chapters, &chapter)
 	}
@@ -53,9 +56,16 @@ func (s *Store) GetSeriesByID(id int64) (*models.Series, error) {
 // GetChapterByID fetches a single chapter by its ID.
 func (s *Store) GetChapterByID(id int64) (*models.Chapter, error) {
 	var chapter models.Chapter
-	err := s.db.QueryRow("SELECT id, series_id, path, page_count FROM chapters WHERE id = ?", id).Scan(&chapter.ID, &chapter.SeriesID, &chapter.Path, &chapter.PageCount)
+	err := s.db.QueryRow("SELECT id, series_id, path, page_count, read, current_page FROM chapters WHERE id = ?", id).Scan(&chapter.ID, &chapter.SeriesID, &chapter.Path, &chapter.PageCount, &chapter.Read, &chapter.CurrentPage)
 	if err != nil {
 		return nil, err
 	}
 	return &chapter, nil
+}
+
+// UpdateChapterProgress updates the reading progress for a given chapter.
+func (s *Store) UpdateChapterProgress(chapterID int64, currentPage int, read bool) error {
+	_, err := s.db.Exec("UPDATE chapters SET current_page = ?, read = ?, updated_at = ? WHERE id = ?",
+		currentPage, read, time.Now(), chapterID)
+	return err
 }

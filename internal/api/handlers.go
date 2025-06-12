@@ -2,6 +2,7 @@ package api
 
 import (
 	"archive/zip"
+	"encoding/json"
 	"io"
 	"log"
 	"net/http"
@@ -126,4 +127,51 @@ func (s *Server) handleGetPage(w http.ResponseWriter, r *http.Request) {
 
 	// Stream the file content to the response
 	io.Copy(w, rc)
+}
+
+// handleGetChapterDetails retrieves and returns details for a single chapter.
+func (s *Server) handleGetChapterDetails(w http.ResponseWriter, r *http.Request) {
+	chapterIDStr := chi.URLParam(r, "chapterID")
+	chapterID, err := strconv.ParseInt(chapterIDStr, 10, 64)
+	if err != nil {
+		RespondWithError(w, http.StatusBadRequest, "Invalid chapter ID")
+		return
+	}
+
+	chapter, err := s.store.GetChapterByID(chapterID)
+	if err != nil {
+		RespondWithError(w, http.StatusNotFound, "Chapter not found")
+		return
+	}
+
+	RespondWithJSON(w, http.StatusOK, chapter)
+}
+
+// handleUpdateProgress handles requests to update the progress for a chapter.
+func (s *Server) handleUpdateProgress(w http.ResponseWriter, r *http.Request) {
+	chapterIDStr := chi.URLParam(r, "chapterID")
+	chapterID, err := strconv.ParseInt(chapterIDStr, 10, 64)
+	if err != nil {
+		RespondWithError(w, http.StatusBadRequest, "Invalid chapter ID")
+		return
+	}
+
+	var payload struct {
+		CurrentPage int  `json:"current_page"`
+		Read        bool `json:"read"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+
+	err = s.store.UpdateChapterProgress(chapterID, payload.CurrentPage, payload.Read)
+	if err != nil {
+		log.Printf("Failed to update progress for chapter %d: %v", chapterID, err)
+		RespondWithError(w, http.StatusInternalServerError, "Failed to update progress")
+		return
+	}
+
+	RespondWithJSON(w, http.StatusOK, map[string]string{"status": "success"})
 }

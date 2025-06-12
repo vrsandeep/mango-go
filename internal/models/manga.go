@@ -17,12 +17,14 @@ type Series struct {
 
 // Chapter represents a single chapter of a manga.
 type Chapter struct {
-	ID        int64     `json:"id"`
-	SeriesID  int64     `json:"series_id"`
-	Path      string    `json:"path"`
-	PageCount int       `json:"page_count"`
-	CreatedAt time.Time `json:"-"` // Hide from JSON responses
-	UpdatedAt time.Time `json:"-"` // Hide from JSON responses
+	ID          int64     `json:"id"`
+	SeriesID    int64     `json:"series_id"`
+	Path        string    `json:"path"`
+	PageCount   int       `json:"page_count"`
+	Read        bool      `json:"read"`
+	CurrentPage int       `json:"current_page"`
+	CreatedAt   time.Time `json:"-"` // Hide from JSON responses
+	UpdatedAt   time.Time `json:"-"` // Hide from JSON responses
 }
 
 // Page represents a single page within a chapter, which is an image

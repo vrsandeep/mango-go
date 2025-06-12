@@ -1,0 +1,252 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mango Reader</title>
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: #f0f0f0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+        }
+        .reader-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+        .page-image {
+            max-width: 800px; /* Restrict width for consistent experience */
+            width: 100%;
+            height: auto;
+            display: block;
+            cursor: pointer; /* Make images clickable */
+        }
+        .reader-footer {
+            padding: 2rem;
+            text-align: center;
+        }
+        #next-chapter-btn {
+            background-color: #333;
+            color: white;
+            border: 1px solid #555;
+            padding: 10px 20px;
+            font-size: 1rem;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.2s;
+        }
+        #next-chapter-btn:hover {
+            background-color: #444;
+        }
+        /* Modal styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: none; /* Hidden by default */
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background-color: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-width: 250px;
+        }
+        .modal-btn {
+            background-color: #444;
+            color: white;
+            border: none;
+            padding: 12px;
+            font-size: 1rem;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.2s;
+            text-align: center;
+        }
+        .modal-btn:hover {
+            background-color: #555;
+        }
+        .progress-bar-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background-color: #444;
+        }
+        #progress-bar {
+            width: 0%;
+            height: 100%;
+            background-color: #1e90ff;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="reader-container" id="image-container">
+        <!-- Manga pages will be loaded here -->
+    </div>
+
+    <div class="reader-footer">
+        <button id="next-chapter-btn" style="display: none;">Next Chapter</button>
+    </div>
+
+    <div class="modal-overlay" id="nav-modal">
+        <div class="modal-content">
+            <button class="modal-btn" id="prev-chapter-btn">Previous Chapter</button>
+            <button class="modal-btn" id="next-chapter-modal-btn">Next Chapter</button>
+            <button class="modal-btn" id="mark-read-btn">Mark as Read</button>
+        </div>
+    </div>
+
+    <div class="progress-bar-container">
+        <div id="progress-bar"></div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const pathParts = window.location.pathname.split('/');
+            const seriesId = pathParts[3];
+            const chapterId = pathParts[5];
+
+            let seriesData = null;
+            let chapterData = null;
+            let nextChapterId = null;
+            let prevChapterId = null;
+
+            const imageContainer = document.getElementById('image-container');
+            const nextChapterBtn = document.getElementById('next-chapter-btn');
+            const progressBar = document.getElementById('progress-bar');
+
+            // Modal elements
+            const modal = document.getElementById('nav-modal');
+            const prevChapterModalBtn = document.getElementById('prev-chapter-btn');
+            const nextChapterModalBtn = document.getElementById('next-chapter-modal-btn');
+            const markReadBtn = document.getElementById('mark-read-btn');
+
+            // --- API Calls ---
+            const fetchChapterDetails = async () => {
+                const response = await fetch(`/api/series/${seriesId}/chapters/${chapterId}`);
+                chapterData = await response.json();
+            };
+
+            const fetchSeriesDetails = async () => {
+                const response = await fetch(`/api/series/${seriesId}`);
+                seriesData = await response.json();
+                findNeighboringChapters();
+            };
+
+            const updateProgress = (currentPage, isRead) => {
+                fetch(`/api/chapters/${chapterId}/progress`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ current_page: currentPage, read: isRead }),
+                });
+            };
+
+            // --- Logic ---
+            const findNeighboringChapters = () => {
+                const currentIndex = seriesData.chapters.findIndex(c => c.id == chapterId);
+                if (currentIndex > 0) {
+                    prevChapterId = seriesData.chapters[currentIndex - 1].id;
+                    prevChapterModalBtn.disabled = false;
+                } else {
+                    prevChapterModalBtn.disabled = true;
+                }
+                if (currentIndex < seriesData.chapters.length - 1) {
+                    nextChapterId = seriesData.chapters[currentIndex + 1].id;
+                    nextChapterBtn.style.display = 'block';
+                    nextChapterModalBtn.disabled = false;
+                } else {
+                    nextChapterModalBtn.disabled = true;
+                }
+            };
+
+            const loadImages = () => {
+                for (let i = 1; i <= chapterData.page_count; i++) {
+                    const img = document.createElement('img');
+                    img.src = `/api/series/${seriesId}/chapters/${chapterId}/pages/${i}`;
+                    img.classList.add('page-image');
+                    img.addEventListener('click', () => modal.style.display = 'flex');
+                    imageContainer.appendChild(img);
+                }
+            };
+
+            const calculateAndUpdateProgress = () => {
+                const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
+                if (scrollableHeight <= 0) {
+                    progressBar.style.width = '100%';
+                    return;
+                }
+                const progress = (window.scrollY / scrollableHeight) * 100;
+                progressBar.style.width = `${progress}%`;
+
+                // Persist progress (debounced)
+                clearTimeout(window.progressTimeout);
+                window.progressTimeout = setTimeout(() => {
+                    const isRead = progress >= 99;
+                    updateProgress(Math.round(progress), isRead);
+                }, 500);
+            };
+
+            // --- Event Listeners ---
+            window.addEventListener('scroll', calculateAndUpdateProgress);
+
+            nextChapterBtn.addEventListener('click', () => {
+                if (nextChapterId) window.location.href = `/reader/series/${seriesId}/chapters/${nextChapterId}`;
+            });
+            nextChapterModalBtn.addEventListener('click', () => {
+                if (nextChapterId) window.location.href = `/reader/series/${seriesId}/chapters/${nextChapterId}`;
+            });
+            prevChapterModalBtn.addEventListener('click', () => {
+                if (prevChapterId) window.location.href = `/reader/series/${seriesId}/chapters/${prevChapterId}`;
+            });
+
+            markReadBtn.addEventListener('click', () => {
+                updateProgress(100, true);
+                progressBar.style.width = '100%';
+                modal.style.display = 'none';
+            });
+
+            // Close modal on overlay click
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+
+            // --- Initialization ---
+            const init = async () => {
+                await fetchChapterDetails();
+                await fetchSeriesDetails();
+                document.title = `${seriesData.title} - Chapter ${chapterData.id}`;
+                loadImages();
+                // Restore scroll position after images have loaded
+                setTimeout(() => {
+                     const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
+                     const savedProgress = chapterData.current_page || 0;
+                     window.scrollTo(0, (scrollableHeight * savedProgress) / 100);
+                     calculateAndUpdateProgress(); // Initial calculation
+                }, 500); // Delay to allow images to start rendering
+            };
+
+            init();
+        });
+    </script>
+</body>
+</html>
