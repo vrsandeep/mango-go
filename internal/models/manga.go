@@ -10,6 +10,7 @@ type Series struct {
 	ID        int64      `json:"id"`
 	Title     string     `json:"title"`
 	Path      string     `json:"path"`
+	Thumbnail string     `json:"thumbnail,omitempty"`
 	Chapters  []*Chapter `json:"chapters,omitempty"` // omitempty hides it when not loaded
 	CreatedAt time.Time  `json:"created_at"`
 	UpdatedAt time.Time  `json:"updated_at"`
@@ -21,6 +22,7 @@ type Chapter struct {
 	SeriesID        int64     `json:"series_id"`
 	Path            string    `json:"path"`
 	PageCount       int       `json:"page_count"`
+	Thumbnail       string    `json:"thumbnail,omitempty"`
 	Read            bool      `json:"read"`
 	ProgressPercent int       `json:"progress_percent"`
 	CreatedAt       time.Time `json:"-"` // Hide from JSON responses

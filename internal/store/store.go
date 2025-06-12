@@ -45,29 +45,42 @@ func (s *Store) GetOrCreateSeries(tx *sql.Tx, title, path string) (int64, error)
 // AddOrUpdateChapter adds a chapter or updates its page count if it already exists.
 // It uses the file path as a unique identifier for the chapter.
 // This operation must be done in a transaction.
-func (s *Store) AddOrUpdateChapter(tx *sql.Tx, seriesID int64, path string, pageCount int) (int64, error) {
+func (s *Store) AddOrUpdateChapter(tx *sql.Tx, seriesID int64, path string, pageCount int, thumbnail string) (int64, error) {
 	var chapterID int64
 	err := tx.QueryRow("SELECT id FROM chapters WHERE path = ?", path).Scan(&chapterID)
 	if err == sql.ErrNoRows {
 		// Chapter does not exist, insert it.
-		res, err := tx.Exec("INSERT INTO chapters (series_id, path, page_count, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
-			seriesID, path, pageCount, time.Now(), time.Now())
+		res, err := tx.Exec("INSERT INTO chapters (series_id, path, page_count, thumbnail, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+			seriesID, path, pageCount, thumbnail, time.Now(), time.Now())
 		if err != nil {
 			return 0, err
 		}
-		chapterID, err = res.LastInsertId()
-		if err != nil {
-			return 0, err
-		}
+		chapterID, _ = res.LastInsertId()
 	} else if err != nil {
 		return 0, err
 	} else {
 		// Chapter exists, update it.
-		_, err := tx.Exec("UPDATE chapters SET page_count = ?, updated_at = ? WHERE id = ?",
-			pageCount, time.Now(), chapterID)
+		_, err := tx.Exec("UPDATE chapters SET page_count = ?, thumbnail = ?, updated_at = ? WHERE id = ?",
+			pageCount, thumbnail, time.Now(), chapterID)
 		if err != nil {
 			return 0, err
 		}
 	}
 	return chapterID, nil
+}
+
+// UpdateSeriesThumbnailIfNeeded sets the series thumbnail only if it's not already set.
+// This ensures the first scanned chapter's cover becomes the series cover.
+func (s *Store) UpdateSeriesThumbnailIfNeeded(tx *sql.Tx, seriesID int64, thumbnail string) error {
+	var currentThumbnail sql.NullString
+	err := tx.QueryRow("SELECT thumbnail FROM series WHERE id = ?", seriesID).Scan(&currentThumbnail)
+	if err != nil {
+		return err
+	}
+
+	if !currentThumbnail.Valid || currentThumbnail.String == "" {
+		_, err := tx.Exec("UPDATE series SET thumbnail = ? WHERE id = ?", thumbnail, seriesID)
+		return err
+	}
+	return nil
 }

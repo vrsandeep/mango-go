@@ -62,16 +62,31 @@ func (s *Scanner) Scan() error {
 			}
 
 			// Parse the archive to get page information.
-			pages, err := ParseArchive(path)
+			pages, firstPageData, err := ParseArchive(path)
 			if err != nil {
 				log.Printf("Warning: could not parse archive %s: %v", path, err)
 				return nil // Continue scanning even if one file is corrupt
 			}
 
+			var thumbnailData string
+			if firstPageData != nil {
+				thumbnailData, err = GenerateThumbnail(firstPageData)
+				if err != nil {
+					log.Printf("Warning: could not generate thumbnail for %s: %v", path, err)
+				}
+			}
+
 			// Add or update the chapter in the database.
-			_, err = s.st.AddOrUpdateChapter(tx, seriesID, path, len(pages))
+			_, err = s.st.AddOrUpdateChapter(tx, seriesID, path, len(pages), thumbnailData)
 			if err != nil {
 				return err
+			}
+
+			// If a thumbnail was generated, try to set it as the series cover.
+			if thumbnailData != "" {
+				if err := s.st.UpdateSeriesThumbnailIfNeeded(tx, seriesID, thumbnailData); err != nil {
+					return err
+				}
 			}
 
 			// Commit the transaction if everything was successful.
