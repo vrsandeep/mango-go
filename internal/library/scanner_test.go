@@ -3,61 +3,43 @@
 package library
 
 import (
-	"archive/zip"
 	"database/sql"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
-	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database/sqlite3"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/vrsandeep/mango-go/internal/config"
 	"github.com/vrsandeep/mango-go/internal/store"
+	"github.com/vrsandeep/mango-go/internal/testutil"
 )
 
-// createTestCBZ is a helper function that creates a temporary CBZ file
-// for testing purposes. It returns the path to the created file.
-// (This helper is from Milestone 1 tests, copied here for completeness)
-func createTestCBZFile(t *testing.T, dir, name string) string {
-	t.Helper()
-	file, err := os.Create(filepath.Join(dir, name))
-	if err != nil {
-		t.Fatalf("Failed to create temp cbz file: %v", err)
-	}
-	defer file.Close()
-	zipWriter := zip.NewWriter(file)
-	defer zipWriter.Close()
-	files := []string{"01.jpg", "03.png", "02.jpeg"}
-	for _, f := range files {
-		_, err := zipWriter.Create(f)
-		if err != nil {
-			t.Fatalf("Failed to create entry in zip: %v", err)
-		}
-	}
-	return file.Name()
-}
+// https://gist.github.com/ondrek/7413434
+const (
+	tinyPNG_A = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="             // Transparent
+	tinyPNG_B = "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mP8z8BQz0AEYBxVSF+FABJADveWkH6oAAAAAElFTkSuQmCC" // Red
+	tinyPNG_C = "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC" // Green
+	tinyPNG_D = "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNkYPhfz0AEYBxVSF+FAP5FDvcfRYWgAAAAAElFTkSuQmCC" // Blue
+	tinyPNG_E = "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mP8/5+hnoEIwDiqkL4KAcT9GO0U4BxoAAAAAElFTkSuQmCC" // Yellow
+)
 
 // setupTestLibraryAndDB creates a temporary library structure and an in-memory DB.
 func setupTestLibraryAndDB(t *testing.T) (string, *sql.DB) {
 	t.Helper()
 	// Setup DB
-	db, err := sql.Open("sqlite3", ":memory:")
-	if err != nil {
-		t.Fatalf("Failed to open in-memory database: %v", err)
-	}
-	driver, _ := sqlite3.WithInstance(db, &sqlite3.Config{})
-	m, _ := migrate.NewWithDatabaseInstance("file://../../migrations", "sqlite3", driver)
-	if err := m.Up(); err != nil {
-		t.Fatalf("Failed to apply migrations: %v", err)
-	}
+	db := testutil.SetupTestDB(t)
 
 	// Setup Library
 	rootDir := t.TempDir()
 	seriesADir := filepath.Join(rootDir, "Series A")
 	os.Mkdir(seriesADir, 0755)
-	createTestCBZFile(t, seriesADir, "ch1.cbz")
+	// Create two chapters. The scanner processes files in alphabetical order,
+	// so "ch1.cbz" will be scanned first. Its thumbnail should be used for the series.
+	testutil.CreateTestCBZWithThumbnail(t, seriesADir, "ch1.cbz", []string{"pageA1.jpg"}, tinyPNG_A)
+	testutil.CreateTestCBZWithThumbnail(t, seriesADir, "ch2.cbz", []string{"pageB1.jpg"}, tinyPNG_B)
+
 	return rootDir, db
 }
 
@@ -72,6 +54,62 @@ func TestScannerIntegration(t *testing.T) {
 	scanner := NewScanner(cfg, db)
 	if err := scanner.Scan(); err != nil {
 		t.Fatalf("scanner.Scan() failed: %v", err)
+	}
+
+	var seriesThumbnail string
+	err := db.QueryRow("SELECT thumbnail FROM series WHERE title = 'Series A'").Scan(&seriesThumbnail)
+	if err != nil {
+		t.Fatalf("Failed to query series thumbnail: %v", err)
+	}
+
+	if !strings.HasPrefix(seriesThumbnail, "data:image/jpeg;base64,") {
+		t.Error("Series thumbnail is not a valid data URI")
+	}
+
+	// Query both chapters to check their thumbnails
+	rows, err := db.Query("SELECT path, thumbnail FROM chapters WHERE series_id = (SELECT id FROM series WHERE title = 'Series A') ORDER BY path")
+	if err != nil {
+		t.Fatalf("Failed to query chapters: %v", err)
+	}
+	defer rows.Close()
+
+	chapterThumbnails := make(map[string]string)
+	for rows.Next() {
+		var path, thumbnail string
+		if err := rows.Scan(&path, &thumbnail); err != nil {
+			t.Fatalf("Failed to scan chapter row: %v", err)
+		}
+		chapterThumbnails[filepath.Base(path)] = thumbnail
+	}
+
+	if len(chapterThumbnails) != 2 {
+		t.Fatalf("Expected to find 2 chapters, but found %d", len(chapterThumbnails))
+	}
+
+	ch1Thumb, ok := chapterThumbnails["ch1.cbz"]
+	if !ok {
+		t.Fatal("Chapter 'ch1.cbz' not found in database")
+	}
+	if !strings.HasPrefix(ch1Thumb, "data:image/jpeg;base64,") {
+		t.Error("Thumbnail for 'ch1.cbz' is not a valid data URI")
+	}
+
+	ch2Thumb, ok := chapterThumbnails["ch2.cbz"]
+	if !ok {
+		t.Fatal("Chapter 'ch2.cbz' not found in database")
+	}
+	if !strings.HasPrefix(ch2Thumb, "data:image/jpeg;base64,") {
+		t.Error("Thumbnail for 'ch2.cbz' is not a valid data URI")
+	}
+
+	// IMPORTANT: Verify that the series thumbnail matches the thumbnail of the FIRST chapter.
+	if seriesThumbnail != ch1Thumb {
+		t.Error("Series thumbnail does not match the thumbnail of the first chapter ('ch1.cbz')")
+	}
+
+	// Also verify it does NOT match the second chapter's thumbnail, proving it wasn't overwritten.
+	if seriesThumbnail == ch2Thumb {
+		t.Error("Series thumbnail incorrectly matches the thumbnail of the second chapter ('ch2.cbz')")
 	}
 
 	// Verify the database state after the scan
@@ -95,8 +133,8 @@ func TestScannerIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to find chapter for 'Series A': %v", err)
 	}
-	if pageCount != 3 {
-		t.Errorf("Expected page count of 3 for scanned chapter, got %d", pageCount)
+	if pageCount != 1 {
+		t.Errorf("Expected page count of 1 for scanned chapter, got %d", pageCount)
 	}
 	expectedPath := filepath.Join(libraryPath, "Series A", "ch1.cbz")
 	if chapterPath != expectedPath {

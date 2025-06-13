@@ -1,14 +1,8 @@
-# This Dockerfile uses a multi-stage build to create a minimal and optimized
-# container image for the Mango-Go application.
-
-# ---- Builder Stage ----
-# This stage builds the Go binary. It includes the Go toolchain and source code.
 FROM golang:1.24-alpine AS builder
 
 # Install necessary build tools for CGo and SQLite
 RUN apk add --no-cache build-base sqlite-dev
 
-# Set the working directory inside the container
 WORKDIR /app
 
 # Copy dependency management files
@@ -17,13 +11,12 @@ COPY go.mod go.sum ./
 # layer caching. Dependencies are only re-downloaded if go.mod or go.sum change.
 RUN go mod download
 
-# Copy the rest of the application's source code
 COPY . .
 
 # Build the Go application.
-# We build the mango-cli tool. The output is a single binary named 'mango-scanner'.
 # CGO_ENABLED=1 is required by the go-sqlite3 driver.
 RUN CGO_ENABLED=1 go build -o /mango-scanner ./cmd/mango-cli
+RUN CGO_ENABLED=1 go build -o /mango-server ./cmd/mango-server
 
 # ---- Final Stage ----
 # This stage creates the final, minimal image. It only contains the compiled
@@ -37,7 +30,8 @@ RUN apk add --no-cache sqlite
 WORKDIR /app
 
 # Copy the compiled binary from the builder stage
-COPY --from=builder /mango-scanner /usr/local/bin/mango-scanner
+COPY --from=builder /mango-scanner /app/mango-scanner
+COPY --from=builder /mango-server /app/mango-server
 
 # Copy the configuration and migration files into the image.
 # The application will look for these in its working directory.
@@ -50,23 +44,4 @@ COPY migrations ./migrations
 # container with: docker run -v /path/to/your/manga:/manga mango-go
 VOLUME /manga
 
-CMD ["mango-scanner"]
-
-# The application will run in the foreground, so the container will keep
-# running as long as the mango-scanner process is active.
-# This is important for Docker to keep the container alive.
-# The application will log to stdout/stderr, which is the standard behavior
-# for Docker containers, allowing you to view logs using `docker logs <container_id>`.
-# The container can be run with:
-# docker run -v /path/to/your/manga:/manga mango-go
-# To build the Docker image, run:
-# docker build -t mango-go .
-# To run the Docker container, use:
-# docker run -v /path/to/your/manga:/manga mango-go
-# To run the container in detached mode, use:
-# docker run -d -v /path/to/your/manga:/manga mango-go
-# To remove the container after it stops, you can use:
-# docker run --rm -v /path/to/your/manga:/manga mango-go
-# To run the container with a specific configuration file, you can mount
-# a custom config.yml file:
-# docker run -v /path/to/your/manga:/manga -v /path/to/your/config.yml:/app/config.yml mango-go
+CMD ["/app/mango-server"]

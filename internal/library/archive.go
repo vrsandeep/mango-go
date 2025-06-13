@@ -5,30 +5,41 @@ package library
 
 import (
 	"archive/zip"
+	"context"
 	"fmt"
 	"io"
-	"log"
+	"io/fs"
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
+	"github.com/mholt/archives"
 	"github.com/vrsandeep/mango-go/internal/models"
 )
 
 // IsImageFile checks if a filename has a common image file extension.
 func IsImageFile(name string) bool {
+	imageExts := map[string]bool{
+		".jpg":  true,
+		".jpeg": true,
+		".png":  true,
+		".gif":  true,
+		".bmp":  true,
+		".tiff": true,
+		".webp": true,
+	}
 	ext := strings.ToLower(filepath.Ext(name))
-	return ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".gif" || ext == ".webp"
+	return imageExts[ext]
 }
 
 // ParseArchive dispatches to the correct parser based on file extension.
-
 func ParseArchive(filePath string) (pages []*models.Page, firstPageData []byte, err error) {
 	ext := strings.ToLower(filepath.Ext(filePath))
 	switch ext {
-	case ".cbz":
+	case ".cbz", ".zip":
 		return parseCBZ(filePath)
-	case ".cbr":
+	case ".cbr", ".rar", ".7z", ".cb7":
 		return parseCBR(filePath)
 	default:
 		return nil, nil, fmt.Errorf("unsupported archive type: %s", ext)
@@ -82,14 +93,69 @@ func parseCBZ(filePath string) ([]*models.Page, []byte, error) {
 	return pages, firstPageData, nil
 }
 
-// parseCBR is a placeholder for RAR file parsing.
-//
-// **Proof of Concept Research Note:**
-// Implementing this will require a CGo binding to a C library like `libunarr`
-// or finding a pure Go RAR library. A popular CGo choice is `github.com/gen2brain/go-unarr`.
-// This would be a key task for a future milestone.
-func parseCBR(filePath string) ([]*models.Page, []byte, error) {
-	log.Printf("Parsing CBR files is not yet implemented. File: %s", filePath)
-	// Return an empty list for now so the scanner can continue.
-	return []*models.Page{}, nil, nil
+// parseCBR opens the given archive or directory path, finds all image files, picks the lexically first image file,
+// and returns its bytes.
+func parseCBR(path string) ([]*models.Page, []byte, error) {
+	var pages []*models.Page
+	// Create a virtual file system from the path (archive, dir, etc)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	fsys, err := archives.FileSystem(ctx, path, nil)
+	if err != nil {
+		// return nil, "", fmt.Errorf("failed to open file system: %w", err)
+		return []*models.Page{}, nil, err
+	}
+
+	var imageFiles []string
+
+	// Walk the virtual FS to find image files
+	err = fs.WalkDir(fsys, ".", func(fpath string, d fs.DirEntry, err error) error {
+		if err != nil {
+			// If error walking, stop
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		if IsImageFile(d.Name()) {
+			imageFiles = append(imageFiles, fpath)
+			pages = append(pages, &models.Page{FileName: fpath})
+		}
+		return nil
+	})
+	if err != nil {
+		return []*models.Page{}, nil, err
+	}
+
+	if len(imageFiles) == 0 {
+		return []*models.Page{}, nil, err
+	}
+
+	// Sort image files lexically and pick the first
+	sort.Strings(imageFiles)
+	firstImage := imageFiles[0]
+
+	// Open the first image file
+	f, err := fsys.Open(firstImage)
+	if err != nil {
+		return []*models.Page{}, nil, err
+	}
+	defer f.Close()
+
+	// Read all bytes from the first image file
+	data, err := io.ReadAll(f)
+	if err != nil {
+		return []*models.Page{}, nil, err
+	}
+
+	// Sort pages alphabetically by filename to ensure correct order.
+	sort.Slice(pages, func(i, j int) bool {
+		return pages[i].FileName < pages[j].FileName
+	})
+
+	// Assign index after sorting
+	for i := range pages {
+		pages[i].Index = i
+	}
+	return pages, data, nil
 }

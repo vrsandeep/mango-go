@@ -62,7 +62,7 @@ func TestAddOrUpdateChapter(t *testing.T) {
 
 	// First time: should add the chapter
 	chapterPath := "/path/to/series/ch1.cbz"
-	chapterID1, err := s.AddOrUpdateChapter(tx, seriesID, chapterPath, 20)
+	chapterID1, err := s.AddOrUpdateChapter(tx, seriesID, chapterPath, 20, "")
 	if err != nil {
 		t.Fatalf("AddOrUpdateChapter (add) failed: %v", err)
 	}
@@ -78,7 +78,7 @@ func TestAddOrUpdateChapter(t *testing.T) {
 	}
 
 	// Second time: should update the chapter
-	_, err = s.AddOrUpdateChapter(tx, seriesID, chapterPath, 25)
+	_, err = s.AddOrUpdateChapter(tx, seriesID, chapterPath, 25, "")
 	if err != nil {
 		t.Fatalf("AddOrUpdateChapter (update) failed: %v", err)
 	}

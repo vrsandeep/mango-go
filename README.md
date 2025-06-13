@@ -30,6 +30,19 @@ This command will:
 6. You should see log output indicating the progress of the scan.
 
 
+#### Docker
+
+The container can be run with:
+`docker run -v /path/to/your/manga:/manga vrsandeep/mango-go`
+To build the Docker image, run:
+`docker build -t mango-go .`
+To run the Docker container, use:
+`docker run -d -v /path/to/your/manga:/manga vrsandeep/mango-go`
+
+To run the container with a specific configuration file and a persistent database:
+`docker run -v /path/to/your/manga:/manga -v /path/to/your/config.yml:./config.yml -v /path/to/db:./mango.db vrsandeep/mango-go`
+
+
 ### Development
 
 #### Project Structure

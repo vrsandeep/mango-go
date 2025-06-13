@@ -61,7 +61,7 @@ func TestParseArchive(t *testing.T) {
 	t.Run("Parse Valid CBZ", func(t *testing.T) {
 		cbzPath := createTestCBZ(t, tempDir)
 
-		pages, err := ParseArchive(cbzPath)
+		pages, firstPageData, err := ParseArchive(cbzPath)
 		if err != nil {
 			t.Fatalf("ParseArchive failed for CBZ: %v", err)
 		}
@@ -80,18 +80,9 @@ func TestParseArchive(t *testing.T) {
 		if pages[0].Index != 0 || pages[1].Index != 1 || pages[2].Index != 2 {
 			t.Errorf("Page indices are not set correctly")
 		}
-	})
 
-	t.Run("Parse CBR (Not Implemented)", func(t *testing.T) {
-		cbrPath := filepath.Join(tempDir, "test.cbr")
-		os.WriteFile(cbrPath, []byte{}, 0644)
-
-		pages, err := ParseArchive(cbrPath)
-		if err != nil {
-			t.Fatalf("ParseArchive failed for CBR: %v", err)
-		}
-		if len(pages) != 0 {
-			t.Errorf("Expected 0 pages for unimplemented CBR, got %d", len(pages))
+		if firstPageData == nil {
+			t.Error("Expected first page data to be non-nil")
 		}
 	})
 
@@ -99,9 +90,43 @@ func TestParseArchive(t *testing.T) {
 		unsupportedPath := filepath.Join(tempDir, "test.txt")
 		os.WriteFile(unsupportedPath, []byte("hello"), 0644)
 
-		_, err := ParseArchive(unsupportedPath)
+		_, _, err := ParseArchive(unsupportedPath)
 		if err == nil {
 			t.Error("Expected an error for unsupported archive type, but got nil")
 		}
 	})
+}
+
+func TestParseCBR(t *testing.T) {
+
+	// The file contains three images and one directory.
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current working directory: %v", err)
+	}
+	// Change to project root (which is two levels up from internal/api)
+	if err := os.Chdir("../"); err != nil {
+		t.Fatalf("Failed to change directory to project root: %v", err)
+	}
+	// Ensure we change back to the original directory after the test
+	defer os.Chdir(originalWD)
+
+	assetDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get asset directory: %v", err)
+	}
+	cbrPath := filepath.Join(assetDir, "testutil", "asset", "test.cbr")
+	// print cbrPath for debugging
+	t.Logf("Testing CBR parsing with file: %s", cbrPath)
+
+	pages, firstPageData, err := ParseArchive(cbrPath)
+	if err != nil {
+		t.Fatalf("ParseArchive failed for CBR: %v", err)
+	}
+	if len(pages) != 4 {
+		t.Errorf("Expected 4 pages for unimplemented CBR, got %d", len(pages))
+	}
+	if firstPageData == nil {
+		t.Error("Expected first page data to be not nil")
+	}
 }
