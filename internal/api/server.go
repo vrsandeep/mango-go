@@ -44,15 +44,22 @@ func (s *Server) Router() http.Handler {
 	r.Route("/api", func(r chi.Router) {
 		r.Get("/series", s.handleListSeries)
 		r.Get("/series/{seriesID}", s.handleGetSeries)
+		r.Post("/series/{seriesID}/cover", s.handleUpdateCover)
 		r.Get("/series/{seriesID}/chapters/{chapterID}", s.handleGetChapterDetails)
 		r.Get("/series/{seriesID}/chapters/{chapterID}/pages/{pageNumber}", s.handleGetPage)
-		// New endpoints for progress tracking
 		r.Post("/chapters/{chapterID}/progress", s.handleUpdateProgress)
 	})
 
 	// Route to serve the web reader frontend
 	r.Get("/reader/series/{seriesID}/chapters/{chapterID}", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "./web/reader.html")
+	})
+	// New routes for series browsing
+	r.Get("/series", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./web/series.html")
+	})
+	r.Get("/series/{seriesID}", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./web/chapters.html")
 	})
 
 	// Serve static files for the web reader

@@ -42,6 +42,12 @@ func (s *Store) GetOrCreateSeries(tx *sql.Tx, title, path string) (int64, error)
 	return seriesID, nil
 }
 
+// UpdateSeriesCoverURL updates the custom cover URL for a given series.
+func (s *Store) UpdateSeriesCoverURL(seriesID int64, url string) error {
+	_, err := s.db.Exec("UPDATE series SET custom_cover_url = ? WHERE id = ?", url, seriesID)
+	return err
+}
+
 // AddOrUpdateChapter adds a chapter or updates its page count if it already exists.
 // It uses the file path as a unique identifier for the chapter.
 // This operation must be done in a transaction.

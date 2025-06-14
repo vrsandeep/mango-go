@@ -94,10 +94,23 @@
             height: 100%;
             background-color: #1e90ff;
         }
+        /* #exit-reader-btn {
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            z-index: 1001;
+            background-color: rgba(0,0,0,0.5);
+            color: white;
+            border: 1px solid #888;
+            padding: 8px 16px;
+            font-size: 1rem;
+            cursor: pointer;
+            border-radius: 20px;
+            backdrop-filter: blur(5px);
+        } */
     </style>
 </head>
 <body>
-
     <div class="reader-container" id="image-container">
         <!-- Manga pages will be loaded here -->
     </div>
@@ -111,6 +124,7 @@
             <button class="modal-btn" id="prev-chapter-btn">Previous Chapter</button>
             <button class="modal-btn" id="next-chapter-modal-btn">Next Chapter</button>
             <button class="modal-btn" id="mark-read-btn">Mark as Read</button>
+            <button class="modal-btn" id="exit-reader-btn">Exit Reader</button>
         </div>
     </div>
 
@@ -131,6 +145,7 @@
 
             const imageContainer = document.getElementById('image-container');
             const nextChapterBtn = document.getElementById('next-chapter-btn');
+            const exitReaderBtn = document.getElementById('exit-reader-btn');
             const progressBar = document.getElementById('progress-bar');
 
             // Modal elements
@@ -221,6 +236,10 @@
                 updateProgress(100, true);
                 progressBar.style.width = '100%';
                 modal.style.display = 'none';
+            });
+
+            exitReaderBtn.addEventListener('click', () => {
+                window.location.href = `/series/${seriesId}`;
             });
 
             // Close modal on overlay click

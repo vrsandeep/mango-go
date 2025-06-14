@@ -7,13 +7,14 @@ import "time"
 
 // Series represents a single manga series.
 type Series struct {
-	ID        int64      `json:"id"`
-	Title     string     `json:"title"`
-	Path      string     `json:"path"`
-	Thumbnail string     `json:"thumbnail,omitempty"`
-	Chapters  []*Chapter `json:"chapters,omitempty"` // omitempty hides it when not loaded
-	CreatedAt time.Time  `json:"created_at"`
-	UpdatedAt time.Time  `json:"updated_at"`
+	ID             int64      `json:"id"`
+	Title          string     `json:"title"`
+	Path           string     `json:"path"`
+	Thumbnail      string     `json:"thumbnail,omitempty"`
+	CustomCoverURL string     `json:"custom_cover_url,omitempty"` // New field
+	Chapters       []*Chapter `json:"chapters,omitempty"`         // omitempty hides it when not loaded
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
 }
 
 // Chapter represents a single chapter of a manga.

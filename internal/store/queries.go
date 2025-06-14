@@ -11,8 +11,9 @@ import (
 )
 
 // ListSeries fetches all series from the database.
-func (s *Store) ListSeries() ([]*models.Series, error) {
-	rows, err := s.db.Query("SELECT id, title, path, thumbnail, created_at, updated_at FROM series ORDER BY title")
+func (s *Store) ListSeries(page, perPage int) ([]*models.Series, error) {
+	offset := (page - 1) * perPage
+	rows, err := s.db.Query("SELECT id, title, path, thumbnail, custom_cover_url, created_at, updated_at FROM series ORDER BY title LIMIT ? OFFSET ?", perPage, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -21,27 +22,30 @@ func (s *Store) ListSeries() ([]*models.Series, error) {
 	var seriesList []*models.Series
 	for rows.Next() {
 		var series models.Series
-		var thumb sql.NullString
-		if err := rows.Scan(&series.ID, &series.Title, &series.Path, &thumb, &series.CreatedAt, &series.UpdatedAt); err != nil {
+		var thumb, customCover sql.NullString
+		if err := rows.Scan(&series.ID, &series.Title, &series.Path, &thumb, &customCover, &series.CreatedAt, &series.UpdatedAt); err != nil {
 			return nil, err
 		}
 		series.Thumbnail = thumb.String
+		series.CustomCoverURL = customCover.String
 		seriesList = append(seriesList, &series)
 	}
 	return seriesList, nil
 }
 
 // GetSeriesByID fetches a single series and all its associated chapters.
-func (s *Store) GetSeriesByID(id int64) (*models.Series, error) {
+func (s *Store) GetSeriesByID(id int64, page, perPage int) (*models.Series, error) {
 	var series models.Series
-	var thumb sql.NullString
-	err := s.db.QueryRow("SELECT id, title, path, thumbnail FROM series WHERE id = ?", id).Scan(&series.ID, &series.Title, &series.Path, &thumb)
+	var thumb, customCover sql.NullString
+	err := s.db.QueryRow("SELECT id, title, path, thumbnail, custom_cover_url FROM series WHERE id = ?", id).Scan(&series.ID, &series.Title, &series.Path, &thumb, &customCover)
 	if err != nil {
 		return nil, err
 	}
 	series.Thumbnail = thumb.String
+	series.CustomCoverURL = customCover.String
 
-	rows, err := s.db.Query("SELECT id, path, page_count, read, progress_percent, thumbnail FROM chapters WHERE series_id = ? ORDER BY path", id)
+	offset := (page - 1) * perPage
+	rows, err := s.db.Query("SELECT id, path, page_count, read, progress_percent, thumbnail FROM chapters WHERE series_id = ? ORDER BY path LIMIT ? OFFSET ?", id, perPage, offset)
 	if err != nil {
 		return nil, err
 	}

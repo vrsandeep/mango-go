@@ -14,9 +14,23 @@ import (
 	"github.com/vrsandeep/mango-go/internal/library"
 )
 
+// getPaginationParams extracts 'page' and 'per_page' from the URL query.
+func getPaginationParams(r *http.Request) (page, perPage int) {
+	page, _ = strconv.Atoi(r.URL.Query().Get("page"))
+	if page < 1 {
+		page = 1
+	}
+	perPage, _ = strconv.Atoi(r.URL.Query().Get("per_page"))
+	if perPage <= 0 || perPage > 100 { // Enforce a max of 100
+		perPage = 100
+	}
+	return page, perPage
+}
+
 // handleListSeries retrieves and returns a list of all manga series.
 func (s *Server) handleListSeries(w http.ResponseWriter, r *http.Request) {
-	series, err := s.store.ListSeries()
+	page, perPage := getPaginationParams(r)
+	series, err := s.store.ListSeries(page, perPage)
 	if err != nil {
 		RespondWithError(w, http.StatusInternalServerError, "Failed to retrieve series from database")
 		return
@@ -33,13 +47,42 @@ func (s *Server) handleGetSeries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	series, err := s.store.GetSeriesByID(seriesID)
+	page, perPage := getPaginationParams(r)
+	series, err := s.store.GetSeriesByID(seriesID, page, perPage)
 	if err != nil {
 		RespondWithError(w, http.StatusNotFound, "Series not found")
 		return
 	}
 
 	RespondWithJSON(w, http.StatusOK, series)
+}
+
+// handleUpdateCover handles requests to update the custom cover URL for a series.
+func (s *Server) handleUpdateCover(w http.ResponseWriter, r *http.Request) {
+	seriesIDStr := chi.URLParam(r, "seriesID")
+	seriesID, err := strconv.ParseInt(seriesIDStr, 10, 64)
+	if err != nil {
+		RespondWithError(w, http.StatusBadRequest, "Invalid series ID")
+		return
+	}
+
+	var payload struct {
+		URL string `json:"url"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+
+	// Basic validation could be added here to check if it's a valid URL format.
+
+	if err := s.store.UpdateSeriesCoverURL(seriesID, payload.URL); err != nil {
+		log.Printf("Failed to update cover for series %d: %v", seriesID, err)
+		RespondWithError(w, http.StatusInternalServerError, "Failed to update cover")
+		return
+	}
+
+	RespondWithJSON(w, http.StatusOK, map[string]string{"status": "success"})
 }
 
 // handleGetPage finds a specific page within an archive and serves it as an image.
