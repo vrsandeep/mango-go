@@ -22,7 +22,7 @@ func TestListSeries(t *testing.T) {
 	populateDB(t, db)
 	s := New(db)
 
-	seriesList, err := s.ListSeries()
+	seriesList, err := s.ListSeries(1, 50)
 	if err != nil {
 		t.Fatalf("ListSeries failed: %v", err)
 	}
@@ -35,6 +35,9 @@ func TestListSeries(t *testing.T) {
 	if seriesList[0].Title != "Series A" {
 		t.Errorf("Expected first series to be 'Series A' due to sorting, got '%s'", seriesList[0].Title)
 	}
+	if seriesList[0].CustomCoverURL != "" {
+		t.Errorf("Expected CustomCoverURL to be empty, got '%s'", seriesList[0].CustomCoverURL)
+	}
 }
 
 func TestGetSeriesByID(t *testing.T) {
@@ -44,7 +47,7 @@ func TestGetSeriesByID(t *testing.T) {
 	s := New(db)
 
 	t.Run("Success", func(t *testing.T) {
-		series, err := s.GetSeriesByID(2) // Get Series A
+		series, err := s.GetSeriesByID(2, 1, 10) // Get Series A
 		if err != nil {
 			t.Fatalf("GetSeriesByID failed: %v", err)
 		}
@@ -63,14 +66,53 @@ func TestGetSeriesByID(t *testing.T) {
 		if series.Chapters[0].ProgressPercent != 0 {
 			t.Errorf("Expected chapter 'progress_percent' to be 0, got %d", series.Chapters[0].ProgressPercent)
 		}
+		if series.CustomCoverURL != "" {
+			t.Errorf("Expected CustomCoverURL to be empty, got '%s'", series.CustomCoverURL)
+		}
 	})
 
 	t.Run("Not Found", func(t *testing.T) {
-		_, err := s.GetSeriesByID(999)
+		_, err := s.GetSeriesByID(999, 1, 10)
 		if err == nil {
 			t.Error("Expected an error for non-existent series, got nil")
 		}
 	})
+}
+
+func TestUpdateSeriesCoverURL(t *testing.T) {
+	db := testutil.SetupTestDB(t)
+	s := New(db)
+
+	seriesID := int64(1)
+	newURL := "http://example.com/cover.png"
+
+	// test with non existing series ID
+	rowsAffected, err := s.UpdateSeriesCoverURL(999, newURL)
+	if err != nil {
+		t.Error("Expected no error when updating cover URL for non-existent series")
+	}
+	if rowsAffected != 0 {
+		t.Errorf("Expected 0 rows affected for non-existent series, got %d", rowsAffected)
+	}
+
+	populateDB(t, db)
+	rowsAffected, err = s.UpdateSeriesCoverURL(seriesID, newURL)
+	if err != nil {
+		t.Fatalf("UpdateSeriesCoverURL failed: %v", err)
+	}
+	if rowsAffected == 0 {
+		t.Errorf("Expected 1 row affected for existing series, got %d", rowsAffected)
+	}
+
+	// Verify the update
+	series, err := s.GetSeriesByID(seriesID, 1, 1)
+	if err != nil {
+		t.Fatalf("GetSeriesByID failed after update: %v", err)
+	}
+
+	if series.CustomCoverURL != newURL {
+		t.Errorf("Expected CustomCoverURL to be '%s', got '%s'", newURL, series.CustomCoverURL)
+	}
 }
 
 func TestGetChapterByID(t *testing.T) {

@@ -74,11 +74,17 @@ func (s *Server) handleUpdateCover(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Basic validation could be added here to check if it's a valid URL format.
+	if payload.URL == "" {
+		RespondWithError(w, http.StatusBadRequest, "Cover URL cannot be empty")
+		return
+	}
 
-	if err := s.store.UpdateSeriesCoverURL(seriesID, payload.URL); err != nil {
+	if rowsAffected, err := s.store.UpdateSeriesCoverURL(seriesID, payload.URL); err != nil {
 		log.Printf("Failed to update cover for series %d: %v", seriesID, err)
 		RespondWithError(w, http.StatusInternalServerError, "Failed to update cover")
+		return
+	} else if rowsAffected == 0 {
+		RespondWithError(w, http.StatusNotFound, "Series not found")
 		return
 	}
 

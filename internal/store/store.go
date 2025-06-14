@@ -43,9 +43,10 @@ func (s *Store) GetOrCreateSeries(tx *sql.Tx, title, path string) (int64, error)
 }
 
 // UpdateSeriesCoverURL updates the custom cover URL for a given series.
-func (s *Store) UpdateSeriesCoverURL(seriesID int64, url string) error {
-	_, err := s.db.Exec("UPDATE series SET custom_cover_url = ? WHERE id = ?", url, seriesID)
-	return err
+func (s *Store) UpdateSeriesCoverURL(seriesID int64, url string) (int64, error) {
+	rows, err := s.db.Exec("UPDATE series SET custom_cover_url = ? WHERE id = ?", url, seriesID)
+	affected, _ := rows.RowsAffected()
+	return affected, err
 }
 
 // AddOrUpdateChapter adds a chapter or updates its page count if it already exists.
