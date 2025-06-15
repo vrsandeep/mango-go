@@ -5,7 +5,11 @@ package store
 
 import (
 	"database/sql"
+	"fmt"
+	"strings"
 	"time"
+
+	"github.com/vrsandeep/mango-go/internal/models"
 )
 
 // Store provides all functions to interact with the database.
@@ -97,6 +101,70 @@ func (s *Store) UpdateSeriesThumbnailIfNeeded(tx *sql.Tx, seriesID int64, thumbn
 	if !currentThumbnail.Valid || currentThumbnail.String == "" {
 		_, err := tx.Exec("UPDATE series SET thumbnail = ? WHERE id = ?", thumbnail, seriesID)
 		return err
+	}
+	return nil
+}
+
+func (s *Store) AddTagToSeries(seriesID int64, tagName string) (*models.Tag, error) {
+	tagName = strings.TrimSpace(strings.ToLower(tagName))
+	if tagName == "" {
+		return nil, fmt.Errorf("tag name cannot be empty")
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	var tagID int64
+	err = tx.QueryRow("SELECT id FROM tags WHERE name = ?", tagName).Scan(&tagID)
+	if err == sql.ErrNoRows {
+		res, err := tx.Exec("INSERT INTO tags (name) VALUES (?)", tagName)
+		if err != nil {
+			return nil, err
+		}
+		tagID, err = res.LastInsertId()
+		if err != nil {
+			return nil, err
+		}
+	} else if err != nil {
+		return nil, err
+	}
+
+	_, err = tx.Exec("INSERT OR IGNORE INTO series_tags (series_id, tag_id) VALUES (?, ?)", seriesID, tagID)
+	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			// If the tag is already associated with the series, ignore the error
+			return &models.Tag{ID: tagID, Name: tagName}, nil
+		}
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return &models.Tag{ID: tagID, Name: tagName}, nil
+}
+
+func (s *Store) RemoveTagFromSeries(seriesID, tagID int64) error {
+	_, err := s.db.Exec("DELETE FROM series_tags WHERE series_id = ? AND tag_id = ?", seriesID, tagID)
+	if err != nil {
+		return fmt.Errorf("failed to remove tag from series: %w", err)
+	}
+	// Check if the tag is no longer associated with any series
+	var count int
+	err = s.db.QueryRow("SELECT COUNT(*) FROM series_tags WHERE tag_id = ?", tagID).Scan(&count)
+	if err != nil {
+		return fmt.Errorf("failed to check tag associations: %w", err)
+	}
+	if count == 0 {
+		// If no series are left with this tag, delete the tag
+		_, err = s.db.Exec("DELETE FROM tags WHERE id = ?", tagID)
+		if err != nil {
+			return fmt.Errorf("failed to delete tag: %w", err)
+		}
 	}
 	return nil
 }

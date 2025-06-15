@@ -49,6 +49,9 @@ func (s *Server) Router() http.Handler {
 		r.Get("/series/{seriesID}/chapters/{chapterID}", s.handleGetChapterDetails)
 		r.Get("/series/{seriesID}/chapters/{chapterID}/pages/{pageNumber}", s.handleGetPage)
 		r.Post("/chapters/{chapterID}/progress", s.handleUpdateProgress)
+
+		r.Post("/series/{seriesID}/tags", s.handleAddTag)
+		r.Delete("/series/{seriesID}/tags/{tagID}", s.handleRemoveTag)
 	})
 
 	// Route to serve the web reader frontend

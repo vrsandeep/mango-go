@@ -13,6 +13,7 @@ type Series struct {
 	Thumbnail      string     `json:"thumbnail,omitempty"`
 	CustomCoverURL string     `json:"custom_cover_url,omitempty"` // New field
 	Chapters       []*Chapter `json:"chapters,omitempty"`         // omitempty hides it when not loaded
+	Tags           []*Tag     `json:"tags,omitempty"`
 	CreatedAt      time.Time  `json:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at"`
 
@@ -39,4 +40,9 @@ type Chapter struct {
 type Page struct {
 	FileName string `json:"file_name"`
 	Index    int    `json:"index"`
+}
+
+type Tag struct {
+	ID   int64  `json:"id"`
+	Name string `json:"name"`
 }

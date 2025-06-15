@@ -19,6 +19,12 @@
         .header-right { display: flex; align-items: center; gap: 1rem; }
         .menu-toggle { display: none; background: none; border: none; font-size: 2rem; color: var(--text-color); cursor: pointer; }
 
+        .library-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap; }
+        .search-bar { flex-grow: 1; max-width: 400px; }
+        .search-bar input { width: 100%; padding: 0.5rem; /* ... */ }
+        .sort-controls { display: flex; align-items: center; gap: 0.5rem; }
+        .total-count { color: #888; }
+
         /* Grid & Cards */
         .container { max-width: 1400px; margin: 2rem auto; padding: 0 1.5rem; }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 1.5rem; }
@@ -67,6 +73,21 @@
 
     <main class="container">
         <h1>Library</h1>
+        <span id="total-count" class="total-count"></span>
+        <div class="library-controls">
+            <div class="search-bar">
+                <input type="search" id="search-input" placeholder="Search series...">
+            </div>
+            <div class="sort-controls">
+                <span>Sort by:</span>
+                <select id="sort-by">
+                    <option value="title">Name</option>
+                    <option value="updated_at">Date Modified</option>
+                    <option value="progress">Progress</option>
+                </select>
+                <button id="sort-dir-btn">▲</button>
+            </div>
+        </div>
         <div class="grid" id="series-grid"></div>
         <div class="footer">
             <button id="load-more-btn">Load More</button>
@@ -80,7 +101,20 @@
             const themeToggleBtn = document.getElementById('theme-toggle-btn');
             const menuToggleBtn = document.getElementById('menu-toggle-btn');
             const navLinks = document.getElementById('nav-links');
-            let currentPage = 1;
+            const searchInput = document.getElementById('search-input');
+            const sortBySelect = document.getElementById('sort-by');
+            const sortDirBtn = document.getElementById('sort-dir-btn');
+            const totalCountEl = document.getElementById('total-count');
+
+            // let currentPage = 1;
+            let state = {
+                currentPage: 1,
+                search: '',
+                sortBy: 'title',
+                sortDir: 'asc',
+                isLoading: false,
+                hasMore: true
+            };
 
             // --- Theme Logic ---
             const applyTheme = (theme) => {
@@ -96,12 +130,29 @@
             menuToggleBtn.addEventListener('click', () => navLinks.classList.toggle('active'));
 
             // --- Data Loading ---
-            const loadSeries = async () => {
-                const response = await fetch(`/api/series?page=${currentPage}&per_page=100`);
+            const loadSeries = async (reset = false) => {
+                if (state.isLoading || !state.hasMore && !reset) return;
+                state.isLoading = true;
+                if (reset) {
+                    state.currentPage = 1;
+                    state.hasMore = true;
+                    seriesGrid.innerHTML = '';
+                }
+
+                const url = `/api/series?page=${state.currentPage}&per_page=100&search=${state.search}&sort_by=${state.sortBy}&sort_dir=${state.sortDir}`;
+                const response = await fetch(url);
                 const seriesList = await response.json();
-                if (!seriesList || seriesList.length === 0) {
-                    loadMoreBtn.style.display = 'none'; // Hide button if no more items
-                    return;
+
+                if (reset) {
+                    const total = response.headers.get('X-Total-Count');
+                    totalCountEl.textContent = `(${total})`;
+                }
+
+                if (!seriesList || seriesList.length < 100) {
+                    state.hasMore = false;
+                    loadMoreBtn.style.display = 'none';
+                } else {
+                    loadMoreBtn.style.display = 'block';
                 }
 
                 seriesList.forEach(series => {
@@ -123,16 +174,40 @@
                     `;
                     seriesGrid.appendChild(card);
                 });
+                state.isLoading = false;
             };
 
+            // --- Event Listeners ---
             loadMoreBtn.addEventListener('click', () => {
-                currentPage++;
-                loadSeries();
+                if (!state.isLoading) {
+                    state.currentPage++;
+                    loadSeries();
+                }
+            });
+
+            let searchTimeout;
+            searchInput.addEventListener('input', () => {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    state.search = searchInput.value;
+                    loadSeries(true);
+                }, 300); // Debounce
+            });
+
+            sortBySelect.addEventListener('change', () => {
+                state.sortBy = sortBySelect.value;
+                loadSeries(true);
+            });
+
+            sortDirBtn.addEventListener('click', () => {
+                state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+                sortDirBtn.textContent = state.sortDir === 'asc' ? '▲' : '▼';
+                loadSeries(true);
             });
 
             // Initial load
             applyTheme(localStorage.getItem('theme'));
-            loadSeries();
+            loadSeries(true); // Initial load
         });
     </script>
 </body>

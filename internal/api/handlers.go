@@ -14,8 +14,8 @@ import (
 	"github.com/vrsandeep/mango-go/internal/library"
 )
 
-// getPaginationParams extracts 'page' and 'per_page' from the URL query.
-func getPaginationParams(r *http.Request) (page, perPage int) {
+// getListParams extracts all query params for list endpoints.
+func getListParams(r *http.Request) (page, perPage int, search, sortBy, sortDir string) {
 	page, _ = strconv.Atoi(r.URL.Query().Get("page"))
 	if page < 1 {
 		page = 1
@@ -24,17 +24,22 @@ func getPaginationParams(r *http.Request) (page, perPage int) {
 	if perPage <= 0 || perPage > 100 { // Enforce a max of 100
 		perPage = 100
 	}
-	return page, perPage
+	search = r.URL.Query().Get("search")
+	sortBy = r.URL.Query().Get("sort_by")
+	sortDir = r.URL.Query().Get("sort_dir")
+	return
 }
 
-// handleListSeries retrieves and returns a list of all manga series.
+// handleListSeries is updated to handle search and sort.
 func (s *Server) handleListSeries(w http.ResponseWriter, r *http.Request) {
-	page, perPage := getPaginationParams(r)
-	series, err := s.store.ListSeries(page, perPage)
+	page, perPage, search, sortBy, sortDir := getListParams(r)
+
+	series, total, err := s.store.ListSeries(page, perPage, search, sortBy, sortDir)
 	if err != nil {
 		RespondWithError(w, http.StatusInternalServerError, "Failed to retrieve series from database")
 		return
 	}
+	w.Header().Set("X-Total-Count", strconv.Itoa(total))
 	RespondWithJSON(w, http.StatusOK, series)
 }
 
@@ -47,13 +52,13 @@ func (s *Server) handleGetSeries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	page, perPage := getPaginationParams(r)
-	series, err := s.store.GetSeriesByID(seriesID, page, perPage)
+	page, perPage, search, sortBy, sortDir := getListParams(r)
+	series, total, err := s.store.GetSeriesByID(seriesID, page, perPage, search, sortBy, sortDir)
 	if err != nil {
 		RespondWithError(w, http.StatusNotFound, "Series not found")
 		return
 	}
-
+	w.Header().Set("X-Total-Count", strconv.Itoa(total))
 	RespondWithJSON(w, http.StatusOK, series)
 }
 
@@ -115,6 +120,35 @@ func (s *Server) handleMarkAllAs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	RespondWithJSON(w, http.StatusOK, map[string]string{"status": "success"})
+}
+
+func (s *Server) handleAddTag(w http.ResponseWriter, r *http.Request) {
+	seriesID, _ := strconv.ParseInt(chi.URLParam(r, "seriesID"), 10, 64)
+	var payload struct {
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+	tag, err := s.store.AddTagToSeries(seriesID, payload.Name)
+	if err != nil {
+		log.Printf("Failed to add tag to series %d: %v", seriesID, err)
+		RespondWithError(w, http.StatusInternalServerError, "Failed to add tag")
+		return
+	}
+	RespondWithJSON(w, http.StatusCreated, tag)
+}
+
+func (s *Server) handleRemoveTag(w http.ResponseWriter, r *http.Request) {
+	seriesID, _ := strconv.ParseInt(chi.URLParam(r, "seriesID"), 10, 64)
+	tagID, _ := strconv.ParseInt(chi.URLParam(r, "tagID"), 10, 64)
+	if err := s.store.RemoveTagFromSeries(seriesID, tagID); err != nil {
+		log.Printf("Failed to remove tag %d from series %d: %v", tagID, seriesID, err)
+		RespondWithError(w, http.StatusInternalServerError, "Failed to remove tag")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // handleGetPage finds a specific page within an archive and serves it as an image.

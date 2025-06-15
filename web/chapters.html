@@ -20,6 +20,12 @@
         .header-right { display: flex; align-items: center; gap: 1rem; }
         .menu-toggle { display: none; background: none; border: none; font-size: 2rem; color: var(--text-color); cursor: pointer; }
 
+        /* Tags */
+        .tags-container { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+        .tag { background-color: var(--btn-bg); padding: 0.25rem 0.75rem; border-radius: 15px; font-size: 0.9rem; display: flex; align-items: center; gap: 0.25rem; }
+        .tag-remove-btn { cursor: pointer; font-weight: bold; }
+        .tag-input { margin-bottom: 1rem; }
+
         /* Grid & Cards */
         .container { max-width: 1400px; margin: 2rem auto; padding: 0 1.5rem; }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 1.5rem; }
@@ -89,10 +95,30 @@
                 <img id="series-thumb" class="header-thumb">
                 <h1 id="series-title"></h1>
                 <button class="edit-btn" id="edit-series-btn"><i class="ph-bold ph-pencil-simple"></i></button>
+                <span id="total-count" class="total-count"></span>
             </div>
         </div>
         <div class="breadcrumb">
             <a href="/library">Home</a> / <!--<span id="breadcrumb-series-title"></span> -->
+        </div>
+        <div class="tags-container" id="tags-container"></div>
+        <div class="tag-input">
+            <input type="text" id="tag-input" placeholder="Add a tag and press Enter...">
+        </div>
+        <div class="library-controls">
+            <div class="search-bar">
+                <input type="search" id="search-input" placeholder="Search chapters...">
+            </div>
+            <div class="sort-controls">
+                <span>Sort by:</span>
+                <select id="sort-by">
+                    <option value="auto">Auto</option>
+                    <option value="path">Name</option>
+                    <option value="updated_at">Date Modified</option>
+                    <option value="progress">Progress</option>
+                </select>
+                <button id="sort-dir-btn">▲</button>
+            </div>
         </div>
         <div class="grid" id="chapters-grid"></div>
         <div class="footer">
@@ -131,6 +157,13 @@
             const seriesThumbEl = document.getElementById('series-thumb');
             const themeToggleBtn = document.getElementById('theme-toggle-btn');
 
+            const tagsContainer = document.getElementById('tags-container');
+            const tagInput = document.getElementById('tag-input');
+            const searchInput = document.getElementById('search-input');
+            const sortBySelect = document.getElementById('sort-by');
+            const sortDirBtn = document.getElementById('sort-dir-btn');
+            const totalCountEl = document.getElementById('total-count');
+
             const editSeriesBtn = document.getElementById('edit-series-btn');
             const editModal = document.getElementById('edit-modal');
             const modalCancelBtn = document.getElementById('modal-cancel-btn');
@@ -139,7 +172,8 @@
             const markAllReadBtn = document.getElementById('mark-all-read-btn');
             const markAllUnreadBtn = document.getElementById('mark-all-unread-btn');
 
-            let currentPage = 1;
+            let state = { currentPage: 1, search: '', sortBy: 'auto', sortDir: 'asc', isLoading: false, hasMore: true };
+            // let currentPage = 1;
 
             const applyTheme = (theme) => {
                 if (theme === 'light') { document.body.classList.add('light-theme'); }
@@ -168,19 +202,35 @@
                 }
             });
 
-            const loadChapters = async () => {
-                const response = await fetch(`/api/series/${seriesId}?page=${currentPage}&per_page=100`);
+            const loadChapters = async (reset = false) => {
+                if (state.isLoading || !state.hasMore && !reset) return;
+                state.isLoading = true;
+                if (reset) {
+                    state.currentPage = 1;
+                    state.hasMore = true;
+                    chaptersGrid.innerHTML = '';
+                }
+
+                const url = `/api/series/${seriesId}?page=${state.currentPage}&per_page=100&search=${state.search}&sort_by=${state.sortBy}&sort_dir=${state.sortDir}`;
+                const response = await fetch(url);
                 const seriesData = await response.json();
 
-                if (currentPage === 1) {
+                if (reset) {
+                    const total = response.headers.get('X-Total-Count');
+                    totalCountEl.textContent = `(${total})`;
+                }
+
+                if (seriesData) {
                     document.title = seriesData.title;
                     seriesTitleEl.textContent = seriesData.title;
                     seriesThumbEl.src = seriesData.custom_cover_url || seriesData.thumbnail || '';
                 }
 
-                if (!seriesData.chapters || seriesData.chapters.length === 0) {
+                if (!seriesData || !seriesData.chapters || seriesData.chapters.length < 100) {
+                    state.hasMore = false;
                     loadMoreBtn.style.display = 'none';
-                    return;
+                } else {
+                    loadMoreBtn.style.display = 'block';
                 }
 
                 seriesData.chapters.forEach(chapter => {
@@ -199,11 +249,35 @@
                     `;
                     chaptersGrid.appendChild(card);
                 });
+                state.isLoading = false;
             };
 
+            // --- Event Listeners ---
             loadMoreBtn.addEventListener('click', () => {
-                currentPage++;
-                loadChapters();
+                if (!state.isLoading) {
+                    state.currentPage++;
+                    loadChapters();
+                }
+            });
+
+            let searchTimeout;
+            searchInput.addEventListener('input', () => {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    state.search = searchInput.value;
+                    loadChapters(true);
+                }, 300); // Debounce
+            });
+
+            sortBySelect.addEventListener('change', () => {
+                state.sortBy = sortBySelect.value;
+                loadChapters(true);
+            });
+
+            sortDirBtn.addEventListener('click', () => {
+                state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+                sortDirBtn.textContent = state.sortDir === 'asc' ? '▲' : '▼';
+                loadChapters(true);
             });
 
             // --- Modal Logic ---
@@ -264,9 +338,49 @@
                 // setTimeout(() => { document.body.removeChild(toast); }, 3000);
             };
 
+            // --- Tag Logic ---
+            const renderTags = (tags) => {
+                tagsContainer.innerHTML = '';
+                tags.forEach(tag => {
+                    const tagEl = document.createElement('div');
+                    tagEl.className = 'tag';
+                    tagEl.innerHTML = `<span>${tag.name}</span><span class="tag-remove-btn" data-tag-id="${tag.id}">&times;</span>`;
+                    tagsContainer.appendChild(tagEl);
+                });
+            };
+
+            const addTag = async (tagName) => {
+                const response = await fetch(`/api/series/${seriesId}/tags`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: tagName })
+                });
+                if (response.ok) {
+                    tagInput.value = '';
+                    loadChapters(true); // Reload everything to get updated tags
+                }
+            };
+
+            const removeTag = async (tagId) => {
+                await fetch(`/api/series/${seriesId}/tags/${tagId}`, { method: 'DELETE' });
+                loadChapters(true);
+            };
+
+            tagInput.addEventListener('keyup', (e) => {
+                if (e.key === 'Enter' && tagInput.value.trim() !== '') {
+                    addTag(tagInput.value.trim());
+                }
+            });
+
+            tagsContainer.addEventListener('click', (e) => {
+                if (e.target.classList.contains('tag-remove-btn')) {
+                    removeTag(e.target.dataset.tagId);
+                }
+            });
+
             // Initial load
             applyTheme(localStorage.getItem('theme'));
-            loadChapters();
+            loadChapters(true);
         });
     </script>
 </body>
