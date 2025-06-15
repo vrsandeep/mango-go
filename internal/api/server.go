@@ -45,6 +45,7 @@ func (s *Server) Router() http.Handler {
 		r.Get("/series", s.handleListSeries)
 		r.Get("/series/{seriesID}", s.handleGetSeries)
 		r.Post("/series/{seriesID}/cover", s.handleUpdateCover)
+		r.Post("/series/{seriesID}/mark-all-as", s.handleMarkAllAs)
 		r.Get("/series/{seriesID}/chapters/{chapterID}", s.handleGetChapterDetails)
 		r.Get("/series/{seriesID}/chapters/{chapterID}/pages/{pageNumber}", s.handleGetPage)
 		r.Post("/chapters/{chapterID}/progress", s.handleUpdateProgress)
@@ -55,12 +56,15 @@ func (s *Server) Router() http.Handler {
 		http.ServeFile(w, r, "./web/reader.html")
 	})
 	// New routes for series browsing
-	r.Get("/series", func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/library", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "./web/series.html")
 	})
 	r.Get("/series/{seriesID}", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "./web/chapters.html")
 	})
+
+	// Add a redirect from the root to the main library page
+	r.Get("/", http.RedirectHandler("/library", http.StatusMovedPermanently).ServeHTTP)
 
 	// Serve static files for the web reader
 	// r.Handle("/reader/static/*", http.StripPrefix("/reader/static/", http.FileServer(http.Dir("./web/static"))))

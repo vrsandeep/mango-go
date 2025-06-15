@@ -91,6 +91,32 @@ func (s *Server) handleUpdateCover(w http.ResponseWriter, r *http.Request) {
 	RespondWithJSON(w, http.StatusOK, map[string]string{"status": "success"})
 }
 
+// handleMarkAllAs marks all chapters in a series as read or unread.
+func (s *Server) handleMarkAllAs(w http.ResponseWriter, r *http.Request) {
+	seriesIDStr := chi.URLParam(r, "seriesID")
+	seriesID, err := strconv.ParseInt(seriesIDStr, 10, 64)
+	if err != nil {
+		RespondWithError(w, http.StatusBadRequest, "Invalid series ID")
+		return
+	}
+
+	var payload struct {
+		Read bool `json:"read"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+
+	if err := s.store.MarkAllChaptersAs(seriesID, payload.Read); err != nil {
+		log.Printf("Failed to mark all chapters for series %d: %v", seriesID, err)
+		RespondWithError(w, http.StatusInternalServerError, "Failed to update chapters")
+		return
+	}
+
+	RespondWithJSON(w, http.StatusOK, map[string]string{"status": "success"})
+}
+
 // handleGetPage finds a specific page within an archive and serves it as an image.
 func (s *Server) handleGetPage(w http.ResponseWriter, r *http.Request) {
 	chapterIDStr := chi.URLParam(r, "chapterID")

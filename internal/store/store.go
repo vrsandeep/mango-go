@@ -49,6 +49,15 @@ func (s *Store) UpdateSeriesCoverURL(seriesID int64, url string) (int64, error) 
 	return affected, err
 }
 
+// MarkAllChaptersAs updates the 'read' status for all chapters of a series.
+func (s *Store) MarkAllChaptersAs(seriesID int64, read bool) error {
+	_, err := s.db.Exec("UPDATE chapters SET read = ?, progress_percent = ? WHERE series_id = ?",
+		read,
+		map[bool]int{true: 100, false: 0}[read], // Set progress to 100 if read, 0 if unread
+		seriesID)
+	return err
+}
+
 // AddOrUpdateChapter adds a chapter or updates its page count if it already exists.
 // It uses the file path as a unique identifier for the chapter.
 // This operation must be done in a transaction.

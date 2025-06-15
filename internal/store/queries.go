@@ -13,7 +13,18 @@ import (
 // ListSeries fetches all series from the database.
 func (s *Store) ListSeries(page, perPage int) ([]*models.Series, error) {
 	offset := (page - 1) * perPage
-	rows, err := s.db.Query("SELECT id, title, path, thumbnail, custom_cover_url, created_at, updated_at FROM series ORDER BY title LIMIT ? OFFSET ?", perPage, offset)
+	query := `
+        SELECT
+            s.id, s.title, s.path, s.thumbnail, s.custom_cover_url, s.created_at, s.updated_at,
+            COUNT(c.id) as total_chapters,
+            SUM(CASE WHEN c.read = 1 THEN 1 ELSE 0 END) as read_chapters
+        FROM series s
+        LEFT JOIN chapters c ON s.id = c.series_id
+        GROUP BY s.id
+        ORDER BY s.title
+        LIMIT ? OFFSET ?
+    `
+	rows, err := s.db.Query(query, perPage, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -23,7 +34,10 @@ func (s *Store) ListSeries(page, perPage int) ([]*models.Series, error) {
 	for rows.Next() {
 		var series models.Series
 		var thumb, customCover sql.NullString
-		if err := rows.Scan(&series.ID, &series.Title, &series.Path, &thumb, &customCover, &series.CreatedAt, &series.UpdatedAt); err != nil {
+		if err := rows.Scan(
+			&series.ID, &series.Title, &series.Path, &thumb, &customCover, &series.CreatedAt, &series.UpdatedAt,
+			&series.TotalChapters, &series.ReadChapters,
+		); err != nil {
 			return nil, err
 		}
 		series.Thumbnail = thumb.String

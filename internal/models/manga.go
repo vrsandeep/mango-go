@@ -15,6 +15,10 @@ type Series struct {
 	Chapters       []*Chapter `json:"chapters,omitempty"`         // omitempty hides it when not loaded
 	CreatedAt      time.Time  `json:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at"`
+
+	// Fields calculated by the API, not stored in DB
+	TotalChapters int `json:"total_chapters,omitempty"`
+	ReadChapters  int `json:"read_chapters,omitempty"`
 }
 
 // Chapter represents a single chapter of a manga.

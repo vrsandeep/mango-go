@@ -5,50 +5,120 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Series</title>
+    <link rel="stylesheet" href="https://unpkg.com/phosphor-icons@1.4.2/src/css/icons.css">
     <style>
-        :root { --bg-color: #1a1a1a; --text-color: #f0f0f0; --card-bg: #2a2a2a; --btn-bg: #333; --border-color: #555; }
-        body { background-color: #1a1a1a; color: #f0f0f0; font-family: sans-serif; margin: 0; }
-        body.light-theme { --bg-color: #f0f0f0; --text-color: #1a1a1a; --card-bg: #ffffff; --btn-bg: #e0e0e0; --border-color: #ccc; }
-        body { background-color: var(--bg-color); color: var(--text-color); font-family: sans-serif; margin: 0; transition: background-color 0.2s, color 0.2s; }
-        .header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 2rem; }
-        .header-center { display: flex; justify-content: center; align-items: center; gap: 0.75rem; flex-grow: 1; margin-left: 140px; /* Offset for right buttons */}
-        .header-logo { height: 32px; width: 32px; fill: var(--text-color); }
-        .header-right { display: flex; gap: 1rem; min-width: 140px; }
-        .container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; }
+        :root { --bg-color: #1a1a1a; --text-color: #f0f0f0; --card-bg: #2a2a2a; --btn-bg: #333; --border-color: #555; --accent-color: #1e90ff; }
+        body.light-theme { --bg-color: #f4f4f9; --text-color: #1a1a1a; --card-bg: #ffffff; --btn-bg: #e0e0e0; --border-color: #ccc; }
+        body { background-color: var(--bg-color); color: var(--text-color); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; transition: background-color 0.2s, color 0.2s; }
+        a { color: var(--accent-color); text-decoration: none; }
 
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1.5rem; }
-        .item-card { background-color: #2a2a2a; border-radius: 8px; overflow: hidden; text-decoration: none; color: #f0f0f0; display: flex; flex-direction: column; }
-        .item-card:hover .thumbnail-container { transform: scale(1.05); }
+        /* Header & Nav */
+        .main-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; background-color: var(--card-bg); border-bottom: 1px solid var(--border-color); }
+        .header-left { display: flex; align-items: center; gap: 1.5rem; }
+        .header-logo { height: 32px; width: 32px; fill: var(--text-color); }
+        .nav-links a { font-size: 1.1rem; }
+        .header-right { display: flex; align-items: center; gap: 1rem; }
+        .menu-toggle { display: none; background: none; border: none; font-size: 2rem; color: var(--text-color); cursor: pointer; }
+
+        /* Grid & Cards */
+        .container { max-width: 1400px; margin: 2rem auto; padding: 0 1.5rem; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 1.5rem; }
+        .item-card { background-color: var(--card-bg); border-radius: 8px; overflow: hidden; color: var(--text-color); display: flex; flex-direction: column; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
         .thumbnail-container { width: 100%; padding-top: 140%; position: relative; transition: transform 0.2s ease-in-out; }
-        .thumbnail { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; background-color: #333; }
-        .item-title { padding: 0.75rem; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .header { display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem; }
+        .thumbnail { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; background-color: #333; transition: transform 0.2s ease-in-out; }
+        .item-card:hover .thumbnail { transform: scale(1.05); }
+        .item-title { padding: 0.75rem 0.75rem 0.25rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .progress-bar-container { margin: 0 0.75rem 0.75rem; height: 6px; background-color: #444; border-radius: 3px; overflow: hidden; }
+        .progress-bar { width: 0%; height: 100%; background-color: var(--accent-color); border-radius: 3px; transition: width 0.3s ease; }
+
+        /* Mobile Sidebar */
+        @media (max-width: 768px) {
+            .nav-links { display: none; flex-direction: column; position: fixed; top: 0; left: -250px; width: 250px; height: 100vh; background-color: var(--card-bg); padding-top: 4rem; transition: left 0.3s ease; box-shadow: 2px 0 10px rgba(0,0,0,0.3); }
+            .nav-links.active { left: 0; }
+            .nav-links a { padding: 1rem 1.5rem; }
+            .menu-toggle { display: block; }
+            .header-left { gap: 1rem; }
+        }
+
+        .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; }
+        .page-header-left { display: flex; align-items: center; gap: 1rem; }
+        .breadcrumb { font-size: 0.9rem; color: #aaa; margin-bottom: 2rem; }
+        .breadcrumb a { color: #aaa; } .breadcrumb a:hover { color: var(--accent-color); }
+        .edit-btn { background: none; border: 1px solid var(--border-color); color: var(--text-color); padding: 8px; border-radius: 5px; cursor: pointer; }
+
+        /* Modal Styles */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: var(--card-bg); padding: 2rem; border-radius: 8px; width: 90%; max-width: 500px; }
+        .modal-content h2 { margin-top: 0; }
+        .modal-form-group { margin-bottom: 1rem; }
+        .modal-form-group label { display: block; margin-bottom: 0.5rem; }
+        .modal-form-group input { width: 100%; padding: 0.5rem; background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-color); border-radius: 5px; }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 1rem; }
+
         .header-thumb { cursor: pointer;width: 100px; height: 140px; object-fit: cover; border-radius: 5px; }
-        .footer { text-align: center; padding: 2rem; }
+
         #load-more-btn { background-color: #333; color: white; border: 1px solid #555; padding: 10px 20px; font-size: 1rem; cursor: pointer; border-radius: 5px; }
+        #load-more-btn:hover { background-color: #444; }
+        #theme-toggle-btn, #logout-btn { background-color: var(--btn-bg); color: var(--text-color); border: none; padding: 0.5rem 1rem; cursor: pointer; border-radius: 5px; }
+        #theme-toggle-btn:hover, #logout-btn:hover { background-color: var(--accent-color); color: white; }
+        #theme-toggle-btn { margin-right: 1rem; }
+        #logout-btn { margin-left: 1rem; }
+        .footer { margin-top: 2rem; text-align:center; padding: 2rem;}
+        .footer button:hover { background-color: var(--accent-color); color: white; }
     </style>
 </head>
 <body>
-    <header class="header">
-        <div class="header-center">
-             <!-- Empty div for alignment -->
-            <img id="series-thumb" class="header-thumb">
-            <h1 id="series-title"></h1>
+    <header class="main-header">
+        <div class="header-left">
+            <button class="menu-toggle" id="menu-toggle-btn"><i class="ph-bold ph-list"></i></button>
+            <svg class="header-logo" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM4 4h16v11.17l-3.17-3.17-2 2-3-3-3.17 3.17L4 12.34V4z"/></svg>
+            <nav class="nav-links" id="nav-links">
+                <a href="/library">Home</a>
+                <!-- More links can be added here -->
+            </nav>
         </div>
         <div class="header-right">
-            <button id="theme-toggle-btn">Toggle Theme</button>
+            <button id="theme-toggle-btn">Theme</button>
             <button id="logout-btn">Logout</button>
         </div>
     </header>
 
-    <div class="container">
-        <!-- <div class="header">
-            <img id="series-thumb" class="header-thumb">
-            <h1 id="series-title"></h1>
-        </div> -->
+    <main class="container">
+        <div class="page-header">
+            <div class="page-header-left">
+                <img id="series-thumb" class="header-thumb">
+                <h1 id="series-title"></h1>
+                <button class="edit-btn" id="edit-series-btn"><i class="ph-bold ph-pencil-simple"></i></button>
+            </div>
+        </div>
+        <div class="breadcrumb">
+            <a href="/library">Home</a> / <!--<span id="breadcrumb-series-title"></span> -->
+        </div>
         <div class="grid" id="chapters-grid"></div>
         <div class="footer">
             <button id="load-more-btn">Load More</button>
+        </div>
+    </main>
+
+    <!-- Edit Modal -->
+    <div class="modal-overlay" id="edit-modal">
+        <div class="modal-content">
+            <h2 id="edit-modal-title">Edit Series</h2>
+            <div class="modal-form-group">
+                <label for="cover-url-input">Cover URL</label>
+                <input type="text" id="cover-url-input">
+            </div>
+            <div class="modal-form-group">
+                <label>Progress</label>
+                <div style="display: flex; gap: 1rem;">
+                    <button id="mark-all-read-btn">Mark All as Read</button>
+                    <button id="mark-all-unread-btn">Mark All as Unread</button>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button id="modal-cancel-btn">Cancel</button>
+                <button id="modal-save-btn">Save</button>
+            </div>
         </div>
     </div>
 
@@ -60,6 +130,15 @@
             const seriesTitleEl = document.getElementById('series-title');
             const seriesThumbEl = document.getElementById('series-thumb');
             const themeToggleBtn = document.getElementById('theme-toggle-btn');
+
+            const editSeriesBtn = document.getElementById('edit-series-btn');
+            const editModal = document.getElementById('edit-modal');
+            const modalCancelBtn = document.getElementById('modal-cancel-btn');
+            const modalSaveBtn = document.getElementById('modal-save-btn');
+            const coverUrlInput = document.getElementById('cover-url-input');
+            const markAllReadBtn = document.getElementById('mark-all-read-btn');
+            const markAllUnreadBtn = document.getElementById('mark-all-unread-btn');
+
             let currentPage = 1;
 
             const applyTheme = (theme) => {
@@ -106,6 +185,7 @@
 
                 seriesData.chapters.forEach(chapter => {
                     const card = document.createElement('a');
+                    const progressPercent = chapter.progress_percent;
                     card.href = `/reader/series/${seriesId}/chapters/${chapter.id}`;
                     card.classList.add('item-card');
                     card.innerHTML = `
@@ -113,6 +193,9 @@
                             <img class="thumbnail" src="${chapter.thumbnail || ''}" alt="Cover for Chapter ${chapter.id}">
                         </div>
                         <div class="item-title">${chapter.path.split('/').pop()}</div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" style="width: ${progressPercent}%;"></div>
+                        </div>
                     `;
                     chaptersGrid.appendChild(card);
                 });
@@ -122,6 +205,64 @@
                 currentPage++;
                 loadChapters();
             });
+
+            // --- Modal Logic ---
+            editSeriesBtn.addEventListener('click', () => {
+                fetch(`/api/series/${seriesId}?page=1&per_page=1`)
+                    .then(res => res.json())
+                    .then(seriesData => {
+                        coverUrlInput.value = seriesData.custom_cover_url || '';
+                        editModal.style.display = 'flex';
+                    });
+            });
+            modalCancelBtn.addEventListener('click', () => editModal.style.display = 'none');
+            editModal.addEventListener('click', (e) => { if(e.target === editModal) editModal.style.display = 'none'; });
+
+            modalSaveBtn.addEventListener('click', async () => {
+                await fetch(`/api/series/${seriesId}/cover`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: coverUrlInput.value })
+                });
+                editModal.style.display = 'none';
+                // Reload the page to reflect changes
+                window.location.reload();
+            });
+
+            markAllReadBtn.addEventListener('click', async () => {
+                await fetch(`/api/series/${seriesId}/mark-all-as`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ read: true })
+                });
+                showToast('All chapters marked as read.');
+                setTimeout(() => { window.location.reload(); }, 1000);
+            });
+
+            markAllUnreadBtn.addEventListener('click', async () => {
+                await fetch(`/api/series/${seriesId}/mark-all-as`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ read: false })
+                });
+                showToast('All chapters marked as unread.');
+                setTimeout(() => { window.location.reload(); }, 1000);
+            });
+            const showToast = (message) => {
+                const toast = document.createElement('div');
+                toast.textContent = message;
+                toast.style.position = 'fixed';
+                toast.style.bottom = '20px';
+                toast.style.left = '50%';
+                toast.style.transform = 'translateX(-50%)';
+                toast.style.backgroundColor = '#333';
+                toast.style.color = '#fff';
+                toast.style.padding = '10px 20px';
+                toast.style.borderRadius = '5px';
+                toast.style.zIndex = '1000';
+                document.body.appendChild(toast);
+                // setTimeout(() => { document.body.removeChild(toast); }, 3000);
+            };
 
             // Initial load
             applyTheme(localStorage.getItem('theme'));

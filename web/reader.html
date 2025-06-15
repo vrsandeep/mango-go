@@ -111,13 +111,18 @@
     </style>
 </head>
 <body>
-    <div class="reader-container" id="image-container">
-        <!-- Manga pages will be loaded here -->
-    </div>
+    <main class="container">
 
-    <div class="reader-footer">
-        <button id="next-chapter-btn" style="display: none;">Next Chapter</button>
-    </div>
+        <div class="reader-container" id="image-container">
+            <!-- Manga pages will be loaded here -->
+        </div>
+
+        <div class="reader-footer">
+            <!-- These buttons will be shown or hidden by JS -->
+            <button id="footer-prev-chapter-btn" style="display: none;">Previous Chapter</button>
+            <button id="footer-next-chapter-btn" style="display: none;">Next Chapter</button>
+        </div>
+    </main>
 
     <div class="modal-overlay" id="nav-modal">
         <div class="modal-content">
@@ -144,10 +149,11 @@
             let prevChapterId = null;
 
             const imageContainer = document.getElementById('image-container');
-            const nextChapterBtn = document.getElementById('next-chapter-btn');
             const exitReaderBtn = document.getElementById('exit-reader-btn');
             const progressBar = document.getElementById('progress-bar');
 
+            const footerPrevBtn = document.getElementById('footer-prev-chapter-btn');
+            const footerNextBtn = document.getElementById('footer-next-chapter-btn');
             // Modal elements
             const modal = document.getElementById('nav-modal');
             const prevChapterModalBtn = document.getElementById('prev-chapter-btn');
@@ -174,18 +180,18 @@
                 });
             };
 
-            // --- Logic ---
             const findNeighboringChapters = () => {
                 const currentIndex = seriesData.chapters.findIndex(c => c.id == chapterId);
                 if (currentIndex > 0) {
                     prevChapterId = seriesData.chapters[currentIndex - 1].id;
+                    footerPrevBtn.style.display = 'inline-block';
                     prevChapterModalBtn.disabled = false;
                 } else {
                     prevChapterModalBtn.disabled = true;
                 }
                 if (currentIndex < seriesData.chapters.length - 1) {
                     nextChapterId = seriesData.chapters[currentIndex + 1].id;
-                    nextChapterBtn.style.display = 'block';
+                    footerNextBtn.style.display = 'inline-block';
                     nextChapterModalBtn.disabled = false;
                 } else {
                     nextChapterModalBtn.disabled = true;
@@ -221,15 +227,36 @@
 
             // --- Event Listeners ---
             window.addEventListener('scroll', calculateAndUpdateProgress);
-
-            nextChapterBtn.addEventListener('click', () => {
-                if (nextChapterId) window.location.href = `/reader/series/${seriesId}/chapters/${nextChapterId}`;
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowRight' || e.key === 'd') {
+                    if (nextChapterId && window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 10) {
+                        window.location.href = `/reader/series/${seriesId}/chapters/${nextChapterId}`;
+                    } else {
+                        window.scrollBy({ top: window.innerHeight, behavior: 'smooth' });
+                    }
+                } else if (e.key === 'ArrowLeft' || e.key === 'a') {
+                    if (prevChapterId && window.scrollY <= 10) {
+                        window.location.href = `/reader/series/${seriesId}/chapters/${prevChapterId}`;
+                    } else {
+                        window.scrollBy({ top: -window.innerHeight, behavior: 'smooth' });
+                    }
+                } else if (e.key === 'Escape') {
+                    modal.style.display = 'none';
+                }
             });
+
             nextChapterModalBtn.addEventListener('click', () => {
                 if (nextChapterId) window.location.href = `/reader/series/${seriesId}/chapters/${nextChapterId}`;
             });
             prevChapterModalBtn.addEventListener('click', () => {
                 if (prevChapterId) window.location.href = `/reader/series/${seriesId}/chapters/${prevChapterId}`;
+            });
+
+            footerPrevBtn.addEventListener('click', () => {
+                if (prevChapterId) window.location.href = `/reader/series/${seriesId}/chapters/${prevChapterId}`;
+            });
+            footerNextBtn.addEventListener('click', () => {
+                if (nextChapterId) window.location.href = `/reader/series/${seriesId}/chapters/${nextChapterId}`;
             });
 
             markReadBtn.addEventListener('click', () => {
