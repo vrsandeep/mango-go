@@ -27,9 +27,12 @@ func TestHandleMarkAllAs(t *testing.T) {
 		}
 
 		// Verify the change in the database
-		series, err := s.GetSeriesByID(1, 1, 10) // Get all chapters
+		series, count, err := s.GetSeriesByID(1, 1, 10, "", "", "") // Get all chapters
 		if err != nil {
 			t.Fatalf("Failed to get series after update: %v", err)
+		}
+		if count != 1 {
+			t.Errorf("Expected 1 chapter after update, got %d", count)
 		}
 		for _, chapter := range series.Chapters {
 			if !chapter.Read {
@@ -57,9 +60,12 @@ func TestHandleMarkAllAs(t *testing.T) {
 		}
 
 		// Verify the change in the database
-		series, err := s.GetSeriesByID(1, 1, 10) // Get all chapters
+		series, count, err := s.GetSeriesByID(1, 1, 10, "", "", "") // Get all chapters
 		if err != nil {
 			t.Fatalf("Failed to get series after update: %v", err)
+		}
+		if count != 1 {
+			t.Errorf("Expected 1 chapter after update, got %d", count)
 		}
 		for _, chapter := range series.Chapters {
 			if chapter.Read {

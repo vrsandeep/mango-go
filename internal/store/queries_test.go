@@ -22,22 +22,61 @@ func TestListSeries(t *testing.T) {
 	populateDB(t, db)
 	s := New(db)
 
-	seriesList, err := s.ListSeries(1, 50)
-	if err != nil {
-		t.Fatalf("ListSeries failed: %v", err)
-	}
+	t.Run("Without Search", func(t *testing.T) {
+		seriesList, seriesCount, err := s.ListSeries(1, 50, "", "title", "desc")
+		if err != nil {
+			t.Fatalf("ListSeries failed: %v", err)
+		}
+		if seriesCount != 2 {
+			t.Errorf("Expected 2 series, got %d", seriesCount)
+		}
 
-	if len(seriesList) != 2 {
-		t.Fatalf("Expected 2 series, got %d", len(seriesList))
-	}
+		if len(seriesList) != 2 {
+			t.Fatalf("Expected 2 series, got %d", len(seriesList))
+		}
 
-	// Test sorting
-	if seriesList[0].Title != "Series A" {
-		t.Errorf("Expected first series to be 'Series A' due to sorting, got '%s'", seriesList[0].Title)
-	}
-	if seriesList[0].CustomCoverURL != "" {
-		t.Errorf("Expected CustomCoverURL to be empty, got '%s'", seriesList[0].CustomCoverURL)
-	}
+		// Test sorting
+		if seriesList[0].Title != "Series B" {
+			t.Errorf("Expected first series to be 'Series B' due to sorting, got '%s'", seriesList[0].Title)
+		}
+		if seriesList[0].CustomCoverURL != "" {
+			t.Errorf("Expected CustomCoverURL to be empty, got '%s'", seriesList[0].CustomCoverURL)
+		}
+	})
+
+	t.Run("With Search", func(t *testing.T) {
+		seriesList, seriesCount, err := s.ListSeries(1, 50, "A", "title", "asc")
+		if err != nil {
+			t.Fatalf("ListSeries with search failed: %v", err)
+		}
+		if seriesCount != 1 {
+			t.Errorf("Expected 1 series for search 'A', got %d", seriesCount)
+		}
+		if len(seriesList) != 1 {
+			t.Fatalf("Expected 1 series for search 'A', got %d", len(seriesList))
+		}
+		if seriesList[0].Title != "Series A" {
+			t.Errorf("Expected title 'Series A', got '%s'", seriesList[0].Title)
+		}
+	})
+	t.Run("With Invalid Sort Direction", func(t *testing.T) {
+		seriesList, seriesCount, err := s.ListSeries(1, 50, "", "title", "invalid")
+		if err != nil {
+			t.Fatalf("ListSeries with invalid sort direction failed: %v", err)
+		}
+		if seriesCount != 2 {
+			t.Errorf("Expected 2 series, got %d", seriesCount)
+		}
+		if len(seriesList) != 2 {
+			t.Fatalf("Expected 2 series, got %d", len(seriesList))
+		}
+		if seriesList[0].Title != "Series A" {
+			t.Errorf("Expected first series to be 'Series A' due to sorting, got '%s'", seriesList[0].Title)
+		}
+		if seriesList[0].CustomCoverURL != "" {
+			t.Errorf("Expected CustomCoverURL to be empty, got '%s'", seriesList[0].CustomCoverURL)
+		}
+	})
 }
 
 func TestGetSeriesByID(t *testing.T) {
@@ -47,7 +86,7 @@ func TestGetSeriesByID(t *testing.T) {
 	s := New(db)
 
 	t.Run("Success", func(t *testing.T) {
-		series, err := s.GetSeriesByID(2, 1, 10) // Get Series A
+		series, count, err := s.GetSeriesByID(2, 1, 10, "ch1", "path", "asc") // Get Series A
 		if err != nil {
 			t.Fatalf("GetSeriesByID failed: %v", err)
 		}
@@ -56,6 +95,9 @@ func TestGetSeriesByID(t *testing.T) {
 		}
 		if len(series.Chapters) != 1 {
 			t.Errorf("Expected 1 chapter, got %d", len(series.Chapters))
+		}
+		if count != 1 {
+			t.Errorf("Expected number of chapters to be 1, got %d", count)
 		}
 		if series.Chapters[0].PageCount != 20 {
 			t.Errorf("Expected chapter page count 20, got %d", series.Chapters[0].PageCount)
@@ -72,9 +114,12 @@ func TestGetSeriesByID(t *testing.T) {
 	})
 
 	t.Run("Not Found", func(t *testing.T) {
-		_, err := s.GetSeriesByID(999, 1, 10)
+		_, count, err := s.GetSeriesByID(999, 1, 10, "", "", "")
 		if err == nil {
 			t.Error("Expected an error for non-existent series, got nil")
+		}
+		if count != 0 {
+			t.Errorf("Expected count to be 0 for non-existent series, got %d", count)
 		}
 	})
 }
@@ -105,9 +150,12 @@ func TestUpdateSeriesCoverURL(t *testing.T) {
 	}
 
 	// Verify the update
-	series, err := s.GetSeriesByID(seriesID, 1, 1)
+	series, count, err := s.GetSeriesByID(seriesID, 1, 1, "", "", "")
 	if err != nil {
 		t.Fatalf("GetSeriesByID failed after update: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("Expected 1 chapter after update, got %d", count)
 	}
 
 	if series.CustomCoverURL != newURL {

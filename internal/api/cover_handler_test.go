@@ -29,9 +29,12 @@ func TestHandleUpdateCover(t *testing.T) {
 		}
 
 		// Verify the change in the database
-		series, err := s.GetSeriesByID(1, 1, 1) // page and perPage don't matter here
+		series, count, err := s.GetSeriesByID(1, 1, 1, "", "", "") // page and perPage don't matter here
 		if err != nil {
 			t.Fatalf("Failed to get series after update: %v", err)
+		}
+		if count != 1 {
+			t.Errorf("Expected 1 chapter after update, got %d", count)
 		}
 		if series.CustomCoverURL != newCoverURL {
 			t.Errorf("DB value for custom_cover_url was not updated: want %s, got %s", newCoverURL, series.CustomCoverURL)
