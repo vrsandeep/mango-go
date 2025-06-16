@@ -6,10 +6,13 @@ package store
 import (
 	"database/sql"
 	"fmt"
+	"log"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/vrsandeep/mango-go/internal/models"
+	"github.com/vrsandeep/mango-go/internal/util"
 )
 
 // Store provides all functions to interact with the database.
@@ -164,6 +167,106 @@ func (s *Store) RemoveTagFromSeries(seriesID, tagID int64) error {
 		_, err = s.db.Exec("DELETE FROM tags WHERE id = ?", tagID)
 		if err != nil {
 			return fmt.Errorf("failed to delete tag: %w", err)
+		}
+	}
+	return nil
+}
+
+// DeleteChapterByPath removes a chapter from the database using its file path.
+func (s *Store) DeleteChapterByPath(path string) error {
+	_, err := s.db.Exec("DELETE FROM chapters WHERE path = ?", path)
+	if err != nil {
+		log.Printf("Error deleting chapter by path %s: %v", path, err)
+	}
+	return err
+}
+
+// DeleteEmptySeries removes any series that have no associated chapters.
+func (s *Store) DeleteEmptySeries() error {
+	query := `
+        DELETE FROM series
+        WHERE id IN (
+            SELECT s.id FROM series s
+            LEFT JOIN chapters c ON s.id = c.series_id
+            GROUP BY s.id
+            HAVING COUNT(c.id) = 0
+        )
+    `
+	_, err := s.db.Exec(query)
+	if err != nil {
+		log.Printf("Error deleting empty series: %v", err)
+	}
+	return err
+}
+
+// UpdateChapterThumbnail updates the thumbnail for a single chapter.
+func (s *Store) UpdateChapterThumbnail(chapterID int64, thumbnail string) error {
+	_, err := s.db.Exec("UPDATE chapters SET thumbnail = ? WHERE id = ?", thumbnail, chapterID)
+	return err
+}
+
+// UpdateAllSeriesThumbnails iterates through all series and sets their thumbnail
+// to be the same as their first chapter's thumbnail.
+func (s *Store) UpdateAllSeriesThumbnails() error {
+	// Get all series IDs
+	rows, err := s.db.Query("SELECT id FROM series")
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	var seriesIDs []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return err
+		}
+		seriesIDs = append(seriesIDs, id)
+	}
+	if rows.Err() != nil {
+		return rows.Err()
+	}
+
+	// For each series, find the first chapter and update the series thumbnail
+	for _, seriesID := range seriesIDs {
+		// Get all chapter paths for this series
+		chapterRows, err := s.db.Query("SELECT path, thumbnail FROM chapters WHERE series_id = ?", seriesID)
+		if err != nil {
+			log.Printf("Error getting chapters for series %d: %v", seriesID, err)
+			continue
+		}
+
+		var chapters []struct {
+			Path      string
+			Thumbnail sql.NullString
+		}
+		for chapterRows.Next() {
+			var c struct {
+				Path      string
+				Thumbnail sql.NullString
+			}
+			if err := chapterRows.Scan(&c.Path, &c.Thumbnail); err != nil {
+				log.Printf("Error scanning chapter for series %d: %v", seriesID, err)
+				continue
+			}
+			chapters = append(chapters, c)
+		}
+		chapterRows.Close()
+
+		if len(chapters) > 0 {
+			// Sort chapters naturally to find the "first" one
+			sort.Slice(chapters, func(i, j int) bool {
+				return util.NaturalSortLess(chapters[i].Path, chapters[j].Path)
+			})
+
+			// Use the first chapter's thumbnail for the series
+			firstChapterThumbnail := chapters[0].Thumbnail
+			if firstChapterThumbnail.Valid {
+				_, err := s.db.Exec("UPDATE series SET thumbnail = ? WHERE id = ?", firstChapterThumbnail.String, seriesID)
+				if err != nil {
+					log.Printf("Error updating series thumbnail for series %d: %v", seriesID, err)
+				}
+			}
 		}
 	}
 	return nil

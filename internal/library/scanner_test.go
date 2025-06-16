@@ -52,7 +52,7 @@ func TestScannerIntegration(t *testing.T) {
 		Path string `mapstructure:"path"`
 	}{Path: libraryPath}}
 	scanner := NewScanner(cfg, db)
-	if err := scanner.Scan(); err != nil {
+	if err := scanner.Scan(nil, nil); err != nil {
 		t.Fatalf("scanner.Scan() failed: %v", err)
 	}
 

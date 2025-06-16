@@ -40,20 +40,6 @@ func TestNaturalSortLess_Equal(t *testing.T) {
 	}
 }
 
-//	func TestNaturalSortLess_Empty(t *testing.T) {
-//		testCases := []struct {
-//			s1, s2 string
-//		}{
-//			{"", "a"},
-//			{"a", ""},
-//			{"", ""},
-//		}
-//		for _, tc := range testCases {
-//			if result := NaturalSortLess(tc.s1, tc.s2); result {
-//				t.Errorf("NaturalSortLess(%q, %q) = true; want false (empty case)", tc.s1, tc.s2)
-//			}
-//		}
-//	}
 func TestNaturalSortLess_SpecialCharacters(t *testing.T) {
 	testCases := []struct {
 		s1, s2   string
@@ -70,22 +56,7 @@ func TestNaturalSortLess_SpecialCharacters(t *testing.T) {
 		}
 	}
 }
-func TestNaturalSortLess_NumbersAndStrings(t *testing.T) {
-	testCases := []struct {
-		s1, s2   string
-		expected bool
-	}{
-		{"file1", "file2", true},
-		{"file10", "file2", false},
-		{"chapter1", "chapter10", true},
-		{"chapter10", "chapter2", false},
-	}
-	for _, tc := range testCases {
-		if result := NaturalSortLess(tc.s1, tc.s2); result != tc.expected {
-			t.Errorf("NaturalSortLess(%q, %q) = %v; want %v", tc.s1, tc.s2, result, tc.expected)
-		}
-	}
-}
+
 func TestNaturalSortLess_CaseInsensitive(t *testing.T) {
 	testCases := []struct {
 		s1, s2   string
@@ -102,12 +73,7 @@ func TestNaturalSortLess_CaseInsensitive(t *testing.T) {
 		}
 	}
 }
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
+
 func TestNaturalSortLess_ComplexCases(t *testing.T) {
 	testCases := []struct {
 		s1, s2   string

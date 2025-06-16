@@ -22,7 +22,7 @@ func main() {
 	log.Printf("Starting scan of library at: %s", app.Config.Library.Path)
 
 	// Scan the library for manga.
-	if err := scanner.Scan(); err != nil {
+	if err := scanner.Scan(nil, nil); err != nil {
 		log.Fatalf("Error scanning library: %v", err)
 	}
 

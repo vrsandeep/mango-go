@@ -15,8 +15,10 @@ import (
 	"time"
 
 	"github.com/vrsandeep/mango-go/internal/config"
+	"github.com/vrsandeep/mango-go/internal/core"
 	"github.com/vrsandeep/mango-go/internal/models"
 	"github.com/vrsandeep/mango-go/internal/testutil"
+	"github.com/vrsandeep/mango-go/internal/websocket"
 )
 
 // setupTestServer initializes an in-memory database, populates it with test
@@ -43,7 +45,15 @@ func setupTestServer(t *testing.T) (*Server, *sql.DB) {
 	}
 
 	cfg := &config.Config{}
-	server := NewServer(cfg, db)
+	hub := websocket.NewHub()
+	go hub.Run()
+	app := &core.App{
+		Config:  cfg,
+		DB:      db,
+		WsHub:   hub,
+		Version: "test",
+	}
+	server := NewServer(app)
 	return server, db
 }
 

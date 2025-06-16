@@ -6,8 +6,8 @@ package library
 
 import (
 	"database/sql"
-	"io/fs"
 	"log"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -31,67 +31,91 @@ func NewScanner(cfg *config.Config, db *sql.DB) *Scanner {
 	}
 }
 
-// Scan walks the configured library path and updates the database.
-func (s *Scanner) Scan() error {
-	return filepath.WalkDir(s.cfg.Library.Path, func(path string, d fs.DirEntry, err error) error {
+// Scan accepts a set of paths to ignore (for incremental scans)
+// and a channel to report progress.
+func (s *Scanner) Scan(ignorePaths map[string]bool, progressChan chan<- float64) error {
+	if progressChan != nil {
+		defer close(progressChan)
+	}
+	var filesToScan []string
+	err := filepath.WalkDir(s.cfg.Library.Path, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if d.IsDir() {
-			return nil // Skip directories
-		}
-
-		ext := strings.ToLower(filepath.Ext(path))
-		if ext == ".cbz" || ext == ".cbr" {
-			log.Printf("Processing archive: %s", path)
-
-			seriesTitle, _ := ExtractMetadataFromPath(path, s.cfg.Library.Path)
-
-			// Begin a transaction for this file.
-			tx, err := s.db.Begin()
-			if err != nil {
-				return err
-			}
-			// Defer a rollback in case of error. Commit will be called on success.
-			defer tx.Rollback()
-
-			// Get or create the manga series ID.
-			seriesID, err := s.st.GetOrCreateSeries(tx, seriesTitle, filepath.Dir(path))
-			if err != nil {
-				return err
-			}
-
-			// Parse the archive to get page information.
-			pages, firstPageData, err := ParseArchive(path)
-			if err != nil {
-				log.Printf("Warning: could not parse archive %s: %v", path, err)
-				return nil // Continue scanning even if one file is corrupt
-			}
-
-			var thumbnailData string
-			if firstPageData != nil {
-				thumbnailData, err = GenerateThumbnail(firstPageData)
-				if err != nil {
-					log.Printf("Warning: could not generate thumbnail for %s: %v", path, err)
-				}
-			}
-
-			// Add or update the chapter in the database.
-			_, err = s.st.AddOrUpdateChapter(tx, seriesID, path, len(pages), thumbnailData)
-			if err != nil {
-				return err
-			}
-
-			// If a thumbnail was generated, try to set it as the series cover.
-			if thumbnailData != "" {
-				if err := s.st.UpdateSeriesThumbnailIfNeeded(tx, seriesID, thumbnailData); err != nil {
-					return err
-				}
-			}
-
-			// Commit the transaction if everything was successful.
-			return tx.Commit()
+		if !d.IsDir() && (strings.HasSuffix(d.Name(), ".cbz") || strings.HasSuffix(d.Name(), ".cbr")) {
+			filesToScan = append(filesToScan, path)
 		}
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+
+	totalFiles := len(filesToScan)
+	for i, path := range filesToScan {
+		if ignorePaths != nil {
+			if _, exists := ignorePaths[path]; exists {
+				continue // Skip already processed files in incremental scan
+			}
+		}
+		s.processFile(path)
+		if progressChan != nil {
+			progressChan <- (float64(i+1) / float64(totalFiles)) * 100
+		}
+	}
+	s.st.UpdateAllSeriesThumbnails()
+	return nil
+
+}
+
+// processFile processes a single archive file, extracting metadata and updating the database.
+func (s *Scanner) processFile(path string) error {
+	log.Printf("Processing archive: %s", path)
+
+	seriesTitle, _ := ExtractMetadataFromPath(path, s.cfg.Library.Path)
+
+	// Begin a transaction for this file.
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	// Defer a rollback in case of error. Commit will be called on success.
+	defer tx.Rollback()
+
+	// Get or create the manga series ID.
+	seriesID, err := s.st.GetOrCreateSeries(tx, seriesTitle, filepath.Dir(path))
+	if err != nil {
+		return err
+	}
+
+	// Parse the archive to get page information.
+	pages, firstPageData, err := ParseArchive(path)
+	if err != nil {
+		log.Printf("Warning: could not parse archive %s: %v", path, err)
+		return nil // Continue scanning even if one file is corrupt
+	}
+
+	var thumbnailData string
+	if firstPageData != nil {
+		thumbnailData, err = GenerateThumbnail(firstPageData)
+		if err != nil {
+			log.Printf("Warning: could not generate thumbnail for %s: %v", path, err)
+		}
+	}
+
+	// Add or update the chapter in the database.
+	_, err = s.st.AddOrUpdateChapter(tx, seriesID, path, len(pages), thumbnailData)
+	if err != nil {
+		return err
+	}
+
+	// If a thumbnail was generated, try to set it as the series cover.
+	if thumbnailData != "" {
+		if err := s.st.UpdateSeriesThumbnailIfNeeded(tx, seriesID, thumbnailData); err != nil {
+			return err
+		}
+	}
+
+	// Commit the transaction if everything was successful.
+	return tx.Commit()
 }

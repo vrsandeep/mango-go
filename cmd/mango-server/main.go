@@ -22,7 +22,8 @@ func main() {
 	// Initial library scan on startup
 	log.Println("Performing initial library scan...")
 	scanner := library.NewScanner(app.Config, app.DB)
-	if err := scanner.Scan(); err != nil {
+
+	if err := scanner.Scan(nil, nil); err != nil {
 		log.Printf("Warning: initial library scan failed: %v", err)
 	}
 	log.Println("Initial scan complete.")
@@ -32,7 +33,7 @@ func main() {
 		ticker := time.NewTicker(time.Duration(app.Config.ScanInterval) * time.Minute)
 		for range ticker.C {
 			log.Println("Performing periodic library scan...")
-			if err := scanner.Scan(); err != nil {
+			if err := scanner.Scan(nil, nil); err != nil {
 				log.Printf("Warning: periodic library scan failed: %v", err)
 			}
 			log.Println("Periodic scan complete.")
@@ -40,7 +41,7 @@ func main() {
 	}()
 
 	// Setup the API server
-	server := api.NewServer(app.Config, app.DB)
+	server := api.NewServer(app)
 	addr := fmt.Sprintf(":%d", app.Config.Port)
 	log.Printf("Starting web server on %s", addr)
 

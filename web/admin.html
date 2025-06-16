@@ -1,0 +1,134 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Mango</title>
+    <link rel="stylesheet" href="https://unpkg.com/phosphor-icons@1.4.2/src/css/icons.css">
+    <style>
+        :root { --bg-color: #1a1a1a; --text-color: #f0f0f0; --card-bg: #2a2a2a; --btn-bg: #333; --border-color: #555; --accent-color: #1e90ff; }
+        body.light-theme { --bg-color: #f4f4f9; --text-color: #1a1a1a; --card-bg: #ffffff; --btn-bg: #e0e0e0; --border-color: #ccc; }
+        body { background-color: var(--bg-color); color: var(--text-color); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; }
+        a { color: var(--accent-color); text-decoration: none; }
+        .main-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; background-color: var(--card-bg); border-bottom: 1px solid var(--border-color); }
+        .header-left { display: flex; align-items: center; gap: 1.5rem; }
+        .header-logo { height: 32px; width: 32px; fill: var(--text-color); }
+        .nav-links a { font-size: 1.1rem; }
+        .header-right { display: flex; align-items: center; gap: 1rem; }
+        .menu-toggle { display: none; background: none; border: none; font-size: 2rem; color: var(--text-color); cursor: pointer; }
+        .container { max-width: 900px; margin: 2rem auto; padding: 0 1.5rem; }
+        .job-item { display: flex; align-items: center; justify-content: space-between; padding: 1rem; background: var(--card-bg); border-radius: 8px; margin-bottom: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+        .job-details { flex-grow: 1; }
+        .job-details h3 { margin: 0 0 0.25rem; }
+        .job-details p { margin: 0; font-size: 0.9rem; color: #aaa; }
+        .job-progress-container { width: 100%; height: 8px; background: #444; border-radius: 4px; margin-top: 0.5rem; display: none; }
+        .job-progress-bar { width: 0%; height: 100%; background: var(--accent-color); transition: width 0.2s linear; border-radius: 4px; }
+        .job-actions button { background-color: var(--btn-bg); color: var(--text-color); border: 1px solid var(--border-color); padding: 8px 16px; border-radius: 5px; cursor: pointer; }
+        .job-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <header class="main-header"><!-- ... (Same header as other pages) ... --></header>
+
+    <main class="container">
+        <h1>Admin Actions</h1>
+        <div id="jobs-container"></div>
+    </main>
+
+    <footer class="main-footer" style="text-align:center; padding: 1rem; color: #888;">
+        <span id="version-footer"></span>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const jobsContainer = document.getElementById('jobs-container');
+            const jobs = [
+                { id: 'full-scan', name: 'Full Library Scan', description: 'Re-scans every file in your library directory. Use this if you have made major changes.', endpoint: '/api/admin/scan-library' },
+                { id: 'incremental-scan', name: 'Scan for Missing Items', description: 'Scans your library and only adds new series and chapters.', endpoint: '/api/admin/scan-missing' },
+                { id: 'prune-db', name: 'Prune Database', description: 'Removes entries from the database that no longer exist on your disk.', endpoint: '/api/admin/prune-database' },
+                { id: 'regen-thumbnails', name: 'Regenerate Thumbnails', description: 'Re-creates all chapter and series thumbnails. This can take a while.', endpoint: '/api/admin/generate-thumbnails' }
+            ];
+
+            const renderJobs = () => {
+                jobsContainer.innerHTML = '';
+                jobs.forEach(job => {
+                    const jobEl = document.createElement('div');
+                    jobEl.className = 'job-item';
+                    jobEl.id = `job-${job.id}`;
+                    jobEl.innerHTML = `
+                        <div class="job-details">
+                            <h3>${job.name}</h3>
+                            <p class="job-description">${job.description}</p>
+                            <div class="job-progress-container">
+                                <div class="job-progress-bar"></div>
+                            </div>
+                        </div>
+                        <div class="job-actions">
+                            <button class="start-job-btn" data-endpoint="${job.endpoint}">Start</button>
+                        </div>
+                    `;
+                    jobsContainer.appendChild(jobEl);
+                });
+            };
+
+            const startJob = async (endpoint, button) => {
+                button.disabled = true;
+                const jobEl = button.closest('.job-item');
+                const progressContainer = jobEl.querySelector('.job-progress-container');
+                const progressBar = jobEl.querySelector('.job-progress-bar');
+                const description = jobEl.querySelector('.job-description');
+
+                progressContainer.style.display = 'block';
+                progressBar.style.width = '0%';
+                description.textContent = 'Starting job...';
+
+                await fetch(endpoint, { method: 'POST' });
+            };
+
+            const initWebSocket = () => {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const ws = new WebSocket(`${protocol}//${window.location.host}/ws/admin/progress`);
+
+                ws.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    const jobElId = `job-${data.job_name.toLowerCase().replace(/\s+/g, '-')}`;
+                    const jobEl = document.getElementById(jobElId);
+                    if (!jobEl) return;
+
+                    const progressBar = jobEl.querySelector('.job-progress-bar');
+                    const description = jobEl.querySelector('.job-description');
+                    const button = jobEl.querySelector('.start-job-btn');
+
+                    progressBar.style.width = `${data.progress}%`;
+                    description.textContent = data.message;
+
+                    if (data.done) {
+                        button.disabled = false;
+                        setTimeout(() => {
+                           jobEl.querySelector('.job-progress-container').style.display = 'none';
+                           description.textContent = jobs.find(j => j.id === jobEl.id.replace('job-','')).description;
+                        }, 5000);
+                    }
+                };
+
+                ws.onclose = () => {
+                    console.log('WebSocket disconnected. Reconnecting in 5 seconds...');
+                    setTimeout(initWebSocket, 5000);
+                };
+            };
+
+            renderJobs();
+            initWebSocket();
+
+            document.querySelectorAll('.start-job-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    startJob(e.target.dataset.endpoint, e.target);
+                });
+            });
+
+            // ... (Theme, Menu, and Version logic from previous steps) ...
+        });
+    </script>
+</body>
+</html>

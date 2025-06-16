@@ -5,6 +5,7 @@ go 1.24.4
 require (
 	github.com/go-chi/chi/v5 v5.2.1
 	github.com/golang-migrate/migrate/v4 v4.18.3
+	github.com/gorilla/websocket v1.5.3
 	github.com/mattn/go-sqlite3 v1.14.28
 	github.com/mholt/archives v0.1.2
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646

@@ -197,3 +197,42 @@ func (s *Store) getTagsForSeries(seriesID int64) ([]*models.Tag, error) {
 	}
 	return tags, nil
 }
+
+// GetAllChapterPaths returns a slice of all chapter file paths in the DB.
+func (s *Store) GetAllChapterPaths() ([]string, error) {
+	rows, err := s.db.Query("SELECT path FROM chapters")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var paths []string
+	for rows.Next() {
+		var path string
+		if err := rows.Scan(&path); err != nil {
+			return nil, err
+		}
+		paths = append(paths, path)
+	}
+	return paths, nil
+}
+
+// GetAllChaptersForThumbnailing returns a slice of all chapters with just
+// the ID and path, which is all that's needed for the job.
+func (s *Store) GetAllChaptersForThumbnailing() ([]*models.Chapter, error) {
+	rows, err := s.db.Query("SELECT id, path FROM chapters")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var chapters []*models.Chapter
+	for rows.Next() {
+		var chapter models.Chapter
+		if err := rows.Scan(&chapter.ID, &chapter.Path); err != nil {
+			return nil, err
+		}
+		chapters = append(chapters, &chapter)
+	}
+	return chapters, nil
+}

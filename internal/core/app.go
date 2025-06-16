@@ -7,13 +7,18 @@ import (
 
 	"github.com/vrsandeep/mango-go/internal/config"
 	"github.com/vrsandeep/mango-go/internal/db"
+	"github.com/vrsandeep/mango-go/internal/websocket"
 )
+
+const Version = "0.0.1" // Application version
 
 // App holds the core components of the application that are shared
 // between the server and the CLI.
 type App struct {
-	Config *config.Config
-	DB     *sql.DB
+	Config  *config.Config
+	DB      *sql.DB
+	WsHub   *websocket.Hub
+	Version string
 }
 
 // New sets up and returns a new App instance. It handles loading the
@@ -40,9 +45,16 @@ func New() (*App, error) {
 	}
 
 	log.Println("Core application setup complete.")
+
+	// Create and start the WebSocket hub
+	hub := websocket.NewHub()
+	go hub.Run()
+
 	return &App{
-		Config: cfg,
-		DB:     database,
+		Config:  cfg,
+		DB:      database,
+		WsHub:   hub,
+		Version: Version,
 	}, nil
 }
 

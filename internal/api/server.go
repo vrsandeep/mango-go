@@ -10,23 +10,25 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/vrsandeep/mango-go/internal/config"
+	"github.com/vrsandeep/mango-go/internal/core"
 	"github.com/vrsandeep/mango-go/internal/store"
 )
 
 // Server holds the dependencies for our API.
 type Server struct {
-	config *config.Config
-	db     *sql.DB
-	store  *store.Store
+	app *core.App
+	// config *config.Config
+	db    *sql.DB
+	store *store.Store
 }
 
 // NewServer creates a new Server instance.
-func NewServer(cfg *config.Config, db *sql.DB) *Server {
+func NewServer(app *core.App) *Server {
 	return &Server{
-		config: cfg,
-		db:     db,
-		store:  store.New(db),
+		app: app,
+		// config: cfg,
+		db:    app.DB,
+		store: store.New(app.DB),
 	}
 }
 
@@ -42,28 +44,44 @@ func (s *Server) Router() http.Handler {
 
 	// API routes
 	r.Route("/api", func(r chi.Router) {
+		r.Get("/version", s.handleGetVersion)
+
 		r.Get("/series", s.handleListSeries)
 		r.Get("/series/{seriesID}", s.handleGetSeries)
 		r.Post("/series/{seriesID}/cover", s.handleUpdateCover)
 		r.Post("/series/{seriesID}/mark-all-as", s.handleMarkAllAs)
+		r.Post("/series/{seriesID}/tags", s.handleAddTag)
+		r.Delete("/series/{seriesID}/tags/{tagID}", s.handleRemoveTag)
 		r.Get("/series/{seriesID}/chapters/{chapterID}", s.handleGetChapterDetails)
 		r.Get("/series/{seriesID}/chapters/{chapterID}/pages/{pageNumber}", s.handleGetPage)
 		r.Post("/chapters/{chapterID}/progress", s.handleUpdateProgress)
 
-		r.Post("/series/{seriesID}/tags", s.handleAddTag)
-		r.Delete("/series/{seriesID}/tags/{tagID}", s.handleRemoveTag)
+		// Admin Job Triggers
+		r.Post("/admin/scan-library", s.handleScanLibrary)
+		r.Post("/admin/scan-missing", s.handleScanMissing)
+		r.Post("/admin/prune-database", s.handlePruneDatabase)
+		r.Post("/admin/generate-thumbnails", s.handleGenerateThumbnails)
 	})
 
-	// Route to serve the web reader frontend
-	r.Get("/reader/series/{seriesID}/chapters/{chapterID}", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "./web/reader.html")
+	// WebSocket route
+	r.Get("/ws/admin/progress", func(w http.ResponseWriter, r *http.Request) {
+		s.app.WsHub.ServeWs(w, r)
 	})
-	// New routes for series browsing
+
+	r.Get("/admin", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./web/admin.html")
+	})
+
+	r.Get("/series/{seriesID}", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./web/chapters.html")
+	})
+
 	r.Get("/library", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "./web/series.html")
 	})
-	r.Get("/series/{seriesID}", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "./web/chapters.html")
+
+	r.Get("/reader/series/{seriesID}/chapters/{chapterID}", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./web/reader.html")
 	})
 
 	// Add a redirect from the root to the main library page
