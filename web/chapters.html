@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -20,11 +19,23 @@
         .header-right { display: flex; align-items: center; gap: 1rem; }
         .menu-toggle { display: none; background: none; border: none; font-size: 2rem; color: var(--text-color); cursor: pointer; }
 
+        .library-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap; }
+        .search-bar { flex-grow: 1; max-width: 400px; }
+        .search-bar input { width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 5px; background-color: var(--card-bg); color: var(--text-color); }
+        .sort-controls { display: flex; align-items: center; gap: 0.5rem; }
+        .sort-controls select { padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 5px; background-color: var(--card-bg); color: var(--text-color); }
+        .sort-controls button { background-color: var(--btn-bg); color: var(--text-color); border: none; padding: 0.5rem 1rem; cursor: pointer; border-radius: 5px; }
+        .sort-controls button:hover { background-color: var(--accent-color); color: white; }
+        .sort-controls span { color: var(--text-color); font-size: 0.9rem; }
+        .total-count { color: #888; font-size: 0.9rem; margin-bottom: 1rem; display: inline-block; margin-left: 1rem; }
+        .total-count::before { content: "Total: "; font-weight: bold; }
+        .total-count::after { content: " chapters"; }
+
         /* Tags */
-        .tags-container { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+        .tags-container { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; padding: 0.5rem; background-color: var(--card-bg); border-radius: 8px; }
         .tag { background-color: var(--btn-bg); padding: 0.25rem 0.75rem; border-radius: 15px; font-size: 0.9rem; display: flex; align-items: center; gap: 0.25rem; }
         .tag-remove-btn { cursor: pointer; font-weight: bold; }
-        .tag-input { margin-bottom: 1rem; }
+        .tag-input { margin-bottom: 1rem; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 5px; background-color: var(--card-bg); color: var(--text-color); width: 100%; max-width: 400px; }
 
         /* Grid & Cards */
         .container { max-width: 1400px; margin: 2rem auto; padding: 0 1.5rem; }
@@ -96,16 +107,15 @@
                 <img id="series-thumb" class="header-thumb">
                 <h1 id="series-title"></h1>
                 <button class="edit-btn" id="edit-series-btn"><i class="ph-bold ph-pencil-simple"></i></button>
-                <span id="total-count" class="total-count"></span>
             </div>
         </div>
         <div class="breadcrumb">
             <a href="/library">Home</a> / <!--<span id="breadcrumb-series-title"></span> -->
         </div>
+        <span id="total-count" class="total-count"></span>
+        <!-- Merge tag-input into tags-container and any new tags should be added here -->
         <div class="tags-container" id="tags-container"></div>
-        <div class="tag-input">
-            <input type="text" id="tag-input" placeholder="Add a tag and press Enter...">
-        </div>
+        <input type="text" class="tag-input" id="tag-input" placeholder="Add a tag here.">
         <div class="library-controls">
             <div class="search-bar">
                 <input type="search" id="search-input" placeholder="Search chapters...">
@@ -220,7 +230,7 @@
 
                 if (reset) {
                     const total = response.headers.get('X-Total-Count');
-                    totalCountEl.textContent = `(${total})`;
+                    totalCountEl.textContent = `${total}`;
                 }
 
                 if (seriesData) {
@@ -252,6 +262,10 @@
                     `;
                     chaptersGrid.appendChild(card);
                 });
+                // Load tags
+                if (seriesData.tags) {
+                    renderTags(seriesData.tags);
+                }
                 state.isLoading = false;
             };
 

@@ -6,7 +6,7 @@ package store
 import (
 	"database/sql"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -149,15 +149,43 @@ func (s *Store) GetSeriesByID(id int64, page, perPage int, search, sortBy, sortD
 		series.Chapters = append(series.Chapters, &chapter)
 	}
 	if sortBy == "auto" {
-		sort.Slice(series.Chapters, func(i, j int) bool {
-			isLess := util.NaturalSortLess(series.Chapters[i].Path, series.Chapters[j].Path)
+		// sort.Slice(series.Chapters, func(i, j int) bool {
+		// 	isLess := util.NaturalSortLess(series.Chapters[i].Path, series.Chapters[j].Path)
+		// 	if strings.ToLower(sortDir) == "desc" {
+		// 		return !isLess
+		// 	}
+		// 	return isLess
+		// })
+
+		// Use the ChapterSorter to sort chapters
+		chapterTitles := make([]string, len(series.Chapters))
+		for i, chapter := range series.Chapters {
+			chapterTitles[i] = getChapterTitle(chapter)
+		}
+		cs := util.NewChapterSorter(chapterTitles)
+		slices.SortFunc(series.Chapters, func(a, b *models.Chapter) int {
+			comparison := cs.Compare(getChapterTitle(a), getChapterTitle(b))
 			if strings.ToLower(sortDir) == "desc" {
-				return !isLess
+				return -comparison
 			}
-			return isLess
+			return comparison
 		})
 	}
 	return &series, totalChapters, nil
+}
+
+func getChapterTitle(chapter *models.Chapter) string {
+	// Extract the last part of the path as the title
+	parts := strings.Split(chapter.Path, "/")
+	if len(parts) == 0 {
+		return ""
+	}
+	title := parts[len(parts)-1]
+	// Remove file extension if present
+	if dotIndex := strings.LastIndex(title, "."); dotIndex != -1 {
+		title = title[:dotIndex]
+	}
+	return title
 }
 
 // GetChapterByID fetches a single chapter by its ID.

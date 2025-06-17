@@ -121,6 +121,7 @@
             <!-- These buttons will be shown or hidden by JS -->
             <button id="footer-prev-chapter-btn" style="display: none;">Previous Chapter</button>
             <button id="footer-next-chapter-btn" style="display: none;">Next Chapter</button>
+            <button id="footer-exit-chapter-btn" style="display: none;">Exit Chapter</button>
         </div>
     </main>
 
@@ -149,15 +150,16 @@
             let prevChapterId = null;
 
             const imageContainer = document.getElementById('image-container');
-            const exitReaderBtn = document.getElementById('exit-reader-btn');
             const progressBar = document.getElementById('progress-bar');
 
             const footerPrevBtn = document.getElementById('footer-prev-chapter-btn');
             const footerNextBtn = document.getElementById('footer-next-chapter-btn');
+            const footerExitBtn = document.getElementById('footer-exit-chapter-btn');
             // Modal elements
             const modal = document.getElementById('nav-modal');
             const prevChapterModalBtn = document.getElementById('prev-chapter-btn');
             const nextChapterModalBtn = document.getElementById('next-chapter-modal-btn');
+            const exitReaderBtn = document.getElementById('exit-reader-btn');
             const markReadBtn = document.getElementById('mark-read-btn');
 
             // --- API Calls ---
@@ -195,6 +197,11 @@
                     nextChapterModalBtn.disabled = false;
                 } else {
                     nextChapterModalBtn.disabled = true;
+                }
+                if (currentIndex === seriesData.chapters.length - 1) {
+                    footerExitBtn.style.display = 'inline-block';
+                } else {
+                    footerExitBtn.style.display = 'none';
                 }
             };
 
@@ -257,6 +264,9 @@
             });
             footerNextBtn.addEventListener('click', () => {
                 if (nextChapterId) window.location.href = `/reader/series/${seriesId}/chapters/${nextChapterId}`;
+            });
+            footerExitBtn.addEventListener('click', () => {
+                window.location.href = `/series/${seriesId}`;
             });
 
             markReadBtn.addEventListener('click', () => {

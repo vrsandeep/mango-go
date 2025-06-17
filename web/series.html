@@ -21,9 +21,16 @@
 
         .library-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap; }
         .search-bar { flex-grow: 1; max-width: 400px; }
-        .search-bar input { width: 100%; padding: 0.5rem; /* ... */ }
+        .search-bar input { width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 5px; background-color: var(--card-bg); color: var(--text-color); }
         .sort-controls { display: flex; align-items: center; gap: 0.5rem; }
-        .total-count { color: #888; }
+        .sort-controls select { padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 5px; background-color: var(--card-bg); color: var(--text-color); }
+        .sort-controls button { background-color: var(--btn-bg); color: var(--text-color); border: none; padding: 0.5rem 1rem; cursor: pointer; border-radius: 5px; }
+        .sort-controls button:hover { background-color: var(--accent-color); color: white; }
+        .sort-controls span { color: var(--text-color); font-size: 0.9rem; }
+        .total-count { color: #888; font-size: 0.9rem; margin-bottom: 1rem; display: inline-block; margin-left: 1rem; }
+        .total-count::before { content: "Total: "; font-weight: bold; }
+        .total-count::after { content: " titles"; }
+
 
         /* Grid & Cards */
         .container { max-width: 1400px; margin: 2rem auto; padding: 0 1.5rem; }
@@ -149,7 +156,7 @@
 
                 if (reset) {
                     const total = response.headers.get('X-Total-Count');
-                    totalCountEl.textContent = `(${total})`;
+                    totalCountEl.textContent = `${total}`;
                 }
 
                 if (!seriesList || seriesList.length < 100) {
