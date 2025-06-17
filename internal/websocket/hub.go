@@ -45,6 +45,7 @@ func (h *Hub) Run() {
 		}
 	}
 }
+
 func (h *Hub) BroadcastJSON(v interface{}) {
 	bytes, err := json.Marshal(v)
 	if err != nil {

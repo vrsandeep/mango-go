@@ -50,6 +50,8 @@
             .nav-links a { padding: 1rem 1.5rem; }
             .menu-toggle { display: block; }
             .header-left { gap: 1rem; }
+            .search-bar { width: 100%; }
+            .sort-controls { width: 100%; }
         }
         #load-more-btn { background-color: #333; color: white; border: 1px solid #555; padding: 10px 20px; font-size: 1rem; cursor: pointer; border-radius: 5px; }
         #load-more-btn:hover { background-color: #444; }
@@ -166,25 +168,27 @@
                     loadMoreBtn.style.display = 'block';
                 }
 
-                seriesList.forEach(series => {
-                    const card = document.createElement('a');
-                    card.href = `/series/${series.id}`;
-                    card.className = 'item-card';
-                    // Prioritize custom cover, fall back to generated thumbnail
-                    const coverSrc = series.custom_cover_url || series.thumbnail || '';
-                    const progressPercent = series.total_chapters > 0 ? (series.read_chapters / series.total_chapters) * 100 : 0;
+                if (seriesList) {
+                    seriesList.forEach(series => {
+                        const card = document.createElement('a');
+                        card.href = `/series/${series.id}`;
+                        card.className = 'item-card';
+                        // Prioritize custom cover, fall back to generated thumbnail
+                        const coverSrc = series.custom_cover_url || series.thumbnail || '';
+                        const progressPercent = series.total_chapters > 0 ? (series.read_chapters / series.total_chapters) * 100 : 0;
 
-                    card.innerHTML = `
-                        <div class="thumbnail-container">
-                            <img class="thumbnail" src="${coverSrc}" alt="Cover for ${series.title}" loading="lazy">
-                        </div>
-                        <div class="item-title" title="${series.title}">${series.title}</div>
-                        <div class="progress-bar-container">
-                            <div class="progress-bar" style="width: ${progressPercent}%;"></div>
-                        </div>
-                    `;
-                    seriesGrid.appendChild(card);
-                });
+                        card.innerHTML = `
+                            <div class="thumbnail-container">
+                                <img class="thumbnail" src="${coverSrc}" alt="Cover for ${series.title}" loading="lazy">
+                            </div>
+                            <div class="item-title" title="${series.title}">${series.title}</div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar" style="width: ${progressPercent}%;"></div>
+                            </div>
+                        `;
+                        seriesGrid.appendChild(card);
+                    });
+                }
                 state.isLoading = false;
             };
 

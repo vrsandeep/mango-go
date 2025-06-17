@@ -29,7 +29,7 @@ func sendProgress(app *core.App, jobName, message string, progress float64, done
 }
 
 func RunFullScan(app *core.App) {
-	jobName := "Full Library Scan"
+	jobName := "Full Scan"
 	sendProgress(app, jobName, "Starting full library scan...", 0, false)
 	log.Println("Job started:", jobName)
 
@@ -55,7 +55,7 @@ func RunFullScan(app *core.App) {
 }
 
 func RunIncrementalScan(app *core.App) {
-	jobName := "Scan Missing Items"
+	jobName := "Incremental Scan"
 	sendProgress(app, jobName, "Finding existing chapters...", 0, false)
 	log.Println("Job started:", jobName)
 
@@ -106,6 +106,7 @@ func RunPruneDatabase(app *core.App) {
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	var deletedCount int
+	var processedCount int
 	total := len(allPaths)
 	if total == 0 {
 		sendProgress(app, jobName, "Pruning complete. No chapters to check.", 100, true)
@@ -125,8 +126,12 @@ func RunPruneDatabase(app *core.App) {
 					log.Printf("Failed to prune chapter %s: %v", p, err)
 				}
 			}
-			progress := (float64(idx+1) / float64(total)) * 100
-			if idx%20 == 0 || idx == total-1 { // Update progress periodically or on the last item
+			mu.Lock()
+			processedCount++
+			mu.Unlock()
+			progress := (float64(processedCount) / float64(total)) * 100
+			// Update progress periodically or on the last item
+			if processedCount%20 == 0 || processedCount == total-1 {
 				mu.Lock()
 				currentDeleted := deletedCount
 				mu.Unlock()
@@ -139,8 +144,12 @@ func RunPruneDatabase(app *core.App) {
 	sendProgress(app, jobName, "Deleting empty series...", 99, false)
 	st.DeleteEmptySeries()
 
-	finalMsg := fmt.Sprintf("Pruning complete. Removed %d non-existent chapters.", deletedCount)
-	sendProgress(app, jobName, finalMsg, 100, true)
+	if deletedCount == 0 {
+		sendProgress(app, jobName, "Pruning complete. No non-existent chapters found.", 100, true)
+	} else {
+		finalMsg := fmt.Sprintf("Pruning complete. Removed %d non-existent chapter(s).", deletedCount)
+		sendProgress(app, jobName, finalMsg, 100, true)
+	}
 	log.Println("Job finished:", jobName)
 }
 

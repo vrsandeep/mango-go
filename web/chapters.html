@@ -55,6 +55,8 @@
             .nav-links a { padding: 1rem 1.5rem; }
             .menu-toggle { display: block; }
             .header-left { gap: 1rem; }
+            .search-bar { width: 100%; }
+            .sort-controls { width: 100%; }
         }
 
         .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; }
@@ -168,6 +170,8 @@
             const loadMoreBtn = document.getElementById('load-more-btn');
             const seriesTitleEl = document.getElementById('series-title');
             const seriesThumbEl = document.getElementById('series-thumb');
+            const navLinks = document.getElementById('nav-links');
+            const menuToggleBtn = document.getElementById('menu-toggle-btn');
             const themeToggleBtn = document.getElementById('theme-toggle-btn');
 
             const tagsContainer = document.getElementById('tags-container');
@@ -198,6 +202,9 @@
                 localStorage.setItem('theme', newTheme);
                 applyTheme(newTheme);
             });
+
+            // --- Mobile Menu Logic ---
+            menuToggleBtn.addEventListener('click', () => navLinks.classList.toggle('active'));
 
             const updateCover = async (url) => {
                 await fetch(`/api/series/${seriesId}/cover`, {
@@ -246,22 +253,24 @@
                     loadMoreBtn.style.display = 'block';
                 }
 
-                seriesData.chapters.forEach(chapter => {
-                    const card = document.createElement('a');
-                    const progressPercent = chapter.progress_percent;
-                    card.href = `/reader/series/${seriesId}/chapters/${chapter.id}`;
-                    card.classList.add('item-card');
-                    card.innerHTML = `
-                        <div class="thumbnail-container">
-                            <img class="thumbnail" src="${chapter.thumbnail || ''}" alt="Cover for Chapter ${chapter.id}">
-                        </div>
-                        <div class="item-title">${chapter.path.split('/').pop()}</div>
-                        <div class="progress-bar-container">
-                            <div class="progress-bar" style="width: ${progressPercent}%;"></div>
-                        </div>
-                    `;
-                    chaptersGrid.appendChild(card);
-                });
+                if (seriesData.chapters) {
+                    seriesData.chapters.forEach(chapter => {
+                        const card = document.createElement('a');
+                        const progressPercent = chapter.progress_percent;
+                        card.href = `/reader/series/${seriesId}/chapters/${chapter.id}`;
+                        card.classList.add('item-card');
+                        card.innerHTML = `
+                            <div class="thumbnail-container">
+                                <img class="thumbnail" src="${chapter.thumbnail || ''}" alt="Cover for Chapter ${chapter.id}">
+                            </div>
+                            <div class="item-title">${chapter.path.split('/').pop()}</div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar" style="width: ${progressPercent}%;"></div>
+                            </div>
+                        `;
+                        chaptersGrid.appendChild(card);
+                    });
+                }
                 // Load tags
                 if (seriesData.tags) {
                     renderTags(seriesData.tags);

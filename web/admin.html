@@ -9,14 +9,21 @@
     <style>
         :root { --bg-color: #1a1a1a; --text-color: #f0f0f0; --card-bg: #2a2a2a; --btn-bg: #333; --border-color: #555; --accent-color: #1e90ff; }
         body.light-theme { --bg-color: #f4f4f9; --text-color: #1a1a1a; --card-bg: #ffffff; --btn-bg: #e0e0e0; --border-color: #ccc; }
-        body { background-color: var(--bg-color); color: var(--text-color); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; }
+        body { background-color: var(--bg-color); color: var(--text-color); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; transition: background-color 0.2s, color 0.2s; }
         a { color: var(--accent-color); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+
+        /* Header & Nav */
         .main-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; background-color: var(--card-bg); border-bottom: 1px solid var(--border-color); }
         .header-left { display: flex; align-items: center; gap: 1.5rem; }
         .header-logo { height: 32px; width: 32px; fill: var(--text-color); }
         .nav-links a { font-size: 1.1rem; }
         .header-right { display: flex; align-items: center; gap: 1rem; }
         .menu-toggle { display: none; background: none; border: none; font-size: 2rem; color: var(--text-color); cursor: pointer; }
+
+
+        /* Grid & Cards */
         .container { max-width: 900px; margin: 2rem auto; padding: 0 1.5rem; }
         .job-item { display: flex; align-items: center; justify-content: space-between; padding: 1rem; background: var(--card-bg); border-radius: 8px; margin-bottom: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
         .job-details { flex-grow: 1; }
@@ -26,14 +33,97 @@
         .job-progress-bar { width: 0%; height: 100%; background: var(--accent-color); transition: width 0.2s linear; border-radius: 4px; }
         .job-actions button { background-color: var(--btn-bg); color: var(--text-color); border: 1px solid var(--border-color); padding: 8px 16px; border-radius: 5px; cursor: pointer; }
         .job-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Mobile Sidebar */
+        @media (max-width: 768px) {
+            .nav-links { display: none; flex-direction: column; position: fixed; top: 0; left: -250px; width: 250px; height: 100vh; background-color: var(--card-bg); padding-top: 4rem; transition: left 0.3s ease; box-shadow: 2px 0 10px rgba(0,0,0,0.3); }
+            .nav-links.active { left: 0; }
+            .nav-links a { padding: 1rem 1.5rem; }
+            .menu-toggle { display: block; }
+            .header-left { gap: 1rem; }
+            .search-bar { width: 100%; }
+            .sort-controls { width: 100%; }
+            .jobs-container { display: flex; flex-direction: column; }
+        }
+
+        #theme-toggle-btn, #logout-btn { background-color: var(--btn-bg); color: var(--text-color); border: none; padding: 0.5rem 1rem; cursor: pointer; border-radius: 5px; }
+        #theme-toggle-btn:hover, #logout-btn:hover { background-color: var(--accent-color); color: white; }
+        #theme-toggle-btn { margin-right: 1rem; }
+        #logout-btn { margin-left: 1rem; }
+        .footer { margin-top: 2rem; text-align:center; padding: 2rem;}
+        .footer button:hover { background-color: var(--accent-color); color: white; }
     </style>
 </head>
 <body>
-    <header class="main-header"><!-- ... (Same header as other pages) ... --></header>
+    <header class="main-header">
+        <div class="header-left">
+            <button class="menu-toggle" id="menu-toggle-btn"><i class="ph-bold ph-list"></i></button>
+            <svg class="header-logo" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM4 4h16v11.17l-3.17-3.17-2 2-3-3-3.17 3.17L4 12.34V4z"/></svg>
+            <nav class="nav-links" id="nav-links">
+                <a href="/library">Home</a>
+                <a href="/admin">Admin</a>
+                <!-- More links can be added here -->
+            </nav>
+        </div>
+        <div class="header-right">
+            <button id="theme-toggle-btn">Theme</button>
+            <button id="logout-btn">Logout</button>
+        </div>
+    </header>
 
     <main class="container">
-        <h1>Admin Actions</h1>
-        <div id="jobs-container"></div>
+        <h1>Admin</h1>
+        <div id="jobs-container">
+            <div class="job-item" id="job-full-scan">
+                <div class="job-details">
+                <h3>Full Library Scan</h3>
+                <p class="job-description">Re-scans every file in your library directory. Use this if you have made major changes.
+                </p>
+                <div class="job-progress-container">
+                    <div class="job-progress-bar"></div>
+                </div>
+                </div>
+                <div class="job-actions">
+                <button class="start-job-btn" data-endpoint="/api/admin/scan-library">Start</button>
+                </div>
+            </div>
+            <div class="job-item" id="job-incremental-scan">
+                <div class="job-details">
+                <h3>Find new chapters</h3>
+                <p class="job-description">Scans your library and only adds new series and chapters.</p>
+                <div class="job-progress-container">
+                    <div class="job-progress-bar"></div>
+                </div>
+                </div>
+                <div class="job-actions">
+                <button class="start-job-btn" data-endpoint="/api/admin/scan-incremental">Start</button>
+                </div>
+            </div>
+            <div class="job-item" id="job-prune-database">
+                <div class="job-details">
+                <h3>Prune Database</h3>
+                <p class="job-description">Removes entries from the database that no longer exist on your disk.</p>
+                <div class="job-progress-container">
+                    <div class="job-progress-bar"></div>
+                </div>
+                </div>
+                <div class="job-actions">
+                <button class="start-job-btn" data-endpoint="/api/admin/prune-database">Start</button>
+                </div>
+            </div>
+            <div class="job-item" id="job-regenerate-thumbnails">
+                <div class="job-details">
+                <h3>Regenerate Thumbnails</h3>
+                <p class="job-description">Re-creates all chapter and series thumbnails. This can take a while.</p>
+                <div class="job-progress-container">
+                    <div class="job-progress-bar"></div>
+                </div>
+                </div>
+                <div class="job-actions">
+                <button class="start-job-btn" data-endpoint="/api/admin/generate-thumbnails">Start</button>
+                </div>
+            </div>
+        </div>
     </main>
 
     <footer class="main-footer" style="text-align:center; padding: 1rem; color: #888;">
@@ -42,35 +132,9 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const jobsContainer = document.getElementById('jobs-container');
-            const jobs = [
-                { id: 'full-scan', name: 'Full Library Scan', description: 'Re-scans every file in your library directory. Use this if you have made major changes.', endpoint: '/api/admin/scan-library' },
-                { id: 'incremental-scan', name: 'Scan for Missing Items', description: 'Scans your library and only adds new series and chapters.', endpoint: '/api/admin/scan-missing' },
-                { id: 'prune-db', name: 'Prune Database', description: 'Removes entries from the database that no longer exist on your disk.', endpoint: '/api/admin/prune-database' },
-                { id: 'regen-thumbnails', name: 'Regenerate Thumbnails', description: 'Re-creates all chapter and series thumbnails. This can take a while.', endpoint: '/api/admin/generate-thumbnails' }
-            ];
-
-            const renderJobs = () => {
-                jobsContainer.innerHTML = '';
-                jobs.forEach(job => {
-                    const jobEl = document.createElement('div');
-                    jobEl.className = 'job-item';
-                    jobEl.id = `job-${job.id}`;
-                    jobEl.innerHTML = `
-                        <div class="job-details">
-                            <h3>${job.name}</h3>
-                            <p class="job-description">${job.description}</p>
-                            <div class="job-progress-container">
-                                <div class="job-progress-bar"></div>
-                            </div>
-                        </div>
-                        <div class="job-actions">
-                            <button class="start-job-btn" data-endpoint="${job.endpoint}">Start</button>
-                        </div>
-                    `;
-                    jobsContainer.appendChild(jobEl);
-                });
-            };
+            const navLinks = document.getElementById('nav-links');
+            const menuToggleBtn = document.getElementById('menu-toggle-btn');
+            const themeToggleBtn = document.getElementById('theme-toggle-btn');
 
             const startJob = async (endpoint, button) => {
                 button.disabled = true;
@@ -107,7 +171,6 @@
                         button.disabled = false;
                         setTimeout(() => {
                            jobEl.querySelector('.job-progress-container').style.display = 'none';
-                           description.textContent = jobs.find(j => j.id === jobEl.id.replace('job-','')).description;
                         }, 5000);
                     }
                 };
@@ -118,8 +181,28 @@
                 };
             };
 
-            renderJobs();
+            const applyTheme = (theme) => {
+                if (theme === 'light') { document.body.classList.add('light-theme'); }
+                else { document.body.classList.remove('light-theme'); }
+            };
+            themeToggleBtn.addEventListener('click', () => {
+                const newTheme = document.body.classList.contains('light-theme') ? 'dark' : 'light';
+                localStorage.setItem('theme', newTheme);
+                applyTheme(newTheme);
+            });
+
+            // --- Mobile Menu Logic ---
+            menuToggleBtn.addEventListener('click', () => navLinks.classList.toggle('active'));
+
+            const loadVersion = async () => {
+                const response = await fetch('/api/version');
+                const data = await response.json();
+                document.getElementById('version-footer').textContent = `Version: ${data.version}`;
+            };
+
+            applyTheme(localStorage.getItem('theme'));
             initWebSocket();
+            loadVersion();
 
             document.querySelectorAll('.start-job-btn').forEach(button => {
                 button.addEventListener('click', (e) => {
@@ -127,7 +210,7 @@
                 });
             });
 
-            // ... (Theme, Menu, and Version logic from previous steps) ...
+
         });
     </script>
 </body>

@@ -58,7 +58,7 @@ func (s *Server) Router() http.Handler {
 
 		// Admin Job Triggers
 		r.Post("/admin/scan-library", s.handleScanLibrary)
-		r.Post("/admin/scan-missing", s.handleScanMissing)
+		r.Post("/admin/scan-incremental", s.handleScanIncremental)
 		r.Post("/admin/prune-database", s.handlePruneDatabase)
 		r.Post("/admin/generate-thumbnails", s.handleGenerateThumbnails)
 	})

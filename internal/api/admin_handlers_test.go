@@ -16,7 +16,7 @@ func TestAdminHandlers(t *testing.T) {
 		method   string
 	}{
 		{"Scan Library", "/api/admin/scan-library", "POST"},
-		{"Scan Missing", "/api/admin/scan-missing", "POST"},
+		{"Scan Incremental", "/api/admin/scan-incremental", "POST"},
 		{"Prune Database", "/api/admin/prune-database", "POST"},
 		{"Regenerate Thumbnails", "/api/admin/generate-thumbnails", "POST"},
 	}

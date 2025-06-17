@@ -15,9 +15,9 @@ func (s *Server) handleScanLibrary(w http.ResponseWriter, r *http.Request) {
 	RespondWithJSON(w, http.StatusAccepted, map[string]string{"message": "Full library scan started."})
 }
 
-func (s *Server) handleScanMissing(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleScanIncremental(w http.ResponseWriter, r *http.Request) {
 	go jobs.RunIncrementalScan(s.app)
-	RespondWithJSON(w, http.StatusAccepted, map[string]string{"message": "Incremental scan for missing items started."})
+	RespondWithJSON(w, http.StatusAccepted, map[string]string{"message": "Incremental scan for new items started."})
 }
 
 func (s *Server) handlePruneDatabase(w http.ResponseWriter, r *http.Request) {
