@@ -111,7 +111,7 @@ func RunPruneDatabase(app *core.App) {
 
 	var wg sync.WaitGroup
 	var mu sync.Mutex
-	deletedCount := 0
+	var deletedCount int
 	var processedCount int
 	for i, path := range allPaths {
 		wg.Add(1)
@@ -128,24 +128,28 @@ func RunPruneDatabase(app *core.App) {
 			mu.Lock()
 			processedCount++
 			mu.Unlock()
-			progress := (float64(processedCount)/float64(total))*100 - 1
+			progress := (float64(processedCount) / float64(total)) * 100
 			// Update progress periodically or on the last item
-			if processedCount%20 == 0 || processedCount == total-1 {
+			if processedCount%20 == 0 || processedCount == total {
 				mu.Lock()
 				currentDeleted := deletedCount
 				mu.Unlock()
-				sendProgress(app, jobName, fmt.Sprintf("Checking... (%d/%d) | Deleted: %d", idx+1, total, currentDeleted), progress, false)
+				msg := fmt.Sprintf("Checking... (%d/%d) | Deleted: %d", idx+1, total, currentDeleted)
+
+				if progress > 98 {
+					progress = 98
+				}
+				sendProgress(app, jobName, msg, progress, false)
 			}
 		}(path, i)
 	}
 	wg.Wait()
 
-	sendProgress(app, jobName, "Deleting empty series...", 99, false)
+	sendProgress(app, jobName, "Deleting empty series.", 99, false)
 	err = st.DeleteEmptySeries()
 	if err != nil {
 		log.Printf("Failed to delete empty series: %v", err)
 	}
-
 	if deletedCount == 0 {
 		sendProgress(app, jobName, "Pruning complete. No non-existent chapters found.", 100, true)
 	} else {

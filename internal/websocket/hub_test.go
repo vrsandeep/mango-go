@@ -23,7 +23,7 @@ func TestHub(t *testing.T) {
 
 	// Test broadcast
 	message := []byte("hello")
-	hub.Broadcast <- message
+	hub.broadcast <- message
 
 	select {
 	case received := <-client.send:
