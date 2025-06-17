@@ -6,6 +6,8 @@ package api
 import (
 	"database/sql"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -41,6 +43,11 @@ func (s *Server) Router() http.Handler {
 	r.Use(middleware.Logger)    // Logs requests to the console
 	r.Use(middleware.Recoverer) // Recovers from panics
 	r.Use(middleware.Timeout(60 * time.Second))
+
+	// Add a file server for the /static directory
+	workDir, _ := os.Getwd()
+	filesDir := http.Dir(filepath.Join(workDir, "web", "static"))
+	FileServer(r, "/static", filesDir)
 
 	// API routes
 	r.Route("/api", func(r chi.Router) {
@@ -91,4 +98,12 @@ func (s *Server) Router() http.Handler {
 	// r.Handle("/reader/static/*", http.StripPrefix("/reader/static/", http.FileServer(http.Dir("./web/static"))))
 
 	return r
+}
+
+// FileServer conveniently sets up a static file server that doesn't list directories.
+func FileServer(r chi.Router, path string, root http.FileSystem) {
+	fs := http.StripPrefix(path, http.FileServer(root))
+	r.Get(path+"*", func(w http.ResponseWriter, r *http.Request) {
+		fs.ServeHTTP(w, r)
+	})
 }
