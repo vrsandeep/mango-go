@@ -3,8 +3,6 @@
 package library
 
 import (
-	"database/sql"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -16,35 +14,35 @@ import (
 	"github.com/vrsandeep/mango-go/internal/testutil"
 )
 
-// https://gist.github.com/ondrek/7413434
-const (
-	tinyPNG_A = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="             // Transparent
-	tinyPNG_B = "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mP8z8BQz0AEYBxVSF+FABJADveWkH6oAAAAAElFTkSuQmCC" // Red
-	tinyPNG_C = "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC" // Green
-	tinyPNG_D = "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNkYPhfz0AEYBxVSF+FAP5FDvcfRYWgAAAAAElFTkSuQmCC" // Blue
-	tinyPNG_E = "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mP8/5+hnoEIwDiqkL4KAcT9GO0U4BxoAAAAAElFTkSuQmCC" // Yellow
-)
+// // https://gist.github.com/ondrek/7413434
+// const (
+// 	tinyPNG_A = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="             // Transparent
+// 	tinyPNG_B = "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mP8z8BQz0AEYBxVSF+FABJADveWkH6oAAAAAElFTkSuQmCC" // Red
+// 	tinyPNG_C = "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC" // Green
+// 	tinyPNG_D = "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNkYPhfz0AEYBxVSF+FAP5FDvcfRYWgAAAAAElFTkSuQmCC" // Blue
+// 	tinyPNG_E = "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mP8/5+hnoEIwDiqkL4KAcT9GO0U4BxoAAAAAElFTkSuQmCC" // Yellow
+// )
 
-// setupTestLibraryAndDB creates a temporary library structure and an in-memory DB.
-func setupTestLibraryAndDB(t *testing.T) (string, *sql.DB) {
-	t.Helper()
-	// Setup DB
-	db := testutil.SetupTestDB(t)
+// // setupTestLibraryAndDB creates a temporary library structure and an in-memory DB.
+// func setupTestLibraryAndDB(t *testing.T) (string, *sql.DB) {
+// 	t.Helper()
+// 	// Setup DB
+// 	db := testutil.SetupTestDB(t)
 
-	// Setup Library
-	rootDir := t.TempDir()
-	seriesADir := filepath.Join(rootDir, "Series A")
-	os.Mkdir(seriesADir, 0755)
-	// Create two chapters. The scanner processes files in alphabetical order,
-	// so "ch1.cbz" will be scanned first. Its thumbnail should be used for the series.
-	testutil.CreateTestCBZWithThumbnail(t, seriesADir, "ch1.cbz", []string{"pageA1.jpg"}, tinyPNG_A)
-	testutil.CreateTestCBZWithThumbnail(t, seriesADir, "ch2.cbz", []string{"pageB1.jpg"}, tinyPNG_B)
+// 	// Setup Library
+// 	rootDir := t.TempDir()
+// 	seriesADir := filepath.Join(rootDir, "Series A")
+// 	os.Mkdir(seriesADir, 0755)
+// 	// Create two chapters. The scanner processes files in alphabetical order,
+// 	// so "ch1.cbz" will be scanned first. Its thumbnail should be used for the series.
+// 	testutil.CreateTestCBZWithThumbnail(t, seriesADir, "ch1.cbz", []string{"pageA1.jpg"}, tinyPNG_A)
+// 	testutil.CreateTestCBZWithThumbnail(t, seriesADir, "ch2.cbz", []string{"pageB1.jpg"}, tinyPNG_B)
 
-	return rootDir, db
-}
+// 	return rootDir, db
+// }
 
 func TestScannerIntegration(t *testing.T) {
-	libraryPath, db := setupTestLibraryAndDB(t)
+	libraryPath, db := testutil.SetupTestLibraryAndDB(t)
 	defer db.Close()
 
 	// Configure and run the scanner

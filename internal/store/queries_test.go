@@ -2,6 +2,7 @@ package store
 
 import (
 	"database/sql"
+	"slices"
 	"testing"
 	"time"
 
@@ -221,5 +222,39 @@ func TestUpdateChapterProgress(t *testing.T) {
 	}
 	if chapter.Read != newReadStatus {
 		t.Errorf("Expected read status to be %t, got %t", newReadStatus, chapter.Read)
+	}
+}
+
+func TestGetAllChapterPaths(t *testing.T) {
+	db := testutil.SetupTestDB(t)
+	setupFullTestDB(t, db) // Use helper from store_test.go
+	s := New(db)
+
+	paths, err := s.GetAllChapterPaths()
+	if err != nil {
+		t.Fatalf("GetAllChapterPaths failed: %v", err)
+	}
+	if len(paths) != 2 {
+		t.Errorf("Expected 2 paths, got %d", len(paths))
+	}
+	if slices.Equal(paths, []string{"/path/a/ch1.cbz", "/path/a/ch2.cbz"}) == false {
+		t.Errorf("Expected paths to be ['/path/a/ch1.cbz', '/path/a/ch2.cbz'], got %v", paths)
+	}
+}
+
+func TestGetAllChaptersForThumbnailing(t *testing.T) {
+	db := testutil.SetupTestDB(t)
+	setupFullTestDB(t, db)
+	s := New(db)
+
+	chapters, err := s.GetAllChaptersForThumbnailing()
+	if err != nil {
+		t.Fatalf("GetAllChaptersForThumbnailing failed: %v", err)
+	}
+	if len(chapters) != 2 {
+		t.Errorf("Expected 2 chapters, got %d", len(chapters))
+	}
+	if chapters[0].ID == 0 || chapters[0].Path == "" {
+		t.Errorf("Chapter data is incomplete: %+v", chapters[0])
 	}
 }

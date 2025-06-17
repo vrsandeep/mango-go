@@ -7,14 +7,14 @@ import (
 
 type Hub struct {
 	clients    map[*Client]bool
-	broadcast  chan []byte
+	Broadcast  chan []byte
 	register   chan *Client
 	unregister chan *Client
 }
 
 func NewHub() *Hub {
 	return &Hub{
-		broadcast:  make(chan []byte),
+		Broadcast:  make(chan []byte),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 		clients:    make(map[*Client]bool),
@@ -33,7 +33,7 @@ func (h *Hub) Run() {
 				close(client.send)
 				log.Println("WebSocket client unregistered")
 			}
-		case message := <-h.broadcast:
+		case message := <-h.Broadcast:
 			for client := range h.clients {
 				select {
 				case client.send <- message:
@@ -52,5 +52,5 @@ func (h *Hub) BroadcastJSON(v interface{}) {
 		log.Printf("Error marshaling broadcast message: %v", err)
 		return
 	}
-	h.broadcast <- bytes
+	h.Broadcast <- bytes
 }
