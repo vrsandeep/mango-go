@@ -12,9 +12,17 @@ import (
 // populateDB is updated to include default progress values
 func populateDB(t *testing.T, db *sql.DB) {
 	t.Helper()
-	db.Exec(`INSERT INTO series (id, title, path, created_at, updated_at) VALUES (1, 'Series B', '/path/b', ?, ?), (2, 'Series A', '/path/a', ?, ?)`, time.Now(), time.Now(), time.Now(), time.Now())
+	_, err := db.Exec(`INSERT INTO series (id, title, path, created_at, updated_at) VALUES (1, 'Series B', '/path/b', ?, ?), (2, 'Series A', '/path/a', ?, ?)`, time.Now(), time.Now(), time.Now(), time.Now())
+	if err != nil {
+		t.Fatalf("Failed to populate series in test database: %v", err)
+		return
+	}
 	// Insert with default read=false and progress_percent=0
-	db.Exec(`INSERT INTO chapters (id, series_id, path, page_count, created_at, updated_at) VALUES (1, 1, '/path/b/ch1.cbz', 10, ?, ?), (2, 2, '/path/a/ch1.cbz', 20, ?, ?)`, time.Now(), time.Now(), time.Now(), time.Now())
+	_, err = db.Exec(`INSERT INTO chapters (id, series_id, path, page_count, created_at, updated_at) VALUES (1, 1, '/path/b/ch1.cbz', 10, ?, ?), (2, 2, '/path/a/ch1.cbz', 20, ?, ?)`, time.Now(), time.Now(), time.Now(), time.Now())
+	if err != nil {
+		t.Fatalf("Failed to populate chapter in test database: %v", err)
+		return
+	}
 }
 
 func TestListSeries(t *testing.T) {
@@ -42,6 +50,12 @@ func TestListSeries(t *testing.T) {
 		}
 		if seriesList[0].CustomCoverURL != "" {
 			t.Errorf("Expected CustomCoverURL to be empty, got '%s'", seriesList[0].CustomCoverURL)
+		}
+		if seriesList[0].TotalChapters != 1 {
+			t.Errorf("Expected Series B to have 1 chapter, got %d", seriesList[0].TotalChapters)
+		}
+		if seriesList[1].ReadChapters != 0 {
+			t.Errorf("Expected Series A to have 0 read chapters, got %d", seriesList[1].ReadChapters)
 		}
 	})
 

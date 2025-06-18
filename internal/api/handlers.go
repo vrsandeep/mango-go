@@ -52,12 +52,28 @@ func (s *Server) handleGetSeries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	settings, err := s.store.GetSeriesSettings(seriesID)
+	if err != nil {
+		log.Printf("Failed to retrieve settings for series %d: %v", seriesID, err)
+	}
 	page, perPage, search, sortBy, sortDir := getListParams(r)
+	if settings != nil {
+		if sortBy == "" {
+			sortBy = settings.SortBy // Use default sort from settings if not specified
+		}
+		if sortDir == "" {
+			sortDir = settings.SortDir // Use default direction from settings if not specified
+		}
+	}
 	series, total, err := s.store.GetSeriesByID(seriesID, page, perPage, search, sortBy, sortDir)
 	if err != nil {
 		RespondWithError(w, http.StatusNotFound, "Series not found")
 		return
 	}
+	if settings != nil {
+		series.Settings = settings
+	}
+
 	w.Header().Set("X-Total-Count", strconv.Itoa(total))
 	RespondWithJSON(w, http.StatusOK, series)
 }
@@ -283,4 +299,33 @@ func (s *Server) handleUpdateProgress(w http.ResponseWriter, r *http.Request) {
 	}
 
 	RespondWithJSON(w, http.StatusOK, map[string]string{"status": "success"})
+}
+
+func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
+	seriesID, _ := strconv.ParseInt(chi.URLParam(r, "seriesID"), 10, 64)
+	var payload struct {
+		SortBy  string `json:"sort_by"`
+		SortDir string `json:"sort_dir"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+	if err := s.store.UpdateSeriesSettings(seriesID, payload.SortBy, payload.SortDir); err != nil {
+		RespondWithError(w, http.StatusInternalServerError, "Failed to update settings")
+		return
+	}
+	RespondWithJSON(w, http.StatusOK, map[string]string{"status": "success"})
+}
+
+func (s *Server) handleGetChapterNeighbors(w http.ResponseWriter, r *http.Request) {
+	seriesID, _ := strconv.ParseInt(chi.URLParam(r, "seriesID"), 10, 64)
+	chapterID, _ := strconv.ParseInt(chi.URLParam(r, "chapterID"), 10, 64)
+
+	neighbors, err := s.store.GetChapterNeighbors(seriesID, chapterID)
+	if err != nil {
+		RespondWithError(w, http.StatusInternalServerError, "Failed to calculate neighbors")
+		return
+	}
+	RespondWithJSON(w, http.StatusOK, neighbors)
 }

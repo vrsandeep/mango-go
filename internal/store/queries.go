@@ -32,11 +32,11 @@ func (s *Store) ListSeries(page, perPage int, search, sortBy, sortDir string) ([
 
 	// --- Main Query ---
 	offset := (page - 1) * perPage
+
 	query := `
         SELECT
             s.id, s.title, s.path, s.thumbnail, s.custom_cover_url, s.created_at, s.updated_at,
-            COUNT(c.id) as total_chapters,
-            SUM(CASE WHEN c.read = 1 THEN 1 ELSE 0 END) as read_chapters
+            total_chapters, read_chapters
         FROM series s
         LEFT JOIN chapters c ON s.id = c.series_id
     `
@@ -44,7 +44,6 @@ func (s *Store) ListSeries(page, perPage int, search, sortBy, sortDir string) ([
 		query += " WHERE s.title LIKE ?"
 		args = append(args, "%"+search+"%")
 	}
-	query += " GROUP BY s.id"
 
 	// Sorting
 	sortDir = strings.ToUpper(sortDir)
@@ -67,7 +66,13 @@ func (s *Store) ListSeries(page, perPage int, search, sortBy, sortDir string) ([
 	if err != nil {
 		return nil, 0, err
 	}
-	defer rows.Close()
+	defer func(rows *sql.Rows) {
+		err := rows.Close()
+		if err != nil {
+			// Log the error but do not return it, as we are already returning from the function
+			fmt.Printf("Error closing rows: %v\n", err)
+		}
+	}(rows)
 
 	var seriesList []*models.Series
 	for rows.Next() {
@@ -90,7 +95,7 @@ func (s *Store) ListSeries(page, perPage int, search, sortBy, sortDir string) ([
 func (s *Store) GetSeriesByID(id int64, page, perPage int, search, sortBy, sortDir string) (*models.Series, int, error) {
 	var series models.Series
 	var thumb, customCover sql.NullString
-	err := s.db.QueryRow("SELECT id, title, path, thumbnail, custom_cover_url FROM series WHERE id = ?", id).Scan(&series.ID, &series.Title, &series.Path, &thumb, &customCover)
+	err := s.db.QueryRow("SELECT id, title, path, thumbnail, custom_cover_url, total_chapters FROM series WHERE id = ?", id).Scan(&series.ID, &series.Title, &series.Path, &thumb, &customCover, &series.TotalChapters)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -99,20 +104,35 @@ func (s *Store) GetSeriesByID(id int64, page, perPage int, search, sortBy, sortD
 	series.Tags, _ = s.getTagsForSeries(id)
 
 	// Fetch total chapters count
-	var chapterArgs []interface{}
-	chapterArgs = append(chapterArgs, id)
-	chapterCountQuery := "SELECT COUNT(id) FROM chapters WHERE series_id = ?"
+	totalChapters := series.TotalChapters
 	if search != "" {
+		var chapterArgs []interface{}
+		chapterArgs = append(chapterArgs, id)
+		chapterCountQuery := "SELECT COUNT(id) FROM chapters WHERE series_id = ?"
 		chapterCountQuery += " AND path LIKE ?"
 		chapterArgs = append(chapterArgs, "%"+search+"%")
+		err = s.db.QueryRow(chapterCountQuery, chapterArgs...).Scan(&totalChapters)
+		if err != nil {
+			return &series, 0, err
+		}
 	}
-	var totalChapters int
-	s.db.QueryRow(chapterCountQuery, chapterArgs...).Scan(&totalChapters)
 
 	// Main query to fetch chapters
+	chapters, err := s.getChaptersForSeries(id, page, perPage, search, sortBy, sortDir)
+	series.Chapters = chapters
+	if err != nil {
+		return &series, 0, err
+	}
+	return &series, totalChapters, nil
+}
+
+func (s *Store) getChaptersForSeries(seriesId int64, page, perPage int, search, sortBy, sortDir string) ([]*models.Chapter, error) {
 	chapterQuery := "SELECT id, path, page_count, read, progress_percent, thumbnail FROM chapters WHERE series_id = ?"
+	var chapterArgs []interface{}
+	chapterArgs = append(chapterArgs, seriesId)
 	if search != "" {
 		chapterQuery += " AND path LIKE ?"
+		chapterArgs = append(chapterArgs, "%"+search+"%")
 	}
 	sortDir = strings.ToUpper(sortDir)
 	if sortDir != "ASC" && sortDir != "DESC" {
@@ -120,21 +140,20 @@ func (s *Store) GetSeriesByID(id int64, page, perPage int, search, sortBy, sortD
 	}
 	switch sortBy {
 	case "path":
-		chapterQuery += fmt.Sprintf(" ORDER BY path %s", sortDir)
+		chapterQuery += fmt.Sprintf(" ORDER BY path %s LIMIT ? OFFSET ?", sortDir)
 	case "auto":
 		// Auto sort is handled in Go after fetching
 		chapterQuery += " ORDER BY path ASC"
 	default:
-		chapterQuery += " ORDER BY path ASC"
+		chapterQuery += " ORDER BY path ASC LIMIT ? OFFSET ?"
 	}
 
-	chapterQuery += " LIMIT ? OFFSET ?"
 	offset := (page - 1) * perPage
 	chapterArgs = append(chapterArgs, perPage, offset)
-
+	var chapters []*models.Chapter
 	rows, err := s.db.Query(chapterQuery, chapterArgs...)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 	defer rows.Close()
 
@@ -142,11 +161,11 @@ func (s *Store) GetSeriesByID(id int64, page, perPage int, search, sortBy, sortD
 		var chapter models.Chapter
 		var chapThumb sql.NullString
 		if err := rows.Scan(&chapter.ID, &chapter.Path, &chapter.PageCount, &chapter.Read, &chapter.ProgressPercent, &chapThumb); err != nil {
-			return nil, 0, err
+			return nil, err
 		}
 		chapter.Thumbnail = chapThumb.String
-		chapter.SeriesID = id
-		series.Chapters = append(series.Chapters, &chapter)
+		chapter.SeriesID = seriesId
+		chapters = append(chapters, &chapter)
 	}
 	if sortBy == "auto" {
 		// sort.Slice(series.Chapters, func(i, j int) bool {
@@ -158,12 +177,12 @@ func (s *Store) GetSeriesByID(id int64, page, perPage int, search, sortBy, sortD
 		// })
 
 		// Use the ChapterSorter to sort chapters
-		chapterTitles := make([]string, len(series.Chapters))
-		for i, chapter := range series.Chapters {
+		chapterTitles := make([]string, len(chapters))
+		for i, chapter := range chapters {
 			chapterTitles[i] = getChapterTitle(chapter)
 		}
 		cs := util.NewChapterSorter(chapterTitles)
-		slices.SortFunc(series.Chapters, func(a, b *models.Chapter) int {
+		slices.SortFunc(chapters, func(a, b *models.Chapter) int {
 			comparison := cs.Compare(getChapterTitle(a), getChapterTitle(b))
 			if strings.ToLower(sortDir) == "desc" {
 				return -comparison
@@ -171,7 +190,24 @@ func (s *Store) GetSeriesByID(id int64, page, perPage int, search, sortBy, sortD
 			return comparison
 		})
 	}
-	return &series, totalChapters, nil
+	if sortBy == "auto" {
+		// For auto sort, we send only perPage, with offset applied manually
+		var newChapters []*models.Chapter
+		if offset < len(chapters) {
+			end := offset + perPage
+			if end > len(chapters) {
+				end = len(chapters)
+			}
+			newChapters = chapters[offset:end]
+		} else {
+			// If offset is beyond the length of chapters, return an empty slice
+			newChapters = []*models.Chapter{}
+		}
+		return newChapters, nil
+	}
+
+	return chapters, nil
+
 }
 
 func getChapterTitle(chapter *models.Chapter) string {
@@ -252,7 +288,13 @@ func (s *Store) GetAllChaptersForThumbnailing() ([]*models.Chapter, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func(rows *sql.Rows) {
+		err := rows.Close()
+		if err != nil {
+			// Log the error but do not return it, as we are already returning from the function
+			fmt.Printf("Error closing rows: %v\n", err)
+		}
+	}(rows)
 
 	var chapters []*models.Chapter
 	for rows.Next() {
@@ -263,4 +305,46 @@ func (s *Store) GetAllChaptersForThumbnailing() ([]*models.Chapter, error) {
 		chapters = append(chapters, &chapter)
 	}
 	return chapters, nil
+}
+
+// GetChapterNeighbors finds the previous and next chapter IDs based on sort settings.
+func (s *Store) GetChapterNeighbors(seriesID, currentChapterID int64) (map[string]*int64, error) {
+	settings, err := s.GetSeriesSettings(seriesID)
+	if err != nil {
+		return nil, err
+	}
+	var chapters []*models.Chapter
+	chapters, err = s.getChaptersForSeries(seriesID, 1, 10000, "", settings.SortBy, settings.SortDir)
+	if err != nil {
+		return nil, err
+	}
+
+	// Find the index of the current chapter
+	currentIndex := -1
+	for i, ch := range chapters {
+		if ch.ID == currentChapterID {
+			currentIndex = i
+			break
+		}
+	}
+
+	if currentIndex == -1 {
+		return map[string]*int64{"prev": nil, "next": nil}, nil
+	}
+
+	neighbors := make(map[string]*int64)
+	if currentIndex > 0 {
+		prevID := chapters[currentIndex-1].ID
+		neighbors["prev"] = &prevID
+	} else {
+		neighbors["prev"] = nil
+	}
+	if currentIndex < len(chapters)-1 {
+		nextID := chapters[currentIndex+1].ID
+		neighbors["next"] = &nextID
+	} else {
+		neighbors["next"] = nil
+	}
+
+	return neighbors, nil
 }

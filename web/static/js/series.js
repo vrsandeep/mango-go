@@ -13,7 +13,15 @@ const areMoreCardsAvailable = (cardsList) => {
 }
 
 const postCardsFetchAction = async (cardsList) => {}
+const resetState = (cardsGrid) => {
+  state.currentPage = 1;
+  state.hasMore = true;
+  cardsGrid.innerHTML = '';
+}
 
+const updateSettings = async () => {
+  // do nothing for now
+}
 const renderCards = (cardsList, cardsGrid) => {
   if (!cardsList) {
     return;

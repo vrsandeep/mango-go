@@ -18,8 +18,9 @@ type Series struct {
 	UpdatedAt      time.Time  `json:"updated_at"`
 
 	// Fields calculated by the API, not stored in DB
-	TotalChapters int `json:"total_chapters,omitempty"`
-	ReadChapters  int `json:"read_chapters,omitempty"`
+	TotalChapters int             `json:"total_chapters,omitempty"`
+	ReadChapters  int             `json:"read_chapters,omitempty"`
+	Settings      *SeriesSettings `json:"settings,omitempty"` // Series-specific settings
 }
 
 // Chapter represents a single chapter of a manga.
@@ -45,4 +46,10 @@ type Page struct {
 type Tag struct {
 	ID   int64  `json:"id"`
 	Name string `json:"name"`
+}
+
+type SeriesSettings struct {
+	SortBy   string `json:"sort_by"`  // e.g. "auto", "path"
+	SortDir  string `json:"sort_dir"` // e.g. "asc", "desc"
+	SeriesID int64  `json:"-"`        // Hide from JSON responses
 }

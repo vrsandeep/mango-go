@@ -1,6 +1,6 @@
 const GET_CHAPTERS_URL = `/api/series/SERIES_ID?page=STATE_CURRENT_PAGE&per_page=100&search=STATE_SEARCH&sort_by=STATE_SORT_BY&sort_dir=STATE_SORT_DIR`;
 
-let seriesId ;
+let seriesId;
 let seriesTitleEl;
 let breadCrumbSeriesTitleEl;
 let seriesThumbEl;
@@ -23,18 +23,31 @@ const postCardsFetchAction = async (seriesData) => {
   seriesTitleEl.textContent = seriesData.title;
   breadCrumbSeriesTitleEl.textContent = seriesData.title;
   seriesThumbEl.src = seriesData.custom_cover_url || seriesData.thumbnail || '';
+  if (seriesData.settings) {
+    state.sortBy = seriesData.settings.sort_by;
+    state.sortDir = seriesData.settings.sort_dir;
+    sortBySelect.value = state.sortBy;
+    sortDirBtn.textContent = state.sortDir === 'asc' ? '▲' : '▼';
+  }
+}
+
+const resetState = (cardsGrid) => {
+  state.currentPage = 1;
+  state.hasMore = true;
+  cardsGrid.innerHTML = '';
+  renderTags([]);
 }
 
 const renderCards = (seriesData, cardsGrid) => {
-    if (!seriesData.chapters) {
-      return;
-    }
-    seriesData.chapters.forEach(chapter => {
-      const card = document.createElement('a');
-      const progressPercent = chapter.progress_percent;
-      card.href = `/reader/series/${seriesId}/chapters/${chapter.id}`;
-      card.classList.add('item-card');
-      card.innerHTML = `
+  if (!seriesData.chapters) {
+    return;
+  }
+  seriesData.chapters.forEach(chapter => {
+    const card = document.createElement('a');
+    const progressPercent = chapter.progress_percent;
+    card.href = `/reader/series/${seriesId}/chapters/${chapter.id}`;
+    card.classList.add('item-card');
+    card.innerHTML = `
         <div class="thumbnail-container">
             <img class="thumbnail" src="${chapter.thumbnail || ''}" alt="Cover for Chapter ${chapter.id}">
         </div>
@@ -43,16 +56,21 @@ const renderCards = (seriesData, cardsGrid) => {
             <div class="progress-bar" style="width: ${progressPercent}%;"></div>
         </div>
       `;
-      cardsGrid.appendChild(card);
-    });
+    cardsGrid.appendChild(card);
+  });
 
-    // Load tags
-    if (seriesData.tags) {
-      renderTags(seriesData.tags);
-    } else {
-      renderTags([]);
-    }
+  // Load tags
+  if (seriesData.tags) {
+    renderTags(seriesData.tags);
+  }
 }
+const updateSettings = async () => {
+  await fetch(`/api/series/${seriesId}/settings`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({sort_by: state.sortBy, sort_dir: state.sortDir})
+  });
+};
 
 document.addEventListener('DOMContentLoaded', () => {
   seriesId = window.location.pathname.split('/')[2];

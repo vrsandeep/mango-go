@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -15,12 +14,14 @@
             display: flex;
             justify-content: center;
         }
+
         .reader-container {
             display: flex;
             flex-direction: column;
             align-items: center;
             width: 100%;
         }
+
         .page-image {
             max-width: 800px; /* Restrict width for consistent experience */
             width: 100%;
@@ -28,10 +29,12 @@
             display: block;
             cursor: pointer; /* Make images clickable */
         }
+
         .reader-footer {
             padding: 2rem;
             text-align: center;
         }
+
         .reader-footer button {
             background-color: #444;
             color: white;
@@ -43,12 +46,15 @@
             margin: 0 10px;
             transition: background-color 0.2s;
         }
+
         .reader-footer button:hover {
             background-color: #555;
         }
+
         #footer-exit-chapter-btn {
-            background-color:rgb(18, 125, 232);
+            background-color: rgb(18, 125, 232);
         }
+
         #footer-next-chapter-btn {
             background-color: #333;
             color: white;
@@ -59,9 +65,11 @@
             border-radius: 5px;
             transition: background-color 0.2s;
         }
+
         #footer-next-chapter-btn:hover {
             background-color: #444;
         }
+
         /* Modal styles */
         .modal-overlay {
             position: fixed;
@@ -75,6 +83,7 @@
             align-items: center;
             z-index: 1000;
         }
+
         .modal-content {
             background-color: #2a2a2a;
             padding: 20px;
@@ -84,6 +93,7 @@
             gap: 10px;
             min-width: 250px;
         }
+
         .modal-btn {
             background-color: #444;
             color: white;
@@ -95,9 +105,11 @@
             transition: background-color 0.2s;
             text-align: center;
         }
+
         .modal-btn:hover {
             background-color: #555;
         }
+
         .progress-bar-container {
             position: fixed;
             bottom: 0;
@@ -106,6 +118,7 @@
             height: 4px;
             background-color: #444;
         }
+
         #progress-bar {
             width: 0%;
             height: 100%;
@@ -114,198 +127,188 @@
     </style>
 </head>
 <body>
-    <main class="container">
+<main class="container">
 
-        <div class="reader-container" id="image-container">
-            <!-- Manga pages will be loaded here -->
-        </div>
-
-        <div class="reader-footer">
-            <!-- These buttons will be shown or hidden by JS -->
-            <button id="footer-prev-chapter-btn" style="display: none;">Previous Chapter</button>
-            <button id="footer-next-chapter-btn" style="display: none;">Next Chapter</button>
-            <button id="footer-exit-chapter-btn" style="display: none;">Exit Chapter</button>
-        </div>
-    </main>
-
-    <div class="modal-overlay" id="nav-modal">
-        <div class="modal-content">
-            <button class="modal-btn" id="prev-chapter-btn">Previous Chapter</button>
-            <button class="modal-btn" id="next-chapter-modal-btn">Next Chapter</button>
-            <button class="modal-btn" id="mark-read-btn">Mark as Read</button>
-            <button class="modal-btn" id="exit-reader-btn">Exit Reader</button>
-        </div>
+    <div class="reader-container" id="image-container">
+        <!-- Manga pages will be loaded here -->
     </div>
 
-    <div class="progress-bar-container">
-        <div id="progress-bar"></div>
+    <div class="reader-footer">
+        <!-- These buttons will be shown or hidden by JS -->
+        <button id="footer-prev-chapter-btn" style="display: none;">Previous Chapter</button>
+        <button id="footer-next-chapter-btn" style="display: none;">Next Chapter</button>
+        <button id="footer-exit-chapter-btn" style="display: none;">Exit Chapter</button>
     </div>
+</main>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const pathParts = window.location.pathname.split('/');
-            const seriesId = pathParts[3];
-            const chapterId = pathParts[5];
+<div class="modal-overlay" id="nav-modal">
+    <div class="modal-content">
+        <button class="modal-btn" id="prev-chapter-btn">Previous Chapter</button>
+        <button class="modal-btn" id="next-chapter-modal-btn">Next Chapter</button>
+        <button class="modal-btn" id="mark-read-btn">Mark as Read</button>
+        <button class="modal-btn" id="exit-reader-btn">Exit Reader</button>
+    </div>
+</div>
 
-            let seriesData = null;
-            let chapterData = null;
-            let nextChapterId = null;
-            let prevChapterId = null;
+<div class="progress-bar-container">
+    <div id="progress-bar"></div>
+</div>
 
-            const imageContainer = document.getElementById('image-container');
-            const progressBar = document.getElementById('progress-bar');
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const pathParts = window.location.pathname.split('/');
+    const seriesId = pathParts[3];
+    const chapterId = pathParts[5];
 
-            const footerPrevBtn = document.getElementById('footer-prev-chapter-btn');
-            const footerNextBtn = document.getElementById('footer-next-chapter-btn');
-            const footerExitBtn = document.getElementById('footer-exit-chapter-btn');
-            // Modal elements
-            const modal = document.getElementById('nav-modal');
-            const prevChapterModalBtn = document.getElementById('prev-chapter-btn');
-            const nextChapterModalBtn = document.getElementById('next-chapter-modal-btn');
-            const exitReaderBtn = document.getElementById('exit-reader-btn');
-            const markReadBtn = document.getElementById('mark-read-btn');
+    let chapterData = null;
+    let nextChapterId = null;
+    let prevChapterId = null;
 
-            // --- API Calls ---
-            const fetchChapterDetails = async () => {
-                const response = await fetch(`/api/series/${seriesId}/chapters/${chapterId}`);
-                chapterData = await response.json();
-            };
+    const imageContainer = document.getElementById('image-container');
+    const progressBar = document.getElementById('progress-bar');
 
-            const fetchSeriesDetails = async () => {
-                const response = await fetch(`/api/series/${seriesId}`);
-                seriesData = await response.json();
-                findNeighboringChapters();
-            };
+    const footerPrevBtn = document.getElementById('footer-prev-chapter-btn');
+    const footerNextBtn = document.getElementById('footer-next-chapter-btn');
+    const footerExitBtn = document.getElementById('footer-exit-chapter-btn');
+    // Modal elements
+    const modal = document.getElementById('nav-modal');
+    const prevChapterModalBtn = document.getElementById('prev-chapter-btn');
+    const nextChapterModalBtn = document.getElementById('next-chapter-modal-btn');
+    const exitReaderBtn = document.getElementById('exit-reader-btn');
+    const markReadBtn = document.getElementById('mark-read-btn');
 
-            const updateProgress = (progressPercent, isRead) => {
-                fetch(`/api/chapters/${chapterId}/progress`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ progress_percent: progressPercent, read: isRead }),
-                });
-            };
+    // --- API Calls ---
+    const fetchChapterDetails = async () => {
+      const response = await fetch(`/api/series/${seriesId}/chapters/${chapterId}`);
+      chapterData = await response.json();
+    };
 
-            const findNeighboringChapters = () => {
-                const currentIndex = seriesData.chapters.findIndex(c => c.id === chapterId);
-                if (currentIndex > 0) {
-                    prevChapterId = seriesData.chapters[currentIndex - 1].id;
-                    footerPrevBtn.style.display = 'inline-block';
-                    prevChapterModalBtn.disabled = false;
-                } else {
-                    prevChapterModalBtn.disabled = true;
-                }
-                if (currentIndex < seriesData.chapters.length - 1) {
-                    nextChapterId = seriesData.chapters[currentIndex + 1].id;
-                    footerNextBtn.style.display = 'inline-block';
-                    nextChapterModalBtn.disabled = false;
-                } else {
-                    nextChapterModalBtn.disabled = true;
-                }
-                if (currentIndex === seriesData.chapters.length - 1) {
-                    footerExitBtn.style.display = 'inline-block';
-                } else {
-                    footerExitBtn.style.display = 'none';
-                }
-            };
+    const updateProgress = (progressPercent, isRead) => {
+      fetch(`/api/chapters/${chapterId}/progress`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({progress_percent: progressPercent, read: isRead}),
+      });
+    };
+    const findNeighboringChapters = async () => {
+      const response = await fetch(`/api/series/${seriesId}/chapters/${chapterId}/neighbors`);
+      const neighbors = await response.json();
+      if (neighbors.prev) {
+        prevChapterId = neighbors.prev;
+        footerPrevBtn.style.display = 'inline-block';
+        prevChapterModalBtn.disabled = false;
+      } else {
+        prevChapterModalBtn.disabled = true;
+      }
+      if (neighbors.next) {
+        nextChapterId = neighbors.next;
+        footerNextBtn.style.display = 'inline-block';
+        nextChapterModalBtn.disabled = false;
+      } else {
+        nextChapterModalBtn.disabled = true;
+        footerExitBtn.style.display = 'inline-block';
+      }
+    };
 
-            const loadImages = () => {
-                for (let i = 1; i <= chapterData.page_count; i++) {
-                    const img = document.createElement('img');
-                    img.src = `/api/series/${seriesId}/chapters/${chapterId}/pages/${i}`;
-                    img.classList.add('page-image');
-                    img.addEventListener('click', () => modal.style.display = 'flex');
-                    imageContainer.appendChild(img);
-                }
-            };
+    const loadImages = () => {
+      for (let i = 1; i <= chapterData.page_count; i++) {
+        const img = document.createElement('img');
+        img.src = `/api/series/${seriesId}/chapters/${chapterId}/pages/${i}`;
+        img.classList.add('page-image');
+        img.addEventListener('click', () => modal.style.display = 'flex');
+        imageContainer.appendChild(img);
+      }
+    };
 
-            const calculateAndUpdateProgress = () => {
-                const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
-                if (scrollableHeight <= 0) {
-                    progressBar.style.width = '100%';
-                    return;
-                }
-                const progress = Math.round((window.scrollY / scrollableHeight) * 100);
-                progressBar.style.width = `${progress}%`;
+    const calculateAndUpdateProgress = () => {
+      const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
+      if (scrollableHeight <= 0) {
+        progressBar.style.width = '100%';
+        return;
+      }
+      const progress = Math.round((window.scrollY / scrollableHeight) * 100);
+      progressBar.style.width = `${progress}%`;
 
-                // Persist progress (debounced)
-                clearTimeout(window.progressTimeout);
-                window.progressTimeout = setTimeout(() => {
-                    const isRead = progress >= 99;
-                    updateProgress(progress, isRead);
-                }, 500);
-            };
+      // Persist progress (debounced)
+      clearTimeout(window.progressTimeout);
+      window.progressTimeout = setTimeout(() => {
+        const isRead = progress >= 99;
+        updateProgress(progress, isRead);
+      }, 500);
+    };
 
-            // --- Event Listeners ---
-            window.addEventListener('scroll', calculateAndUpdateProgress);
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'ArrowRight' || e.key === 'd') {
-                    if (nextChapterId && window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 10) {
-                        window.location.href = `/reader/series/${seriesId}/chapters/${nextChapterId}`;
-                    } else {
-                        window.scrollBy({ top: window.innerHeight, behavior: 'smooth' });
-                    }
-                } else if (e.key === 'ArrowLeft' || e.key === 'a') {
-                    if (prevChapterId && window.scrollY <= 10) {
-                        window.location.href = `/reader/series/${seriesId}/chapters/${prevChapterId}`;
-                    } else {
-                        window.scrollBy({ top: -window.innerHeight, behavior: 'smooth' });
-                    }
-                } else if (e.key === 'Escape') {
-                    modal.style.display = 'none';
-                }
-            });
+    // --- Event Listeners ---
+    window.addEventListener('scroll', calculateAndUpdateProgress);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'd') {
+        if (nextChapterId && window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 10) {
+          window.location.href = `/reader/series/${seriesId}/chapters/${nextChapterId}`;
+        } else {
+          window.scrollBy({top: window.innerHeight, behavior: 'smooth'});
+        }
+      } else if (e.key === 'ArrowLeft' || e.key === 'a') {
+        if (prevChapterId && window.scrollY <= 10) {
+          window.location.href = `/reader/series/${seriesId}/chapters/${prevChapterId}`;
+        } else {
+          window.scrollBy({top: -window.innerHeight, behavior: 'smooth'});
+        }
+      } else if (e.key === 'Escape') {
+        modal.style.display = 'none';
+      }
+    });
 
-            nextChapterModalBtn.addEventListener('click', () => {
-                if (nextChapterId) window.location.href = `/reader/series/${seriesId}/chapters/${nextChapterId}`;
-            });
-            prevChapterModalBtn.addEventListener('click', () => {
-                if (prevChapterId) window.location.href = `/reader/series/${seriesId}/chapters/${prevChapterId}`;
-            });
+    nextChapterModalBtn.addEventListener('click', () => {
+      if (nextChapterId) window.location.href = `/reader/series/${seriesId}/chapters/${nextChapterId}`;
+    });
+    prevChapterModalBtn.addEventListener('click', () => {
+      if (prevChapterId) window.location.href = `/reader/series/${seriesId}/chapters/${prevChapterId}`;
+    });
 
-            footerPrevBtn.addEventListener('click', () => {
-                if (prevChapterId) window.location.href = `/reader/series/${seriesId}/chapters/${prevChapterId}`;
-            });
-            footerNextBtn.addEventListener('click', () => {
-                if (nextChapterId) window.location.href = `/reader/series/${seriesId}/chapters/${nextChapterId}`;
-            });
-            footerExitBtn.addEventListener('click', () => {
-                window.location.href = `/series/${seriesId}`;
-            });
+    footerPrevBtn.addEventListener('click', () => {
+      if (prevChapterId) window.location.href = `/reader/series/${seriesId}/chapters/${prevChapterId}`;
+    });
+    footerNextBtn.addEventListener('click', () => {
+      if (nextChapterId) window.location.href = `/reader/series/${seriesId}/chapters/${nextChapterId}`;
+    });
+    footerExitBtn.addEventListener('click', () => {
+      window.location.href = `/series/${seriesId}`;
+    });
 
-            markReadBtn.addEventListener('click', () => {
-                updateProgress(100, true);
-                progressBar.style.width = '100%';
-                modal.style.display = 'none';
-            });
+    markReadBtn.addEventListener('click', () => {
+      updateProgress(100, true);
+      progressBar.style.width = '100%';
+      modal.style.display = 'none';
+    });
 
-            exitReaderBtn.addEventListener('click', () => {
-                window.location.href = `/series/${seriesId}`;
-            });
+    exitReaderBtn.addEventListener('click', () => {
+      window.location.href = `/series/${seriesId}`;
+    });
 
-            // Close modal on overlay click
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) {
-                    modal.style.display = 'none';
-                }
-            });
+    // Close modal on overlay click
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.style.display = 'none';
+      }
+    });
 
-            // --- Initialization ---
-            const init = async () => {
-                await fetchChapterDetails();
-                await fetchSeriesDetails();
-                document.title = `${seriesData.title} - Chapter ${chapterData.id}`;
-                loadImages();
-                // Restore scroll position after images have loaded
-                setTimeout(() => {
-                     const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
-                     const savedProgress = chapterData.progress_percent || 0;
-                     window.scrollTo(0, (scrollableHeight * savedProgress) / 100);
-                     calculateAndUpdateProgress(); // Initial calculation
-                }, 500); // Delay to allow images to start rendering
-            };
+    // --- Initialization ---
+    const init = async () => {
+      await fetchChapterDetails();
+      // await fetchSeriesDetails();
+      await findNeighboringChapters();
+      document.title = `Chapter ${chapterData.id}`;
+      loadImages();
+      // Restore scroll position after images have loaded
+      setTimeout(() => {
+        const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const savedProgress = chapterData.progress_percent || 0;
+        window.scrollTo(0, (scrollableHeight * savedProgress) / 100);
+        calculateAndUpdateProgress(); // Initial calculation
+      }, 500); // Delay to allow images to start rendering
+    };
 
-            init();
-        });
-    </script>
+    init();
+  });
+</script>
 </body>
 </html>

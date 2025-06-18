@@ -1,12 +1,14 @@
 let state = {
-    currentPage: 1,
-    search: '',
-    sortBy: 'title',
-    sortDir: 'asc',
-    isLoading: false,
-    hasMore: true
+  currentPage: 1,
+  search: '',
+  sortBy: 'title',
+  sortDir: 'asc',
+  isLoading: false,
+  hasMore: true
 };
 let loadCards;
+let sortBySelect;
+let sortDirBtn;
 document.addEventListener('DOMContentLoaded', () => {
   const cardsGrid = document.getElementById('cards-grid');
   const loadMoreBtn = document.getElementById('load-more-btn');
@@ -14,8 +16,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const menuToggleBtn = document.getElementById('menu-toggle-btn');
   const navLinks = document.getElementById('nav-links');
   const searchInput = document.getElementById('search-input');
-  const sortBySelect = document.getElementById('sort-by');
-  const sortDirBtn = document.getElementById('sort-dir-btn');
+  sortBySelect = document.getElementById('sort-by');
+  sortDirBtn = document.getElementById('sort-dir-btn');
   const totalCountEl = document.getElementById('total-count');
 
   // --- Theme Logic ---
@@ -36,9 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (state.isLoading || !state.hasMore && !reset) return;
     state.isLoading = true;
     if (reset) {
-      state.currentPage = 1;
-      state.hasMore = true;
-      cardsGrid.innerHTML = '';
+      resetState(cardsGrid);
     }
 
     const url = getCardsLoadingUrl();
@@ -80,12 +80,14 @@ document.addEventListener('DOMContentLoaded', () => {
   sortBySelect.addEventListener('change', () => {
     state.sortBy = sortBySelect.value;
     loadCards(true);
+    updateSettings();
   });
 
   sortDirBtn.addEventListener('click', () => {
     state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
     sortDirBtn.textContent = state.sortDir === 'asc' ? '▲' : '▼';
     loadCards(true);
+    updateSettings();
   });
 
   const loadVersion = async () => {

@@ -57,10 +57,12 @@ func (s *Server) Router() http.Handler {
 		r.Get("/series/{seriesID}", s.handleGetSeries)
 		r.Post("/series/{seriesID}/cover", s.handleUpdateCover)
 		r.Post("/series/{seriesID}/mark-all-as", s.handleMarkAllAs)
+		r.Post("/series/{seriesID}/settings", s.handleUpdateSettings)
 		r.Post("/series/{seriesID}/tags", s.handleAddTag)
 		r.Delete("/series/{seriesID}/tags/{tagID}", s.handleRemoveTag)
 		r.Get("/series/{seriesID}/chapters/{chapterID}", s.handleGetChapterDetails)
 		r.Get("/series/{seriesID}/chapters/{chapterID}/pages/{pageNumber}", s.handleGetPage)
+		r.Get("/series/{seriesID}/chapters/{chapterID}/neighbors", s.handleGetChapterNeighbors)
 		r.Post("/chapters/{chapterID}/progress", s.handleUpdateProgress)
 
 		// Admin Job Triggers

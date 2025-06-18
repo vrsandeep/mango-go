@@ -5,6 +5,7 @@ package store
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"sort"
@@ -270,4 +271,28 @@ func (s *Store) UpdateAllSeriesThumbnails() error {
 		}
 	}
 	return nil
+}
+
+// GetSeriesSettings retrieves the sort settings for a series.
+func (s *Store) GetSeriesSettings(seriesID int64) (*models.SeriesSettings, error) {
+	var settings models.SeriesSettings
+	err := s.db.QueryRow("SELECT sort_by, sort_dir FROM series_settings WHERE series_id = ?", seriesID).Scan(&settings.SortBy, &settings.SortDir)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// Return default settings if not found
+			settings.SortBy = "auto"
+			settings.SortDir = "asc"
+			return &settings, nil
+		}
+		return nil, err
+	}
+	return &settings, nil
+}
+
+// UpdateSeriesSettings saves the sort settings for a series.
+func (s *Store) UpdateSeriesSettings(seriesID int64, sortBy, sortDir string) error {
+	query := `INSERT INTO series_settings (series_id, sort_by, sort_dir) VALUES (?, ?, ?)
+              ON CONFLICT(series_id) DO UPDATE SET sort_by=excluded.sort_by, sort_dir=excluded.sort_dir;`
+	_, err := s.db.Exec(query, seriesID, sortBy, sortDir)
+	return err
 }
