@@ -2,3 +2,4 @@ mango.db
 manga/
 .DS_Store
 .vscode/
+.idea/
