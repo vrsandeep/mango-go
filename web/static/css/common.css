@@ -40,7 +40,6 @@ a { color: var(--accent-color); text-decoration: none; }
 .progress-bar-container { margin: 0 0.75rem 0.75rem; height: 6px; background-color: #444; border-radius: 3px; overflow: hidden; }
 .progress-bar { width: 0%; height: 100%; background-color: var(--accent-color); border-radius: 3px; transition: width 0.3s ease; }
 
-
 /* Mobile Sidebar */
 @media (max-width: 768px) {
     .nav-links { display: none; flex-direction: column; position: fixed; top: 0; left: -250px; width: 250px; height: 100vh; background-color: var(--card-bg); padding-top: 4rem; transition: left 0.3s ease; box-shadow: 2px 0 10px rgba(0,0,0,0.3); }

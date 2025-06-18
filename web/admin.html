@@ -6,23 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin - Mango</title>
     <link rel="stylesheet" href="https://unpkg.com/phosphor-icons@1.4.2/src/css/icons.css">
+    <link rel="stylesheet" href="/static/css/common.css">
     <style>
-        :root { --bg-color: #1a1a1a; --text-color: #f0f0f0; --card-bg: #2a2a2a; --btn-bg: #333; --border-color: #555; --accent-color: #1e90ff; }
-        body.light-theme { --bg-color: #f4f4f9; --text-color: #1a1a1a; --card-bg: #ffffff; --btn-bg: #e0e0e0; --border-color: #ccc; }
-        body { background-color: var(--bg-color); color: var(--text-color); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; transition: background-color 0.2s, color 0.2s; }
-        a { color: var(--accent-color); text-decoration: none; }
-        a:hover { text-decoration: underline; }
-
-
-        /* Header & Nav */
-        .main-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; background-color: var(--card-bg); border-bottom: 1px solid var(--border-color); }
-        .header-left { display: flex; align-items: center; gap: 1.5rem; }
-        .header-logo { height: 32px; width: 32px; fill: var(--text-color); }
-        .nav-links a { font-size: 1.1rem; }
-        .header-right { display: flex; align-items: center; gap: 1rem; }
-        .menu-toggle { display: none; background: none; border: none; font-size: 2rem; color: var(--text-color); cursor: pointer; }
-
-
         /* Grid & Cards */
         .container { max-width: 900px; margin: 2rem auto; padding: 0 1.5rem; }
         .job-item { display: flex; align-items: center; justify-content: space-between; padding: 1rem; background: var(--card-bg); border-radius: 8px; margin-bottom: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
@@ -33,25 +18,9 @@
         .job-progress-bar { width: 0%; height: 100%; background: var(--accent-color); transition: width 0.2s linear; border-radius: 4px; }
         .job-actions button { background-color: var(--btn-bg); color: var(--text-color); border: 1px solid var(--border-color); padding: 8px 16px; border-radius: 5px; cursor: pointer; }
         .job-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
-
-        /* Mobile Sidebar */
-        @media (max-width: 768px) {
-            .nav-links { display: none; flex-direction: column; position: fixed; top: 0; left: -250px; width: 250px; height: 100vh; background-color: var(--card-bg); padding-top: 4rem; transition: left 0.3s ease; box-shadow: 2px 0 10px rgba(0,0,0,0.3); }
-            .nav-links.active { left: 0; }
-            .nav-links a { padding: 1rem 1.5rem; }
-            .menu-toggle { display: block; }
-            .header-left { gap: 1rem; }
-            .search-bar { width: 100%; }
-            .sort-controls { width: 100%; }
-            .jobs-container { display: flex; flex-direction: column; }
-        }
-
-        #theme-toggle-btn, #logout-btn { background-color: var(--btn-bg); color: var(--text-color); border: none; padding: 0.5rem 1rem; cursor: pointer; border-radius: 5px; }
-        #theme-toggle-btn:hover, #logout-btn:hover { background-color: var(--accent-color); color: white; }
-        #theme-toggle-btn { margin-right: 1rem; }
-        #logout-btn { margin-left: 1rem; }
-        .footer { margin-top: 2rem; text-align:center; padding: 2rem;}
-        .footer button:hover { background-color: var(--accent-color); color: white; }
+        .job-actions button:disabled:hover { background-color: var(--btn-bg); color: white; }
+        .job-actions button:hover:not(:disabled) { background-color: var(--accent-color); color: white;}
+        .jobs-container { display: flex; flex-direction: column; gap: 1rem; }
     </style>
 </head>
 <body>
@@ -60,7 +29,7 @@
             <button class="menu-toggle" id="menu-toggle-btn"><i class="ph-bold ph-list"></i></button>
             <svg class="header-logo" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM4 4h16v11.17l-3.17-3.17-2 2-3-3-3.17 3.17L4 12.34V4z"/></svg>
             <nav class="nav-links" id="nav-links">
-                <a href="/library">Home</a>
+                <a href="/library">Library</a>
                 <a href="/admin">Admin</a>
                 <!-- More links can be added here -->
             </nav>
@@ -73,7 +42,7 @@
 
     <main class="container">
         <h1>Admin</h1>
-        <div id="jobs-container">
+        <div id="jobs-container" class="jobs-container">
             <div class="job-item" id="job-full-scan">
                 <div class="job-details">
                 <h3>Full Library Scan</h3>
