@@ -58,12 +58,18 @@ func (s *Scanner) Scan(ignorePaths map[string]bool, progressChan chan<- float64)
 				continue // Skip already processed files in incremental scan
 			}
 		}
-		s.processFile(path)
+		err := s.processFile(path)
+		if err != nil {
+			return err
+		}
 		if progressChan != nil {
 			progressChan <- (float64(i+1) / float64(totalFiles)) * 100
 		}
 	}
-	s.st.UpdateAllSeriesThumbnails()
+	err = s.st.UpdateAllSeriesThumbnails()
+	if err != nil {
+		return err
+	}
 	return nil
 
 }
@@ -79,6 +85,7 @@ func (s *Scanner) processFile(path string) error {
 	if err != nil {
 		return err
 	}
+
 	// Defer a rollback in case of error. Commit will be called on success.
 	defer tx.Rollback()
 

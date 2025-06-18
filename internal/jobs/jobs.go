@@ -83,7 +83,12 @@ func RunIncrementalScan(app *core.App) {
 		}
 	}()
 
-	scanner.Scan(pathSet, progressChan)
+	err = scanner.Scan(pathSet, progressChan)
+	if err != nil {
+		sendProgress(app, jobName, fmt.Sprintf("Error during incremental scan: %v", err), 100, true)
+		log.Println("Error during incremental scan:", err)
+		return
+	}
 
 	sendProgress(app, jobName, "Incremental scan completed.", 100, true)
 	log.Println("Job finished:", jobName)

@@ -6,6 +6,7 @@ let state = {
     isLoading: false,
     hasMore: true
 };
+let loadCards;
 document.addEventListener('DOMContentLoaded', () => {
   const cardsGrid = document.getElementById('cards-grid');
   const loadMoreBtn = document.getElementById('load-more-btn');
@@ -31,7 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
   menuToggleBtn.addEventListener('click', () => navLinks.classList.toggle('active'));
 
   // --- Data Loading ---
-  const loadCards = async (reset = false) => {
+  loadCards = async (reset = false) => {
     if (state.isLoading || !state.hasMore && !reset) return;
     state.isLoading = true;
     if (reset) {
@@ -40,14 +41,6 @@ document.addEventListener('DOMContentLoaded', () => {
       cardsGrid.innerHTML = '';
     }
 
-    // const url = `/api/series?page=${state.currentPage}&per_page=100&search=${state.search}&sort_by=${state.sortBy}&sort_dir=${state.sortDir}`;
-    // const url = GET_CARDS_URL
-    //     .replace("STATE_CURRENT_PAGE", state.currentPage)
-    //     .replace("STATE_SEARCH", state.search)
-    //     .replace("STATE_SORT_BY", state.sortBy)
-    //     .replace("STATE_SORT_DIR", state.sortDir)
-    //   // .replace("SERIES_ID", state.);
-    // ;
     const url = getCardsLoadingUrl();
     const response = await fetch(url);
     const cardsList = await response.json();

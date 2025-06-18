@@ -49,6 +49,8 @@ const renderCards = (seriesData, cardsGrid) => {
     // Load tags
     if (seriesData.tags) {
       renderTags(seriesData.tags);
+    } else {
+      renderTags([]);
     }
 }
 

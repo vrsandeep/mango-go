@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -82,7 +83,12 @@ func parseCBZ(filePath string) ([]*models.Page, []byte, error) {
 		if err != nil {
 			return pages, nil, fmt.Errorf("failed to open first page for thumbnail: %w", err)
 		}
-		defer rc.Close()
+		defer func(rc io.ReadCloser) {
+			err := rc.Close()
+			if err != nil {
+				fmt.Printf("Error closing read closer: %v\n", err)
+			}
+		}(rc)
 
 		firstPageData, err = io.ReadAll(rc)
 		if err != nil {
@@ -140,7 +146,12 @@ func parseCBR(path string) ([]*models.Page, []byte, error) {
 	if err != nil {
 		return []*models.Page{}, nil, err
 	}
-	defer f.Close()
+	defer func(f fs.File) {
+		err := f.Close()
+		if err != nil {
+			log.Printf("Error closing file: %v\n", err)
+		}
+	}(f)
 
 	// Read all bytes from the first image file
 	data, err := io.ReadAll(f)
