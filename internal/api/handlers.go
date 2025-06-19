@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/vrsandeep/mango-go/internal/library"
+	"github.com/vrsandeep/mango-go/internal/models"
 )
 
 // getListParams extracts all query params for list endpoints.
@@ -57,21 +58,24 @@ func (s *Server) handleGetSeries(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Failed to retrieve settings for series %d: %v", seriesID, err)
 	}
 	page, perPage, search, sortBy, sortDir := getListParams(r)
-	if settings != nil {
-		if sortBy == "" {
-			sortBy = settings.SortBy // Use default sort from settings if not specified
-		}
-		if sortDir == "" {
-			sortDir = settings.SortDir // Use default direction from settings if not specified
-		}
+
+	// save settings to series if they exist
+	if sortBy != "" || sortDir != "" {
+		s.store.UpdateSeriesSettings(seriesID, sortBy, sortDir)
+	} else {
+		sortBy = settings.SortBy   // Use default sort from settings if not specified
+		sortDir = settings.SortDir // Use default direction from settings if not specified
 	}
+
 	series, total, err := s.store.GetSeriesByID(seriesID, page, perPage, search, sortBy, sortDir)
 	if err != nil {
 		RespondWithError(w, http.StatusNotFound, "Series not found")
 		return
 	}
-	if settings != nil {
-		series.Settings = settings
+
+	series.Settings = &models.SeriesSettings{
+		SortBy:  sortBy,
+		SortDir: sortDir,
 	}
 
 	w.Header().Set("X-Total-Count", strconv.Itoa(total))

@@ -64,13 +64,13 @@ const renderCards = (seriesData, cardsGrid) => {
     renderTags(seriesData.tags);
   }
 }
-const updateSettings = async () => {
-  await fetch(`/api/series/${seriesId}/settings`, {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({sort_by: state.sortBy, sort_dir: state.sortDir})
-  });
-};
+// const updateSettings = async () => {
+//   await fetch(`/api/series/${seriesId}/settings`, {
+//     method: 'POST',
+//     headers: {'Content-Type': 'application/json'},
+//     body: JSON.stringify({sort_by: state.sortBy, sort_dir: state.sortDir})
+//   });
+// };
 
 document.addEventListener('DOMContentLoaded', () => {
   seriesId = window.location.pathname.split('/')[2];

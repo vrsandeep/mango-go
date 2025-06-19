@@ -38,7 +38,6 @@ func (s *Store) ListSeries(page, perPage int, search, sortBy, sortDir string) ([
             s.id, s.title, s.path, s.thumbnail, s.custom_cover_url, s.created_at, s.updated_at,
             total_chapters, read_chapters
         FROM series s
-        LEFT JOIN chapters c ON s.id = c.series_id
     `
 	if search != "" {
 		query += " WHERE s.title LIKE ?"

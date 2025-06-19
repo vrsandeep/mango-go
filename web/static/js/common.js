@@ -1,8 +1,8 @@
 let state = {
   currentPage: 1,
   search: '',
-  sortBy: 'title',
-  sortDir: 'asc',
+  sortBy: '',
+  sortDir: '',
   isLoading: false,
   hasMore: true
 };
@@ -80,14 +80,12 @@ document.addEventListener('DOMContentLoaded', () => {
   sortBySelect.addEventListener('change', () => {
     state.sortBy = sortBySelect.value;
     loadCards(true);
-    updateSettings();
   });
 
   sortDirBtn.addEventListener('click', () => {
     state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
     sortDirBtn.textContent = state.sortDir === 'asc' ? '▲' : '▼';
     loadCards(true);
-    updateSettings();
   });
 
   const loadVersion = async () => {

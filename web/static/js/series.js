@@ -19,9 +19,9 @@ const resetState = (cardsGrid) => {
   cardsGrid.innerHTML = '';
 }
 
-const updateSettings = async () => {
-  // do nothing for now
-}
+// const updateSettings = async () => {
+//   // do nothing for now
+// }
 const renderCards = (cardsList, cardsGrid) => {
   if (!cardsList) {
     return;
