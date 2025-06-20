@@ -53,6 +53,8 @@ func setupTestServer(t *testing.T) (*Server, *sql.DB) {
 		WsHub:   hub,
 		Version: "test",
 	}
+	// Register providers for the test environment
+	// providers.Register(mockadex.New())
 	server := NewServer(app)
 	return server, db
 }

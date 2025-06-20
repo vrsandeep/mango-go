@@ -70,11 +70,31 @@ func (s *Server) Router() http.Handler {
 		r.Post("/admin/scan-incremental", s.handleScanIncremental)
 		r.Post("/admin/prune-database", s.handlePruneDatabase)
 		r.Post("/admin/generate-thumbnails", s.handleGenerateThumbnails)
+
+		// New Downloader Routes
+		r.Get("/providers", s.handleListProviders)
+		r.Get("/providers/{providerID}/search", s.handleProviderSearch)
+		r.Get("/providers/{providerID}/series/{seriesIdentifier}", s.handleProviderGetChapters)
 	})
 
 	// WebSocket route
 	r.Get("/ws/admin/progress", func(w http.ResponseWriter, r *http.Request) {
 		s.app.WsHub.ServeWs(w, r)
+	})
+
+	// Frontend Routes
+	// Downloader Frontend Routes
+	r.Route("/downloads", func(r chi.Router) {
+		r.Get("/plugins", func(w http.ResponseWriter, r *http.Request) {
+			http.ServeFile(w, r, "./web/plugins.html")
+		})
+		// Placeholder routes for pages to be built in later phases
+		r.Get("/manager", func(w http.ResponseWriter, r *http.Request) {
+			w.Write([]byte("Download Manager page - To be implemented"))
+		})
+		r.Get("/subscriptions", func(w http.ResponseWriter, r *http.Request) {
+			w.Write([]byte("Subscription Manager page - To be implemented"))
+		})
 	})
 
 	r.Get("/admin", func(w http.ResponseWriter, r *http.Request) {
