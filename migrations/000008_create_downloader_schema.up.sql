@@ -20,3 +20,4 @@ CREATE TABLE subscriptions (
     last_checked_at TIMESTAMP,
     FOREIGN KEY (local_series_id) REFERENCES series(id) ON DELETE SET NULL
 );
+CREATE UNIQUE INDEX idx_subscription_provider_series ON subscriptions (series_identifier, provider_id );

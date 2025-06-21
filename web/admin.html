@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -31,6 +30,7 @@
             <nav class="nav-links" id="nav-links">
                 <a href="/library">Library</a>
                 <a href="/admin">Admin</a>
+                <a href="/downloads/plugins">Downloads</a>
                 <!-- More links can be added here -->
             </nav>
         </div>
@@ -95,15 +95,15 @@
         </div>
     </main>
 
-    <footer class="main-footer" style="text-align:center; padding: 1rem; color: #888;">
+    <footer class="main-footer">
         <span id="version-footer"></span>
     </footer>
-
+    <script src="/static/js/header.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const navLinks = document.getElementById('nav-links');
-            const menuToggleBtn = document.getElementById('menu-toggle-btn');
-            const themeToggleBtn = document.getElementById('theme-toggle-btn');
+            // const navLinks = document.getElementById('nav-links');
+            // const menuToggleBtn = document.getElementById('menu-toggle-btn');
+            // const themeToggleBtn = document.getElementById('theme-toggle-btn');
 
             const startJob = async (endpoint, button) => {
                 button.disabled = true;
@@ -150,28 +150,28 @@
                 };
             };
 
-            const applyTheme = (theme) => {
-                if (theme === 'light') { document.body.classList.add('light-theme'); }
-                else { document.body.classList.remove('light-theme'); }
-            };
-            themeToggleBtn.addEventListener('click', () => {
-                const newTheme = document.body.classList.contains('light-theme') ? 'dark' : 'light';
-                localStorage.setItem('theme', newTheme);
-                applyTheme(newTheme);
-            });
+            // const applyTheme = (theme) => {
+            //     if (theme === 'light') { document.body.classList.add('light-theme'); }
+            //     else { document.body.classList.remove('light-theme'); }
+            // };
+            // themeToggleBtn.addEventListener('click', () => {
+            //     const newTheme = document.body.classList.contains('light-theme') ? 'dark' : 'light';
+            //     localStorage.setItem('theme', newTheme);
+            //     applyTheme(newTheme);
+            // });
 
             // --- Mobile Menu Logic ---
-            menuToggleBtn.addEventListener('click', () => navLinks.classList.toggle('active'));
+            // menuToggleBtn.addEventListener('click', () => navLinks.classList.toggle('active'));
 
-            const loadVersion = async () => {
-                const response = await fetch('/api/version');
-                const data = await response.json();
-                document.getElementById('version-footer').textContent = `Version: ${data.version}`;
-            };
+            // const loadVersion = async () => {
+            //     const response = await fetch('/api/version');
+            //     const data = await response.json();
+            //     document.getElementById('version-footer').textContent = `Version: ${data.version}`;
+            // };
 
-            applyTheme(localStorage.getItem('theme'));
+            // applyTheme(localStorage.getItem('theme'));
             initWebSocket();
-            loadVersion();
+            // loadVersion();
 
             document.querySelectorAll('.start-job-btn').forEach(button => {
                 button.addEventListener('click', (e) => {

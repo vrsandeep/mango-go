@@ -71,10 +71,12 @@ func (s *Server) Router() http.Handler {
 		r.Post("/admin/prune-database", s.handlePruneDatabase)
 		r.Post("/admin/generate-thumbnails", s.handleGenerateThumbnails)
 
-		// New Downloader Routes
+		// Downloader Routes
 		r.Get("/providers", s.handleListProviders)
 		r.Get("/providers/{providerID}/search", s.handleProviderSearch)
 		r.Get("/providers/{providerID}/series/{seriesIdentifier}", s.handleProviderGetChapters)
+		r.Post("/downloads/queue", s.handleAddChaptersToQueue)
+		r.Post("/subscriptions", s.handleSubscribeToSeries)
 	})
 
 	// WebSocket route
@@ -115,9 +117,6 @@ func (s *Server) Router() http.Handler {
 
 	// Add a redirect from the root to the main library page
 	r.Get("/", http.RedirectHandler("/library", http.StatusMovedPermanently).ServeHTTP)
-
-	// Serve static files for the web reader
-	// r.Handle("/reader/static/*", http.StripPrefix("/reader/static/", http.FileServer(http.Dir("./web/static"))))
 
 	return r
 }

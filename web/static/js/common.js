@@ -12,26 +12,10 @@ let sortDirBtn;
 document.addEventListener('DOMContentLoaded', () => {
   const cardsGrid = document.getElementById('cards-grid');
   const loadMoreBtn = document.getElementById('load-more-btn');
-  const themeToggleBtn = document.getElementById('theme-toggle-btn');
-  const menuToggleBtn = document.getElementById('menu-toggle-btn');
-  const navLinks = document.getElementById('nav-links');
   const searchInput = document.getElementById('search-input');
   sortBySelect = document.getElementById('sort-by');
   sortDirBtn = document.getElementById('sort-dir-btn');
   const totalCountEl = document.getElementById('total-count');
-
-  // --- Theme Logic ---
-  const applyTheme = (theme) => {
-    document.body.classList.toggle('light-theme', theme === 'light');
-  };
-  themeToggleBtn.addEventListener('click', () => {
-    const newTheme = document.body.classList.contains('light-theme') ? 'dark' : 'light';
-    localStorage.setItem('theme', newTheme);
-    applyTheme(newTheme);
-  });
-
-  // --- Mobile Menu Logic ---
-  menuToggleBtn.addEventListener('click', () => navLinks.classList.toggle('active'));
 
   // --- Data Loading ---
   loadCards = async (reset = false) => {
@@ -88,14 +72,13 @@ document.addEventListener('DOMContentLoaded', () => {
     loadCards(true);
   });
 
-  const loadVersion = async () => {
-    const response = await fetch('/api/version');
-    const data = await response.json();
-    document.getElementById('version-footer').textContent = `Version: ${data.version}`;
-  };
+  // const loadVersion = async () => {
+  //   const response = await fetch('/api/version');
+  //   const data = await response.json();
+  //   document.getElementById('version-footer').textContent = `Version: ${data.version}`;
+  // };
 
   // Initial load
-  applyTheme(localStorage.getItem('theme'));
   loadCards(true); // Initial load
-  loadVersion();
+  // loadVersion();
 });

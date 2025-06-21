@@ -57,3 +57,4 @@ a { color: var(--accent-color); text-decoration: none; }
 /* Footer */
 .footer { margin-top: 2rem; text-align:center; padding: 2rem;}
 .footer button:hover { background-color: var(--accent-color); color: white; }
+.main-footer {text-align:center; padding: 1rem; color: #888;}

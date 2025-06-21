@@ -296,3 +296,59 @@ func (s *Store) UpdateSeriesSettings(seriesID int64, sortBy, sortDir string) err
 	_, err := s.db.Exec(query, seriesID, sortBy, sortDir)
 	return err
 }
+
+// AddChaptersToQueue adds multiple chapters to the download queue in a single transaction.
+func (s *Store) AddChaptersToQueue(seriesTitle, providerID string, chapters []models.ChapterResult) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	stmt, err := tx.Prepare(`
+        INSERT OR IGNORE INTO download_queue
+        (series_title, chapter_title, chapter_identifier, provider_id, created_at)
+        VALUES (?, ?, ?, ?, ?)
+    `)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for _, ch := range chapters {
+		_, err := stmt.Exec(seriesTitle, ch.Title, ch.Identifier, providerID, time.Now())
+		if err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
+}
+
+// SubscribeToSeries adds a series to the subscriptions table.
+func (s *Store) SubscribeToSeries(seriesTitle, seriesIdentifier, providerID string) (*models.Subscription, error) {
+	var sub models.Subscription
+	query := `
+        INSERT INTO subscriptions (series_title, series_identifier, provider_id, created_at, last_checked_at)
+        VALUES (?, ?, ?, ?, NULL)
+        ON CONFLICT(series_identifier, provider_id) DO NOTHING
+        RETURNING id, series_title, series_identifier, provider_id, created_at;
+    `
+	err := s.db.QueryRow(query, seriesTitle, seriesIdentifier, providerID, time.Now()).Scan(
+		&sub.ID, &sub.SeriesTitle, &sub.SeriesIdentifier, &sub.ProviderID, &sub.CreatedAt,
+	)
+	if err == sql.ErrNoRows {
+		// This means the subscription already existed, which is not an error.
+		// We can fetch the existing one to return it.
+		err = s.db.QueryRow(`
+			SELECT id, series_title, series_identifier, provider_id, created_at
+			FROM subscriptions
+        	WHERE series_identifier = ? AND provider_id = ?`, seriesIdentifier, providerID).Scan(
+			&sub.ID, &sub.SeriesTitle, &sub.SeriesIdentifier, &sub.ProviderID, &sub.CreatedAt,
+		)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &sub, nil
+}

@@ -3,11 +3,14 @@
 package api
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/vrsandeep/mango-go/internal/downloader/providers"
+	"github.com/vrsandeep/mango-go/internal/models"
 )
 
 func (s *Server) handleListProviders(w http.ResponseWriter, r *http.Request) {
@@ -52,4 +55,34 @@ func (s *Server) handleProviderGetChapters(w http.ResponseWriter, r *http.Reques
 	}
 
 	RespondWithJSON(w, http.StatusOK, results)
+}
+
+// ChapterQueuePayload is the expected structure for queuing chapters.
+type ChapterQueuePayload struct {
+	SeriesTitle string                 `json:"series_title"`
+	ProviderID  string                 `json:"provider_id"`
+	Chapters    []models.ChapterResult `json:"chapters"`
+}
+
+func (s *Server) handleAddChaptersToQueue(w http.ResponseWriter, r *http.Request) {
+	var payload ChapterQueuePayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+
+	if len(payload.Chapters) == 0 {
+		RespondWithError(w, http.StatusBadRequest, "No chapters provided to queue")
+		return
+	}
+
+	err := s.store.AddChaptersToQueue(payload.SeriesTitle, payload.ProviderID, payload.Chapters)
+	if err != nil {
+		RespondWithError(w, http.StatusInternalServerError, "Failed to add chapters to download queue")
+		return
+	}
+
+	RespondWithJSON(w, http.StatusAccepted, map[string]string{
+		"message": fmt.Sprintf("%d chapters have been added to the download queue.", len(payload.Chapters)),
+	})
 }

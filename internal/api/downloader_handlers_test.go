@@ -2,6 +2,7 @@ package api
 
 // A test file for the downloader API endpoints.
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -36,6 +37,18 @@ func setupTestServerWithProviders(t *testing.T) *Server {
 
 	// Register providers for the test environment
 	providers.Register(mockadex.New())
+
+	t.Cleanup(func() {
+		if err := db.Close(); err != nil {
+			t.Errorf("Failed to close database: %v", err)
+		}
+		// Close the WebSocket hub
+		// hub.Close()
+
+		// Unregister all providers
+		providers.UnregisterAll()
+
+	})
 
 	return NewServer(app)
 }
@@ -89,6 +102,31 @@ func TestDownloaderHandlers(t *testing.T) {
 		json.Unmarshal(rr.Body.Bytes(), &results)
 		if len(results) != 25 {
 			t.Errorf("Expected 25 chapter results, got %d", len(results))
+		}
+	})
+
+	t.Run("Add Chapters to Queue", func(t *testing.T) {
+		payload := ChapterQueuePayload{
+			SeriesTitle: "Test Manga",
+			ProviderID:  "mockadex",
+			Chapters: []models.ChapterResult{
+				{Identifier: "ch1", Title: "Chapter 1"},
+				{Identifier: "ch2", Title: "Chapter 2"},
+			},
+		}
+		body, _ := json.Marshal(payload)
+		req, _ := http.NewRequest("POST", "/api/downloads/queue", bytes.NewBuffer(body))
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusAccepted {
+			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusAccepted)
+		}
+
+		var count int
+		server.db.QueryRow("SELECT COUNT(*) FROM download_queue").Scan(&count)
+		if count != 2 {
+			t.Errorf("Expected 2 items in queue, but found %d", count)
 		}
 	})
 }
