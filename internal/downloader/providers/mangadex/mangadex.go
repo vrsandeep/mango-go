@@ -127,7 +127,7 @@ func (p *MangaDexProvider) GetChapters(seriesIdentifier string) ([]models.Chapte
 		for _, chapterData := range apiResponse.Data {
 			allChapters = append(allChapters, models.ChapterResult{
 				Identifier:  chapterData.ID,
-				Title:       chapterData.Attributes.Title,
+				Title:       formatChapterTitle(chapterData.Attributes),
 				Volume:      chapterData.Attributes.Volume,
 				Chapter:     chapterData.Attributes.Chapter,
 				Pages:       chapterData.Attributes.Pages,
@@ -135,7 +135,6 @@ func (p *MangaDexProvider) GetChapters(seriesIdentifier string) ([]models.Chapte
 				PublishedAt: chapterData.Attributes.PublishAt,
 			})
 		}
-
 		if len(apiResponse.Data) < limit {
 			break // No more pages
 		}
@@ -148,6 +147,16 @@ func (p *MangaDexProvider) GetChapters(seriesIdentifier string) ([]models.Chapte
 	})
 
 	return allChapters, nil
+}
+
+func formatChapterTitle(chapter ChapterAttributes) string {
+	if chapter.Volume != "" && chapter.Chapter != "" {
+		return fmt.Sprintf("Vol %s Ch %s: %s", chapter.Volume, chapter.Chapter, chapter.Title)
+	} else if chapter.Chapter != "" {
+		return fmt.Sprintf("Ch %s: %s", chapter.Chapter, chapter.Title)
+	} else {
+		return chapter.Title
+	}
 }
 
 // GetPageURLs retrieves the page URLs for a given chapter from MangaDex.
