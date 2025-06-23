@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download Manager - Mango</title>
+    <link rel="stylesheet" href="/static/css/common.css">
+    <style>
+        .container { max-width: 1200px; }
+        .header-actions { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; justify-content: flex-start; }
+        .header-actions button { background-color: var(--btn-bg); color: var(--text-color); border: 1px solid var(--border-color); padding: 8px 16px; border-radius: 5px; cursor: pointer; }
+        .header-actions button:hover { background-color: var(--accent-color); color: white; }
+        .header-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .header-actions button:disabled:hover { background-color: var(--btn-bg); color: white; }
+        .queue-table { width: 100%; border-collapse: collapse;  margin-bottom: 1.5rem; }
+        .queue-table th, .queue-table td { padding: 0.75rem; text-align: left; border-bottom: 1px solid var(--border-color); background-color: var(--card-bg); }
+        .queue-table th:nth-child(3), .queue-table td:nth-child(3) { width: 20%; }
+        .progress-bar-container { height: 20px; background-color: #444; border-radius: 4px; overflow: hidden; margin: 0.5rem 0; }
+        .progress-bar-container:hover { background-color: #555; }
+        .progress-bar-container:hover { background-color: var(--accent-color); }
+        .progress-bar { width: 0%; height: 100%; background-color: var(--accent-color); transition: width 0.2s linear; border-radius: 4px; color: white; text-align: center; font-size: 0.8rem; line-height: 20px; }
+        .status-queued { color: #f0f0f0; }
+        .status-in_progress { color: #1e90ff; }
+        .status-completed { color: #32cd32; }
+        .status-failed { color: #ff4500; }
+    </style>
+</head>
+<body>
+    <header class="main-header">
+        <div class="header-left">
+            <button class="menu-toggle" id="menu-toggle-btn"><i class="ph-bold ph-list"></i></button>
+            <svg class="header-logo" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM4 4h16v11.17l-3.17-3.17-2 2-3-3-3.17 3.17L4 12.34V4z"/></svg>
+            <nav class="nav-links" id="nav-links">
+                <a href="/library">Library</a>
+                <a href="/admin">Admin</a>
+                <a href="/downloads/plugins">Downloads</a>
+                <a href="/downloads/manager">Download Manager</a>
+                <!-- More links can be added here -->
+            </nav>
+        </div>
+        <div class="header-right">
+            <button id="theme-toggle-btn">Theme</button>
+            <button id="logout-btn">Logout</button>
+        </div>
+    </header>
+    <main class="container">
+        <h1>Download Manager</h1>
+        <div class="header-actions">
+            <button data-action="delete_completed">Delete Completed</button>
+            <button data-action="retry_failed">Retry Failed</button>
+            <button data-action="refresh">Refresh Queue</button>
+            <button data-action="pause_all" id="pause-resume-btn">Pause All</button>
+        </div>
+        <div class="table-container">
+            <table class="queue-table">
+                <thead>
+                    <tr>
+                        <th>Chapter</th>
+                        <th>Manga</th>
+                        <th>Progress</th>
+                        <th>Time Added</th>
+                        <th>Status</th>
+                        <th>Plugin</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="queue-table-body">
+                    <!-- Rows will be rendered by JS -->
+                </tbody>
+            </table>
+        </div>
+    </main>
+    <footer class="main-footer"><span id="version-footer"></span></footer>
+    <script src="/static/js/header.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const queueTableBody = document.getElementById('queue-table-body');
+            const headerActionButtons = document.querySelectorAll('.header-actions button');
+            const pauseResumeBtn = document.getElementById('pause-resume-btn');
+            let ws;
+
+            const renderRow = (item) => {
+                let row = document.getElementById(`item-${item.id}`);
+                if (!row) {
+                    row = document.createElement('tr');
+                    row.id = `item-${item.id}`;
+                }
+                const statusClass = `status-${item.status.replace(' ', '_').toLowerCase()}`;
+                row.innerHTML = `
+                    <td title="${item.chapter_title}">${item.chapter_title}</td>
+                    <td title="${item.series_title}">${item.series_title}</td>
+                    <td>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" style="width: ${item.progress}%;">${item.progress}%</div>
+                        </div>
+                    </td>
+                    <td>${new Date(item.created_at).toLocaleString()}</td>
+                    <td><span class="${statusClass}">${item.status}</span></td>
+                    <td>${item.provider_id}</td>
+                    <td><!-- Per-item action icons can be added here --></td>
+                `;
+                return row;
+            };
+
+            const loadQueue = async () => {
+                try {
+                    const response = await fetch('/api/downloads/queue');
+                    const items = await response.json();
+                    queueTableBody.innerHTML = '';
+                    if (items) {
+                        items.forEach(item => queueTableBody.appendChild(renderRow(item)));
+                    }
+                } catch (error) {
+                    console.error("Failed to load queue:", error);
+                    queueTableBody.innerHTML = '<tr><td colspan="7">Error loading queue.</td></tr>';
+                }
+            };
+
+            const handleWebSocket = () => {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                ws = new WebSocket(`${protocol}//${window.location.host}/ws/admin/progress`);
+
+                ws.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    if (data.job_name !== 'downloader' || !data.item_id) return;
+
+                    let row = document.getElementById(`item-${data.item_id}`);
+                    if (!row) {
+                        // The item is new to us, create a new row
+                        row = renderRow({
+                            id: data.item_id,
+                            progress: data.progress,
+                            status: data.status
+                            // We don't have all the info, a full refresh is better
+                        });
+                        loadQueue(); // Refresh the whole list to get all data
+                        return;
+                    }
+
+                    const progressBar = row.querySelector('.progress-bar');
+                    const statusEl = row.querySelector('[class^="status-"]');
+
+                    progressBar.style.width = `${data.progress}%`;
+                    progressBar.textContent = `${Math.round(data.progress)}%`;
+                    statusEl.textContent = data.status;
+                    statusEl.className = `status-${data.status.replace(' ', '_').toLowerCase()}`;
+                };
+
+                ws.onclose = () => {
+                    console.log('WebSocket for downloads disconnected. Reconnecting in 5 seconds...');
+                    setTimeout(handleWebSocket, 5000);
+                };
+                 ws.onerror = (err) => {
+                    console.error('WebSocket error:', err);
+                };
+            };
+
+            headerActionButtons.forEach(button => {
+                button.addEventListener('click', async (e) => {
+                    const action = e.target.dataset.action;
+                    if (action === 'refresh') {
+                        loadQueue();
+                        return;
+                    }
+                    if (action === "pause_all") {
+                        const newAction = e.target.textContent === 'Pause All' ? 'pause_all' : 'resume_all';
+                        await fetch('/api/downloads/action', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: newAction })
+                        });
+                        e.target.textContent = newAction === 'pause_all' ? 'Resume All' : 'Pause All';
+                        return;
+                    }
+
+                    await fetch('/api/downloads/action', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action })
+                    });
+                    setTimeout(loadQueue, 500); // Give backend a moment before refreshing
+                });
+            });
+
+            loadQueue();
+            handleWebSocket();
+        });
+    </script>
+</body>
+</html>

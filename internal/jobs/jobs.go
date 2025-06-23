@@ -9,17 +9,18 @@ import (
 	"github.com/vrsandeep/mango-go/internal/core"
 	"github.com/vrsandeep/mango-go/internal/library"
 	"github.com/vrsandeep/mango-go/internal/store"
+	"github.com/vrsandeep/mango-go/internal/websocket"
 )
 
-type ProgressUpdate struct {
-	JobName  string  `json:"job_name"`
-	Message  string  `json:"message"`
-	Progress float64 `json:"progress"`
-	Done     bool    `json:"done"`
-}
+// type ProgressUpdate struct {
+// 	JobName  string  `json:"job_name"`
+// 	Message  string  `json:"message"`
+// 	Progress float64 `json:"progress"`
+// 	Done     bool    `json:"done"`
+// }
 
 func sendProgress(app *core.App, jobName, message string, progress float64, done bool) {
-	update := ProgressUpdate{
+	update := websocket.ProgressUpdate{
 		JobName:  jobName,
 		Message:  message,
 		Progress: progress,

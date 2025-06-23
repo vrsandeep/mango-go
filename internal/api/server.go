@@ -76,7 +76,9 @@ func (s *Server) Router() http.Handler {
 		r.Get("/providers/{providerID}/search", s.handleProviderSearch)
 		r.Get("/providers/{providerID}/series/{seriesIdentifier}", s.handleProviderGetChapters)
 		r.Post("/downloads/queue", s.handleAddChaptersToQueue)
+		r.Get("/downloads/queue", s.handleGetDownloadQueue)
 		r.Post("/subscriptions", s.handleSubscribeToSeries)
+		r.Post("/downloads/action", s.handleQueueAction)
 	})
 
 	// WebSocket route
@@ -90,9 +92,8 @@ func (s *Server) Router() http.Handler {
 		r.Get("/plugins", func(w http.ResponseWriter, r *http.Request) {
 			http.ServeFile(w, r, "./web/plugins.html")
 		})
-		// Placeholder routes for pages to be built in later phases
 		r.Get("/manager", func(w http.ResponseWriter, r *http.Request) {
-			w.Write([]byte("Download Manager page - To be implemented"))
+			http.ServeFile(w, r, "./web/download_manager.html")
 		})
 		r.Get("/subscriptions", func(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte("Subscription Manager page - To be implemented"))

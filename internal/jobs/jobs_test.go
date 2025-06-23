@@ -37,12 +37,12 @@ func TestRunFullScan(t *testing.T) {
 	// Run the full scan job
 	go RunFullScan(app)
 	// Listen for progress updates with a timeout to prevent the test from hanging
-	var lastUpdate ProgressUpdate
+	var lastUpdate websocket.ProgressUpdate
 	timeout := time.After(5 * time.Second)
 	for {
 		select {
 		case msgBytes := <-app.WsHub.Broadcast():
-			var update ProgressUpdate
+			var update websocket.ProgressUpdate
 			if err := json.Unmarshal(msgBytes, &update); err != nil {
 				t.Fatalf("Failed to unmarshal progress update: %v", err)
 			}
@@ -97,12 +97,12 @@ func TestRunIncrementalScan(t *testing.T) {
 	// Run the incremental scan job
 	go RunIncrementalScan(app)
 	// Listen for progress updates with a timeout to prevent the test from hanging
-	var lastUpdate ProgressUpdate
+	var lastUpdate websocket.ProgressUpdate
 	timeout := time.After(5 * time.Second)
 	for {
 		select {
 		case msgBytes := <-app.WsHub.Broadcast():
-			var update ProgressUpdate
+			var update websocket.ProgressUpdate
 			if err := json.Unmarshal(msgBytes, &update); err != nil {
 				t.Fatalf("Failed to unmarshal progress update: %v", err)
 			}
@@ -165,14 +165,14 @@ verification:
 // 	go RunPruneDatabase(app)
 
 // 	// Listen for progress updates with a timeout to prevent the test from hanging
-// 	var lastUpdate ProgressUpdate
+// 	var lastUpdate websocket.ProgressUpdate
 // 	timeout := time.After(5 * time.Second)
 
 // 	for {
 // 		// Use a select block to avoid deadlocking
 // 		select {
 // 		case msgBytes := <-app.WsHub.Broadcast():
-// 			var update ProgressUpdate
+// 			var update websocket.ProgressUpdate
 // 			if err := json.Unmarshal(msgBytes, &update); err != nil {
 // 				t.Fatalf("Failed to unmarshal progress update: %v", err)
 // 			}

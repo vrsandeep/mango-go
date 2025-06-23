@@ -352,3 +352,101 @@ func (s *Store) SubscribeToSeries(seriesTitle, seriesIdentifier, providerID stri
 	}
 	return &sub, nil
 }
+
+func (s *Store) GetDownloadQueue() ([]*models.DownloadQueueItem, error) {
+	query := `
+        SELECT id, series_title, chapter_title, chapter_identifier, provider_id, status, progress, message, created_at
+        FROM download_queue ORDER BY created_at DESC
+    `
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var items []*models.DownloadQueueItem
+	for rows.Next() {
+		var item models.DownloadQueueItem
+		var msg sql.NullString
+		if err := rows.Scan(&item.ID, &item.SeriesTitle, &item.ChapterTitle, &item.ChapterIdentifier, &item.ProviderID, &item.Status, &item.Progress, &msg, &item.CreatedAt); err != nil {
+			return nil, err
+		}
+		item.Message = msg.String
+		items = append(items, &item)
+	}
+	return items, nil
+}
+
+// GetQueuedDownloadItems retrieves a limited number of items with a 'queued' status.
+func (s *Store) GetQueuedDownloadItems(limit int) ([]*models.DownloadQueueItem, error) {
+	query := `
+        SELECT id, series_title, chapter_title, chapter_identifier, provider_id, status, progress, message, created_at
+        FROM download_queue WHERE status = 'queued' ORDER BY created_at ASC LIMIT ?
+    `
+	rows, err := s.db.Query(query, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var items []*models.DownloadQueueItem
+	for rows.Next() {
+		var item models.DownloadQueueItem
+		var msg sql.NullString
+		if err := rows.Scan(&item.ID, &item.SeriesTitle, &item.ChapterTitle, &item.ChapterIdentifier, &item.ProviderID, &item.Status, &item.Progress, &msg, &item.CreatedAt); err != nil {
+			return nil, err
+		}
+		item.Message = msg.String
+		items = append(items, &item)
+	}
+	return items, nil
+}
+
+// UpdateQueueItemStatus changes an item's status and message.
+func (s *Store) UpdateQueueItemStatus(id int64, status, message string) error {
+	query := "UPDATE download_queue SET status = ?, message = ? WHERE id = ?"
+	_, err := s.db.Exec(query, status, message, id)
+	return err
+}
+
+// UpdateQueueItemProgress changes an item's progress percentage.
+func (s *Store) UpdateQueueItemProgress(id int64, progress int) error {
+	query := "UPDATE download_queue SET progress = ? WHERE id = ?"
+	_, err := s.db.Exec(query, progress, id)
+	return err
+}
+
+// ResetInProgressQueueItems sets items from 'in_progress' back to 'queued' on startup.
+func (s *Store) ResetInProgressQueueItems() error {
+	query := "UPDATE download_queue SET status = 'queued', progress = 0, message = 'Re-queued after restart' WHERE status = 'in_progress'"
+	_, err := s.db.Exec(query)
+	return err
+}
+
+// PauseAllQueueItems sets all items in 'in_progress' or 'queued' to 'paused'.
+func (s *Store) PauseAllQueueItems() error {
+	query := "UPDATE download_queue SET status = 'paused', message = 'Paused by user' where status = 'in_progress' OR status = 'queued'"
+	_, err := s.db.Exec(query)
+	return err
+}
+
+// ResumeAllQueueItems sets all items in 'paused' back to 'queued'.
+func (s *Store) ResumeAllQueueItems() error {
+	query := "UPDATE download_queue SET status = 'queued', message = 'Resumed by user' WHERE status = 'paused'"
+	_, err := s.db.Exec(query)
+	return err
+}
+
+// ResetFailedQueueItems sets items from 'failed' back to 'queued' to be retried.
+func (s *Store) ResetFailedQueueItems() error {
+	query := "UPDATE download_queue SET status = 'queued', progress = 0, message = 'Re-queued by user' WHERE status = 'failed'"
+	_, err := s.db.Exec(query)
+	return err
+}
+
+// DeleteCompletedQueueItems removes successfully completed items from the queue.
+func (s *Store) DeleteCompletedQueueItems() error {
+	query := "DELETE FROM download_queue WHERE status = 'completed'"
+	_, err := s.db.Exec(query)
+	return err
+}
