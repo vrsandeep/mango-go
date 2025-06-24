@@ -10,9 +10,8 @@
         .container { max-width: 1200px; }
         .manager-controls { display: flex; gap: 1rem; margin-bottom: 1.5rem;  flex-wrap: wrap; justify-content: flex-start; }
         .manager-controls select { padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 5px; background-color: var(--card-bg); color: var(--text-color); }
-        .manager-controls select:focus { outline: none; border-color: var(--accent-color); }
         .manager-controls select option { background-color: var(--card-bg); color: var(--text-color); }
-
+        #provider-select { padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 5px; background-color: var(--bg-color); color: var(--text-color); }
         .sub-table { width: 100%; border-collapse: collapse; }
         .sub-table th, .sub-table td { padding: 0.75rem; text-align: left; border-bottom: 1px solid var(--border-color); background-color: var(--card-bg); }
         .sub-table th { background-color: var(--header-bg); }
@@ -28,10 +27,16 @@
             <nav class="nav-links" id="nav-links">
                 <a href="/library">Library</a>
                 <a href="/admin">Admin</a>
-                <a href="/downloads/plugins">Downloads</a>
-                <a href="/downloads/manager">Download Manager</a>
-                <a href="/downloads/subscriptions">Subscription Manager</a>
-                <!-- More links can be added here -->
+                <div class="header-dropdown">
+                  <button class="header-dropdown-btn" tabindex="0">Download <i class="ph-bold ph-caret-down"></i></button>
+                  <div class="header-dropdown-content">
+                    <span style="font-weight:600; color:var(--text-color); padding:0.5em 1.2em;">SOURCE</span>
+                    <a href="/downloads/plugins">Plugins</a>
+                    <hr>
+                    <a href="/downloads/manager">Download Manager</a>
+                    <a href="/downloads/subscriptions">Subscription Manager</a>
+                  </div>
+                </div>
             </nav>
         </div>
         <div class="header-right">

@@ -41,10 +41,16 @@
             <nav class="nav-links" id="nav-links">
                 <a href="/library">Library</a>
                 <a href="/admin">Admin</a>
-                <a href="/downloads/plugins">Downloads</a>
-                <a href="/downloads/manager">Download Manager</a>
-                <a href="/downloads/subscriptions">Subscription Manager</a>
-                <!-- More links can be added here -->
+                <div class="header-dropdown">
+                  <button class="header-dropdown-btn" tabindex="0">Download <i class="ph-bold ph-caret-down"></i></button>
+                  <div class="header-dropdown-content">
+                    <span style="font-weight:600; color:var(--text-color); padding:0.5em 1.2em;">SOURCE</span>
+                    <a href="/downloads/plugins">Plugins</a>
+                    <hr>
+                    <a href="/downloads/manager">Download Manager</a>
+                    <a href="/downloads/subscriptions">Subscription Manager</a>
+                  </div>
+                </div>
             </nav>
         </div>
         <div class="header-right">

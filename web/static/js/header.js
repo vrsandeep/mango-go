@@ -29,6 +29,53 @@ document.addEventListener('DOMContentLoaded', () => {
         // Handle logout logic
     });
 
+    // --- Dropdown Menu Logic ---
+    document.querySelectorAll('.header-dropdown').forEach(dropdown => {
+        const btn = dropdown.querySelector('.header-dropdown-btn');
+        const content = dropdown.querySelector('.header-dropdown-content');
+        let open = false;
+        let hoverTimeout;
+
+        // Helper to open/close
+        function setOpen(state) {
+            open = state;
+            if (open) {
+                content.style.display = 'block';
+                btn.setAttribute('aria-expanded', 'true');
+            } else {
+                content.style.display = 'none';
+                btn.setAttribute('aria-expanded', 'false');
+            }
+        }
+
+        // Mouse enter/leave for button and content
+        btn.addEventListener('mouseenter', () => {
+            clearTimeout(hoverTimeout);
+            setOpen(true);
+        });
+        btn.addEventListener('mouseleave', () => {
+            hoverTimeout = setTimeout(() => setOpen(false), 120);
+        });
+        content.addEventListener('mouseenter', () => {
+            clearTimeout(hoverTimeout);
+            setOpen(true);
+        });
+        content.addEventListener('mouseleave', () => {
+            hoverTimeout = setTimeout(() => setOpen(false), 120);
+        });
+
+        // Click toggles
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            setOpen(!open);
+        });
+
+        // Close on outside click
+        document.addEventListener('mousedown', (e) => {
+            if (!dropdown.contains(e.target)) setOpen(false);
+        });
+    });
+
     // Init
     applyTheme(localStorage.getItem('theme'));
     loadVersion();
