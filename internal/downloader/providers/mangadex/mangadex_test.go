@@ -74,8 +74,8 @@ func TestMangaDexProvider(t *testing.T) {
 		if len(results) != 1 {
 			t.Fatalf("Expected 1 chapter result, got %d", len(results))
 		}
-		if results[0].Title != "Vol 1 Ch 1: Chapter One" {
-			t.Errorf("Expected title 'Vol 1 Ch 1: Chapter One', got '%s'", results[0].Title)
+		if results[0].Title != "Vol. 1 Ch. 1 Chapter One" {
+			t.Errorf("Expected title 'Vol. 1 Ch. 1 Chapter One', got '%s'", results[0].Title)
 		}
 		if results[0].Chapter != "1" {
 			t.Errorf("Expected chapter '1', got '%s'", results[0].Chapter)

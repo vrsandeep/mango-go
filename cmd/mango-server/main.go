@@ -11,6 +11,7 @@ import (
 	"github.com/vrsandeep/mango-go/internal/downloader"
 	"github.com/vrsandeep/mango-go/internal/downloader/providers"
 	"github.com/vrsandeep/mango-go/internal/downloader/providers/mangadex"
+	"github.com/vrsandeep/mango-go/internal/downloader/providers/weebcentral"
 	"github.com/vrsandeep/mango-go/internal/library"
 	"github.com/vrsandeep/mango-go/internal/subscription"
 )
@@ -48,6 +49,7 @@ func main() {
 	// Register all available downloader providers here.
 	// providers.Register(mockadex.New())
 	providers.Register(mangadex.New())
+	providers.Register(weebcentral.New())
 
 	// Start the download worker pool
 	downloader.StartWorkerPool(app)
