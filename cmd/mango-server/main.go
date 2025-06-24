@@ -12,6 +12,7 @@ import (
 	"github.com/vrsandeep/mango-go/internal/downloader/providers"
 	"github.com/vrsandeep/mango-go/internal/downloader/providers/mangadex"
 	"github.com/vrsandeep/mango-go/internal/library"
+	"github.com/vrsandeep/mango-go/internal/subscription"
 )
 
 func main() {
@@ -50,6 +51,10 @@ func main() {
 
 	// Start the download worker pool
 	downloader.StartWorkerPool(app)
+
+	// Start the subscription service
+	subService := subscription.NewService(app)
+	subService.Start()
 
 	// Setup the API server
 	server := api.NewServer(app)

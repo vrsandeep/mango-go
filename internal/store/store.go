@@ -450,3 +450,86 @@ func (s *Store) DeleteCompletedQueueItems() error {
 	_, err := s.db.Exec(query)
 	return err
 }
+
+// GetAllSubscriptions retrieves all subscriptions, optionally filtered by provider ID.
+func (s *Store) GetAllSubscriptions(providerIDFilter string) ([]*models.Subscription, error) {
+	query := "SELECT id, series_title, series_identifier, provider_id, created_at, last_checked_at FROM subscriptions"
+	args := []interface{}{}
+	if providerIDFilter != "" {
+		query += " WHERE provider_id = ?"
+		args = append(args, providerIDFilter)
+	}
+	query += " ORDER BY series_title ASC"
+
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var subs []*models.Subscription
+	for rows.Next() {
+		var sub models.Subscription
+		var createdAt time.Time
+		var lastCheckedAt sql.NullTime
+		if err := rows.Scan(&sub.ID, &sub.SeriesTitle, &sub.SeriesIdentifier, &sub.ProviderID, &createdAt, &lastCheckedAt); err != nil {
+			return nil, err
+		}
+		sub.CreatedAt = createdAt
+		if lastCheckedAt.Valid {
+			sub.LastCheckedAt = &lastCheckedAt.Time
+		}
+		subs = append(subs, &sub)
+	}
+	return subs, nil
+}
+
+// GetSubscriptionByID retrieves a single subscription by its primary key.
+func (s *Store) GetSubscriptionByID(id int64) (*models.Subscription, error) {
+	var sub models.Subscription
+	var createdAt time.Time
+	var lastCheckedAt sql.NullTime
+	query := "SELECT id, series_title, series_identifier, provider_id, created_at, last_checked_at FROM subscriptions WHERE id = ?"
+	err := s.db.QueryRow(query, id).Scan(&sub.ID, &sub.SeriesTitle, &sub.SeriesIdentifier, &sub.ProviderID, &createdAt, &lastCheckedAt)
+	if err != nil {
+		return nil, err
+	}
+	sub.CreatedAt = createdAt
+	if lastCheckedAt.Valid {
+		sub.LastCheckedAt = &lastCheckedAt.Time
+	}
+	return &sub, nil
+}
+
+// DeleteSubscription removes a subscription from the database.
+func (s *Store) DeleteSubscription(id int64) error {
+	_, err := s.db.Exec("DELETE FROM subscriptions WHERE id = ?", id)
+	return err
+}
+
+// UpdateSubscriptionLastChecked sets the last_checked_at timestamp to the current time.
+func (s *Store) UpdateSubscriptionLastChecked(id int64) error {
+	_, err := s.db.Exec("UPDATE subscriptions SET last_checked_at = ? WHERE id = ?", time.Now(), id)
+	return err
+}
+
+// GetChapterIdentifiersInQueue returns a slice of all chapter identifiers for a given
+// series that are currently in the download queue to prevent adding duplicates.
+func (s *Store) GetChapterIdentifiersInQueue(seriesTitle, providerID string) ([]string, error) {
+	query := "SELECT chapter_identifier FROM download_queue WHERE series_title = ? AND provider_id = ?"
+	rows, err := s.db.Query(query, seriesTitle, providerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var identifiers []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		identifiers = append(identifiers, id)
+	}
+	return identifiers, nil
+}

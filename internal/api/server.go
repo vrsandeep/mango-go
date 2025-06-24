@@ -79,6 +79,11 @@ func (s *Server) Router() http.Handler {
 		r.Get("/downloads/queue", s.handleGetDownloadQueue)
 		r.Post("/subscriptions", s.handleSubscribeToSeries)
 		r.Post("/downloads/action", s.handleQueueAction)
+
+		// Subscription Routes
+		r.Get("/subscriptions", s.handleListSubscriptions)
+		r.Post("/subscriptions/{subID}/recheck", s.handleRecheckSubscription)
+		r.Delete("/subscriptions/{subID}", s.handleDeleteSubscription)
 	})
 
 	// WebSocket route
@@ -96,7 +101,7 @@ func (s *Server) Router() http.Handler {
 			http.ServeFile(w, r, "./web/download_manager.html")
 		})
 		r.Get("/subscriptions", func(w http.ResponseWriter, r *http.Request) {
-			w.Write([]byte("Subscription Manager page - To be implemented"))
+			http.ServeFile(w, r, "./web/subscription_manager.html")
 		})
 	})
 
