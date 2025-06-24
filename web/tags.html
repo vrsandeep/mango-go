@@ -3,9 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manga Library</title>
+    <title>Tags - Mango</title>
     <link rel="stylesheet" href="https://unpkg.com/phosphor-icons@1.4.2/src/css/icons.css">
     <link rel="stylesheet" href="/static/css/common.css">
+    <style>
+        .container { max-width: 1200px; }
+        .tags-list { display: flex; flex-wrap: wrap; gap: 1rem; list-style: none; padding: 0; }
+        .tag-item a { display: block; background-color: var(--card-bg); padding: 0.75rem 1.5rem; border-radius: 20px; text-decoration: none; color: var(--text-color); transition: background-color 0.2s; border: 1px solid var(--border-color); }
+        .tag-item a:hover { background-color: var(--accent-color); border-color: var(--accent-color); }
+        .tag-count { margin-left: 0.5rem; color: var(--subtle-text-color); }
+    </style>
 </head>
 <body>
     <header class="main-header">
@@ -35,35 +42,37 @@
             <button id="logout-btn">Logout</button>
         </div>
     </header>
-
     <main class="container">
-        <h1>Library</h1>
-        <span id="total-count" class="total-count"></span>
-        <div class="library-controls">
-            <div class="search-bar">
-                <input type="search" id="search-input" placeholder="Search series...">
-            </div>
-            <div class="sort-controls">
-                <span>Sort by:</span>
-                <select id="sort-by">
-                    <option value="title">Name</option>
-                    <option value="updated_at">Date Modified</option>
-                    <option value="progress">Progress</option>
-                </select>
-                <button id="sort-dir-btn">▲</button>
-            </div>
-        </div>
-        <div class="grid" id="cards-grid"></div>
-        <div class="footer">
-            <button id="load-more-btn">Load More</button>
-        </div>
+        <h1>Tags</h1>
+        <ul class="tags-list" id="tags-list">
+            <!-- Tags will be rendered here by JS -->
+        </ul>
     </main>
-
-    <footer class="main-footer">
-        <span id="version-footer"></span>
-    </footer>
+    <footer class="main-footer"><span id="version-footer"></span></footer>
     <script src="/static/js/header.js"></script>
-    <script src="/static/js/series.js"></script>
-    <script src="/static/js/common.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const tagsList = document.getElementById('tags-list');
+
+            const loadTags = async () => {
+                const response = await fetch('/api/tags');
+                const tags = await response.json();
+
+                tagsList.innerHTML = '';
+                if (tags && tags.length > 0) {
+                    tags.forEach(tag => {
+                        const li = document.createElement('li');
+                        li.className = 'tag-item';
+                        li.innerHTML = `<a href="/tags/${tag.id}">${tag.name} <span class="tag-count">(${tag.series_count})</span></a>`;
+                        tagsList.appendChild(li);
+                    });
+                } else {
+                    tagsList.innerHTML = '<li>No tags found. Add tags to your series from the chapters page.</li>';
+                }
+            };
+
+            loadTags();
+        });
+    </script>
 </body>
 </html>

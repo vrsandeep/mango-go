@@ -72,13 +72,6 @@ document.addEventListener('DOMContentLoaded', () => {
     loadCards(true);
   });
 
-  // const loadVersion = async () => {
-  //   const response = await fetch('/api/version');
-  //   const data = await response.json();
-  //   document.getElementById('version-footer').textContent = `Version: ${data.version}`;
-  // };
-
   // Initial load
   loadCards(true); // Initial load
-  // loadVersion();
 });

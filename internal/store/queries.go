@@ -53,7 +53,7 @@ func (s *Store) ListSeries(page, perPage int, search, sortBy, sortDir string) ([
 	case "updated_at":
 		query += fmt.Sprintf(" ORDER BY s.updated_at %s", sortDir)
 	case "progress":
-		query += fmt.Sprintf(" ORDER BY CAST(read_chapters AS REAL) / total_chapters %s, s.title ASC", sortDir)
+		query += fmt.Sprintf(" ORDER BY CASE WHEN s.total_chapters > 0 THEN CAST(read_chapters AS REAL) / total_chapters ELSE 0 END %s, s.title ASC", sortDir)
 	default:
 		query += fmt.Sprintf(" ORDER BY s.title %s", sortDir)
 	}
@@ -346,4 +346,110 @@ func (s *Store) GetChapterNeighbors(seriesID, currentChapterID int64) (map[strin
 	}
 
 	return neighbors, nil
+}
+
+// ListTagsWithCounts returns all tags along with the count of series they are associated with.
+func (s *Store) ListTagsWithCounts() ([]*models.Tag, error) {
+	query := `
+		SELECT t.id, t.name, COUNT(st.series_id) as series_count
+		FROM tags t
+		LEFT JOIN series_tags st ON t.id = st.tag_id
+		GROUP BY t.id
+		ORDER BY t.name ASC
+	`
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tags []*models.Tag
+	for rows.Next() {
+		var tag models.Tag
+		if err := rows.Scan(&tag.ID, &tag.Name, &tag.SeriesCount); err != nil {
+			return nil, err
+		}
+		tags = append(tags, &tag)
+	}
+	return tags, nil
+}
+
+// GetTagByID retrieves a single tag by its ID.
+func (s *Store) GetTagByID(id int64) (*models.Tag, error) {
+	var tag models.Tag
+	err := s.db.QueryRow("SELECT id, name FROM tags WHERE id = ?", id).Scan(&tag.ID, &tag.Name)
+	return &tag, err
+}
+
+// ListSeriesByTagID retrieves a paginated, searchable, and sortable list of series for a given tag.
+func (s *Store) ListSeriesByTagID(tagID int64, page, perPage int, search, sortBy, sortDir string) ([]*models.Series, int, error) {
+	var args []interface{}
+	var countArgs []interface{}
+
+	// --- Count Query ---
+	countQuery := "SELECT COUNT(s.id) FROM series s JOIN series_tags st ON s.id = st.series_id WHERE st.tag_id = ?"
+	countArgs = append(countArgs, tagID)
+	if search != "" {
+		countQuery += " AND s.title LIKE ?"
+		countArgs = append(countArgs, "%"+search+"%")
+	}
+	var totalCount int
+	if err := s.db.QueryRow(countQuery, countArgs...).Scan(&totalCount); err != nil {
+		return nil, 0, err
+	}
+
+	// --- Main Query ---
+	query := `
+        SELECT s.id, s.title, s.path, s.thumbnail, s.custom_cover_url, s.created_at, s.updated_at, s.total_chapters, s.read_chapters
+        FROM series s
+        JOIN series_tags st ON s.id = st.series_id
+        WHERE st.tag_id = ?
+    `
+	args = append(args, tagID)
+	if search != "" {
+		query += " AND s.title LIKE ?"
+		args = append(args, "%"+search+"%")
+	}
+
+	sortDir = strings.ToUpper(sortDir)
+	if sortDir != "ASC" && sortDir != "DESC" {
+		sortDir = "ASC"
+	}
+	switch sortBy {
+	case "updated_at":
+		query += fmt.Sprintf(" ORDER BY s.updated_at %s", sortDir)
+	case "progress":
+		// Avoid division by zero
+		query += fmt.Sprintf(" ORDER BY CASE WHEN s.total_chapters > 0 THEN CAST(s.read_chapters AS REAL) / s.total_chapters ELSE 0 END %s, s.title ASC", sortDir)
+	default: // "title"
+		query += fmt.Sprintf(" ORDER BY s.title %s", sortDir)
+	}
+
+	query += " LIMIT ? OFFSET ?"
+	args = append(args, perPage, (page-1)*perPage)
+
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer func(rows *sql.Rows) {
+		err := rows.Close()
+		if err != nil {
+			// Log the error but do not return it, as we are already returning from the function
+			fmt.Printf("Error closing rows: %v\n", err)
+		}
+	}(rows)
+
+	var seriesList []*models.Series
+	for rows.Next() {
+		var series models.Series
+		var thumb, customCover sql.NullString
+		if err := rows.Scan(&series.ID, &series.Title, &series.Path, &thumb, &customCover, &series.CreatedAt, &series.UpdatedAt, &series.TotalChapters, &series.ReadChapters); err != nil {
+			return nil, 0, err
+		}
+		series.Thumbnail = thumb.String
+		series.CustomCoverURL = customCover.String
+		seriesList = append(seriesList, &series)
+	}
+	return seriesList, totalCount, nil
 }

@@ -44,8 +44,9 @@ type Page struct {
 }
 
 type Tag struct {
-	ID   int64  `json:"id"`
-	Name string `json:"name"`
+	ID          int64  `json:"id"`
+	Name        string `json:"name"`
+	SeriesCount int    `json:"series_count,omitempty"`
 }
 
 type SeriesSettings struct {

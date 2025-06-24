@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manga Library</title>
+    <title>Tag: </title>
     <link rel="stylesheet" href="https://unpkg.com/phosphor-icons@1.4.2/src/css/icons.css">
     <link rel="stylesheet" href="/static/css/common.css">
+    <!-- <link rel="stylesheet" href="/static/css/library_grid.css"> -->
 </head>
 <body>
     <header class="main-header">
@@ -35,14 +36,11 @@
             <button id="logout-btn">Logout</button>
         </div>
     </header>
-
     <main class="container">
-        <h1>Library</h1>
-        <span id="total-count" class="total-count"></span>
+        <h1 id="page-title">Tag: </h1>
+        <span class="total-count" id="total-count"></span>
         <div class="library-controls">
-            <div class="search-bar">
-                <input type="search" id="search-input" placeholder="Search series...">
-            </div>
+            <div class="search-bar"><input type="search" id="search-input" placeholder="Search series in this tag..."></div>
             <div class="sort-controls">
                 <span>Sort by:</span>
                 <select id="sort-by">
@@ -54,16 +52,29 @@
             </div>
         </div>
         <div class="grid" id="cards-grid"></div>
-        <div class="footer">
-            <button id="load-more-btn">Load More</button>
-        </div>
+        <div class="footer"><button id="load-more-btn">Load More</button></div>
     </main>
-
-    <footer class="main-footer">
-        <span id="version-footer"></span>
-    </footer>
+    <footer class="main-footer"><span id="version-footer"></span></footer>
     <script src="/static/js/header.js"></script>
-    <script src="/static/js/series.js"></script>
+    <script src="/static/js/tag_series.js"></script>
     <script src="/static/js/common.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const tagId = window.location.pathname.split('/')[2];
+
+            const getApiUrl = (state) => `/api/tags/${tagId}/series?page=${state.currentPage}&search=${state.search}&sort_by=${state.sortBy}&sort_dir=${state.sortDir}`;
+
+            const pageTitleEl = document.getElementById('page-title');
+            const loadExtraData = async () => {
+                const response = await fetch(`/api/tags/${tagId}`);
+                const tag = await response.json();
+                const title = `Tag: ${tag.name}`;
+                document.title = title;
+                pageTitleEl.prepend(document.createTextNode(title));
+            };
+
+            initializeLibraryPage(getApiUrl, loadExtraData);
+        });
+    </script>
 </body>
 </html>

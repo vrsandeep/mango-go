@@ -65,6 +65,11 @@ func (s *Server) Router() http.Handler {
 		r.Get("/series/{seriesID}/chapters/{chapterID}/neighbors", s.handleGetChapterNeighbors)
 		r.Post("/chapters/{chapterID}/progress", s.handleUpdateProgress)
 
+		// New Tag Endpoints
+		r.Get("/tags", s.handleListTags)
+		r.Get("/tags/{tagID}", s.handleGetTagDetails) // To get a single tag's name
+		r.Get("/tags/{tagID}/series", s.handleListSeriesByTag)
+
 		// Admin Job Triggers
 		r.Post("/admin/scan-library", s.handleScanLibrary)
 		r.Post("/admin/scan-incremental", s.handleScanIncremental)
@@ -115,6 +120,14 @@ func (s *Server) Router() http.Handler {
 
 	r.Get("/library", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "./web/series.html")
+	})
+
+	// Tag Frontend Routes
+	r.Get("/tags", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./web/tags.html")
+	})
+	r.Get("/tags/{tagID}", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./web/tag_series.html")
 	})
 
 	r.Get("/reader/series/{seriesID}/chapters/{chapterID}", func(w http.ResponseWriter, r *http.Request) {
