@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/vrsandeep/mango-go/internal/models"
@@ -150,13 +151,17 @@ func (p *MangaDexProvider) GetChapters(seriesIdentifier string) ([]models.Chapte
 }
 
 func formatChapterTitle(chapter ChapterAttributes) string {
-	if chapter.Volume != "" && chapter.Chapter != "" {
-		return fmt.Sprintf("Vol %s Ch %s: %s", chapter.Volume, chapter.Chapter, chapter.Title)
-	} else if chapter.Chapter != "" {
-		return fmt.Sprintf("Ch %s: %s", chapter.Chapter, chapter.Title)
-	} else {
-		return chapter.Title
+	var titleParts []string
+	if chapter.Volume != "" {
+		titleParts = append(titleParts, fmt.Sprintf("Vol. %s", chapter.Volume))
 	}
+	if chapter.Chapter != "" {
+		titleParts = append(titleParts, fmt.Sprintf("Ch. %s", chapter.Chapter))
+	}
+	if chapter.Title != "" {
+		titleParts = append(titleParts, chapter.Title)
+	}
+	return strings.Join(titleParts, " ")
 }
 
 // GetPageURLs retrieves the page URLs for a given chapter from MangaDex.

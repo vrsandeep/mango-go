@@ -70,10 +70,6 @@ document.addEventListener('DOMContentLoaded', () => {
             setOpen(!open);
         });
 
-        // Close on outside click
-        document.addEventListener('mousedown', (e) => {
-            if (!dropdown.contains(e.target)) setOpen(false);
-        });
     });
 
     // Init

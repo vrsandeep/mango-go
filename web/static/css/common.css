@@ -21,6 +21,7 @@ a { color: var(--accent-color); text-decoration: none; }
   gap: 1.5rem;
 }
 .header-logo {
+  display: block;
   height: 36px;
   width: 36px;
   fill: var(--text-color);
@@ -215,14 +216,8 @@ a { color: var(--accent-color); text-decoration: none; }
     width: 100vw;
     z-index: 1002;
   }
-  .container {
-    margin-top: 0;
-  }
-  .container h1 {
-    margin-top: 1.2em;
-    padding-top: 0;
-    position: relative;
-    z-index: 1;
+  .header-logo {
+    display: none;
   }
   .nav-links {
     display: none;
@@ -237,10 +232,20 @@ a { color: var(--accent-color); text-decoration: none; }
     box-shadow: 2px 0 10px rgba(0,0,0,0.3);
     z-index: 1100;
     transition: left 0.3s ease;
+    padding-top: 2.5rem;
   }
   .nav-links.active {
     left: 0;
     display: flex;
+  }
+  .nav-links .sidebar-logo {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 1.5rem;
+  }
+  .nav-links .sidebar-logo .header-logo {
+    display: block;
   }
   .nav-links a {
     padding: 1rem 1.5rem;
