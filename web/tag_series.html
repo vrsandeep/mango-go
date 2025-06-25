@@ -52,29 +52,10 @@
         </div>
         <div class="grid" id="cards-grid"></div>
         <div class="pagination-container" id="pagination-container"></div>
-        <!-- <div class="footer"><button id="load-more-btn">Load More</button></div> -->
     </main>
     <footer class="main-footer"><span id="version-footer"></span></footer>
     <script src="/static/js/header.js"></script>
     <script src="/static/js/tag_series.js"></script>
     <script src="/static/js/library_grid.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const tagId = window.location.pathname.split('/')[2];
-
-            const getApiUrl = (state) => `/api/tags/${tagId}/series?page=${state.currentPage}&search=${state.search}&sort_by=${state.sortBy}&sort_dir=${state.sortDir}`;
-
-            const pageTitleEl = document.getElementById('page-title');
-            const loadExtraData = async () => {
-                const response = await fetch(`/api/tags/${tagId}`);
-                const tag = await response.json();
-                const title = `Tag: ${tag.name}`;
-                document.title = title;
-                pageTitleEl.prepend(document.createTextNode(title));
-            };
-
-            initializeLibraryPage(getApiUrl, loadExtraData);
-        });
-    </script>
 </body>
 </html>
