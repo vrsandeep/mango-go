@@ -1,5 +1,4 @@
-const GET_TAG_SERIES_URL = `/api/tags/TAG_ID/series?page=STATE_CURRENT_PAGE&per_page=100&search=STATE_SEARCH&sort_by=STATE_SORT_BY&sort_dir=STATE_SORT_DIR`;
-
+const GET_TAG_SERIES_URL = `/api/tags/TAG_ID/series?page=STATE_CURRENT_PAGE&per_page=PER_PAGE&search=STATE_SEARCH&sort_by=STATE_SORT_BY&sort_dir=STATE_SORT_DIR`;
 
 const getCardsLoadingUrl = () => {
   const tagId = window.location.pathname.split('/')[2];
@@ -8,12 +7,9 @@ const getCardsLoadingUrl = () => {
     .replace("STATE_CURRENT_PAGE", state.currentPage)
     .replace("STATE_SEARCH", state.search)
     .replace("STATE_SORT_BY", state.sortBy)
-    .replace("STATE_SORT_DIR", state.sortDir);
+    .replace("STATE_SORT_DIR", state.sortDir)
+    .replace("PER_PAGE", state.perPage);
 };
-
-const areMoreCardsAvailable = (cardsList) => {
-  return !cardsList || cardsList.length < 100;
-}
 
 const postCardsFetchAction = async (cardsList) => { }
 const resetState = (cardsGrid) => {

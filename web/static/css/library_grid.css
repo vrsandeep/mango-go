@@ -134,7 +134,8 @@ a { color: var(--accent-color); text-decoration: none; }
   font-size: 0.9rem;
 }
 .total-count {
-  color: #888;
+  color: var(--subtle-text-color);
+  /* color: #888; */
   font-size: 0.9rem;
   margin-bottom: 1rem;
   display: inline-block;
@@ -143,9 +144,6 @@ a { color: var(--accent-color); text-decoration: none; }
 .total-count::before {
   content: "Total: ";
   font-weight: bold;
-}
-.total-count::after {
-  content: " chapters";
 }
 
 /* Grid & Cards */
@@ -156,22 +154,30 @@ a { color: var(--accent-color); text-decoration: none; }
 }
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  /* grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   gap: 0.7rem;
+  */
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 1.5rem;
 }
 .item-card {
   background-color: var(--card-bg);
   border-radius: 8px;
   overflow: hidden;
+  text-decoration: none;
   color: var(--text-color);
   display: flex;
   flex-direction: column;
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
+.item-card:hover .thumbnail {
+  transform: scale(1.05);
+}
 .thumbnail-container {
   width: 100%;
   padding-top: 140%;
   position: relative;
+  background-color: #333;
   transition: transform 0.2s ease-in-out;
 }
 .thumbnail {
@@ -183,9 +189,6 @@ a { color: var(--accent-color); text-decoration: none; }
   object-fit: cover;
   background-color: #333;
   transition: transform 0.2s ease-in-out;
-}
-.item-card:hover .thumbnail {
-  transform: scale(1.05);
 }
 .item-title {
   padding: 0.75rem 0.75rem 0.25rem;
@@ -208,6 +211,38 @@ a { color: var(--accent-color); text-decoration: none; }
   border-radius: 3px;
   transition: width 0.3s ease;
 }
+
+/* Pagination Styles */
+.pagination-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 2rem 0;
+}
+.pagination-btn {
+  background-color: var(--btn-bg);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  padding: 8px 12px;
+  min-width: 40px;
+  text-align: center;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.pagination-btn.active {
+  background-color: var(--accent-color);
+  border-color: var(--accent-color);
+  color: white;
+}
+.pagination-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.pagination-ellipsis {
+  padding: 8px;
+}
+
 
 /* Mobile Sidebar */
 @media (max-width: 768px) {

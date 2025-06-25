@@ -1,4 +1,4 @@
-const GET_CHAPTERS_URL = `/api/series/SERIES_ID?page=STATE_CURRENT_PAGE&per_page=100&search=STATE_SEARCH&sort_by=STATE_SORT_BY&sort_dir=STATE_SORT_DIR`;
+const GET_CHAPTERS_URL = `/api/series/SERIES_ID?page=STATE_CURRENT_PAGE&per_page=PER_PAGE&search=STATE_SEARCH&sort_by=STATE_SORT_BY&sort_dir=STATE_SORT_DIR`;
 
 let seriesId;
 let seriesTitleEl;
@@ -8,15 +8,12 @@ let renderTags;
 const getCardsLoadingUrl = () => {
   return GET_CHAPTERS_URL
     .replace("STATE_CURRENT_PAGE", state.currentPage)
+    .replace("PER_PAGE", state.perPage)
     .replace("STATE_SEARCH", state.search)
     .replace("STATE_SORT_BY", state.sortBy)
     .replace("STATE_SORT_DIR", state.sortDir)
     .replace("SERIES_ID", seriesId);
 };
-
-const areMoreCardsAvailable = (seriesData) => {
-  return !seriesData || !seriesData.chapters || seriesData.chapters.length < 100
-}
 
 const postCardsFetchAction = async (seriesData) => {
   document.title = seriesData.title;
@@ -32,9 +29,6 @@ const postCardsFetchAction = async (seriesData) => {
 }
 
 const resetState = (cardsGrid) => {
-  state.currentPage = 1;
-  state.hasMore = true;
-  cardsGrid.innerHTML = '';
   renderTags([]);
 }
 

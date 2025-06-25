@@ -1,22 +1,16 @@
-const GET_SERIES_URL = `/api/series?page=STATE_CURRENT_PAGE&per_page=100&search=STATE_SEARCH&sort_by=STATE_SORT_BY&sort_dir=STATE_SORT_DIR`;
+const GET_SERIES_URL = `/api/series?page=STATE_CURRENT_PAGE&per_page=PER_PAGE&search=STATE_SEARCH&sort_by=STATE_SORT_BY&sort_dir=STATE_SORT_DIR`;
 
 const getCardsLoadingUrl = () => {
   return GET_SERIES_URL
     .replace("STATE_CURRENT_PAGE", state.currentPage)
+    .replace("PER_PAGE", state.perPage)
     .replace("STATE_SEARCH", state.search)
     .replace("STATE_SORT_BY", state.sortBy)
     .replace("STATE_SORT_DIR", state.sortDir);
 };
 
-const areMoreCardsAvailable = (cardsList) => {
-  return !cardsList || cardsList.length < 100;
-}
-
 const postCardsFetchAction = async (cardsList) => {}
 const resetState = (cardsGrid) => {
-  state.currentPage = 1;
-  state.hasMore = true;
-  cardsGrid.innerHTML = '';
 }
 
 // const updateSettings = async () => {

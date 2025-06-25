@@ -5,8 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tag: </title>
     <link rel="stylesheet" href="https://unpkg.com/phosphor-icons@1.4.2/src/css/icons.css">
-    <link rel="stylesheet" href="/static/css/common.css">
-    <!-- <link rel="stylesheet" href="/static/css/library_grid.css"> -->
+    <link rel="stylesheet" href="/static/css/library_grid.css">
 </head>
 <body>
     <header class="main-header">
@@ -52,12 +51,13 @@
             </div>
         </div>
         <div class="grid" id="cards-grid"></div>
-        <div class="footer"><button id="load-more-btn">Load More</button></div>
+        <div class="pagination-container" id="pagination-container"></div>
+        <!-- <div class="footer"><button id="load-more-btn">Load More</button></div> -->
     </main>
     <footer class="main-footer"><span id="version-footer"></span></footer>
     <script src="/static/js/header.js"></script>
     <script src="/static/js/tag_series.js"></script>
-    <script src="/static/js/common.js"></script>
+    <script src="/static/js/library_grid.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const tagId = window.location.pathname.split('/')[2];
