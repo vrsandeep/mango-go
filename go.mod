@@ -11,6 +11,7 @@ require (
 	github.com/mholt/archives v0.1.2
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
 	github.com/spf13/viper v1.20.1
+	golang.org/x/crypto v0.37.0
 )
 
 require (

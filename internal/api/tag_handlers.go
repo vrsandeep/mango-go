@@ -30,7 +30,13 @@ func (s *Server) handleListSeriesByTag(w http.ResponseWriter, r *http.Request) {
 	tagID, _ := strconv.ParseInt(chi.URLParam(r, "tagID"), 10, 64)
 	page, perPage, search, sortBy, sortDir := getListParams(r)
 
-	series, total, err := s.store.ListSeriesByTagID(tagID, page, perPage, search, sortBy, sortDir)
+	user := getUserFromContext(r)
+	if user == nil {
+		RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	series, total, err := s.store.ListSeriesByTagID(tagID, user.ID, page, perPage, search, sortBy, sortDir)
 	if err != nil {
 		RespondWithError(w, http.StatusInternalServerError, "Failed to retrieve series for this tag")
 		return

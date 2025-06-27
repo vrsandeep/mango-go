@@ -8,14 +8,13 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/vrsandeep/mango-go/internal/models"
 	"github.com/vrsandeep/mango-go/internal/util"
 )
 
-// ListSeries fetches all series from the database.
-func (s *Store) ListSeries(page, perPage int, search, sortBy, sortDir string) ([]*models.Series, int, error) {
+// ListSeries retrieves a paginated, searchable, and sortable list of series.
+func (s *Store) ListSeries(userID int64, page, perPage int, search, sortBy, sortDir string) ([]*models.Series, int, error) {
 	var args []interface{}
 	var countArgs []interface{}
 
@@ -36,9 +35,13 @@ func (s *Store) ListSeries(page, perPage int, search, sortBy, sortDir string) ([
 	query := `
         SELECT
             s.id, s.title, s.path, s.thumbnail, s.custom_cover_url, s.created_at, s.updated_at,
-            total_chapters, read_chapters
+            s.total_chapters,
+            (SELECT COUNT(*) FROM chapters c2
+             JOIN user_chapter_progress ucp2 ON c2.id = ucp2.chapter_id
+             WHERE c2.series_id = s.id AND ucp2.user_id = ? AND ucp2.read = 1) as read_chapters
         FROM series s
     `
+	args = append(args, userID)
 	if search != "" {
 		query += " WHERE s.title LIKE ?"
 		args = append(args, "%"+search+"%")
@@ -53,7 +56,7 @@ func (s *Store) ListSeries(page, perPage int, search, sortBy, sortDir string) ([
 	case "updated_at":
 		query += fmt.Sprintf(" ORDER BY s.updated_at %s", sortDir)
 	case "progress":
-		query += fmt.Sprintf(" ORDER BY CASE WHEN s.total_chapters > 0 THEN CAST(read_chapters AS REAL) / total_chapters ELSE 0 END %s, s.title ASC", sortDir)
+		query += fmt.Sprintf(" ORDER BY CASE WHEN s.total_chapters > 0 THEN CAST((SELECT COUNT(*) FROM chapters c2 JOIN user_chapter_progress ucp2 ON c2.id = ucp2.chapter_id WHERE c2.series_id = s.id AND ucp2.user_id = %d AND ucp2.read = 1) AS REAL) / s.total_chapters ELSE 0 END %s, s.title ASC", userID, sortDir)
 	default:
 		query += fmt.Sprintf(" ORDER BY s.title %s", sortDir)
 	}
@@ -91,7 +94,7 @@ func (s *Store) ListSeries(page, perPage int, search, sortBy, sortDir string) ([
 }
 
 // GetSeriesByID fetches a single series and all its associated chapters.
-func (s *Store) GetSeriesByID(id int64, page, perPage int, search, sortBy, sortDir string) (*models.Series, int, error) {
+func (s *Store) GetSeriesByID(id int64, userID int64, page, perPage int, search, sortBy, sortDir string) (*models.Series, int, error) {
 	var series models.Series
 	var thumb, customCover sql.NullString
 	err := s.db.QueryRow("SELECT id, title, path, thumbnail, custom_cover_url, total_chapters FROM series WHERE id = ?", id).Scan(&series.ID, &series.Title, &series.Path, &thumb, &customCover, &series.TotalChapters)
@@ -117,7 +120,7 @@ func (s *Store) GetSeriesByID(id int64, page, perPage int, search, sortBy, sortD
 	}
 
 	// Main query to fetch chapters
-	chapters, err := s.getChaptersForSeries(id, page, perPage, search, sortBy, sortDir)
+	chapters, err := s.getChaptersForSeries(id, userID, page, perPage, search, sortBy, sortDir)
 	series.Chapters = chapters
 	if err != nil {
 		return &series, 0, err
@@ -125,12 +128,20 @@ func (s *Store) GetSeriesByID(id int64, page, perPage int, search, sortBy, sortD
 	return &series, totalChapters, nil
 }
 
-func (s *Store) getChaptersForSeries(seriesId int64, page, perPage int, search, sortBy, sortDir string) ([]*models.Chapter, error) {
-	chapterQuery := "SELECT id, path, page_count, read, progress_percent, thumbnail FROM chapters WHERE series_id = ?"
+func (s *Store) getChaptersForSeries(seriesId int64, userID int64, page, perPage int, search, sortBy, sortDir string) ([]*models.Chapter, error) {
+	chapterQuery := `
+		SELECT c.id, c.path, c.page_count,
+		       COALESCE(ucp.read, 0) as read,
+		       COALESCE(ucp.progress_percent, 0) as progress_percent,
+		       c.thumbnail
+		FROM chapters c
+		LEFT JOIN user_chapter_progress ucp ON c.id = ucp.chapter_id AND ucp.user_id = ?
+		WHERE c.series_id = ?
+	`
 	var chapterArgs []interface{}
-	chapterArgs = append(chapterArgs, seriesId)
+	chapterArgs = append(chapterArgs, userID, seriesId)
 	if search != "" {
-		chapterQuery += " AND path LIKE ?"
+		chapterQuery += " AND c.path LIKE ?"
 		chapterArgs = append(chapterArgs, "%"+search+"%")
 	}
 	sortDir = strings.ToUpper(sortDir)
@@ -139,12 +150,12 @@ func (s *Store) getChaptersForSeries(seriesId int64, page, perPage int, search, 
 	}
 	switch sortBy {
 	case "path":
-		chapterQuery += fmt.Sprintf(" ORDER BY path %s LIMIT ? OFFSET ?", sortDir)
+		chapterQuery += fmt.Sprintf(" ORDER BY c.path %s LIMIT ? OFFSET ?", sortDir)
 	case "auto":
 		// Auto sort is handled in Go after fetching
-		chapterQuery += " ORDER BY path ASC"
+		chapterQuery += " ORDER BY c.path ASC"
 	default:
-		chapterQuery += " ORDER BY path ASC LIMIT ? OFFSET ?"
+		chapterQuery += " ORDER BY c.path ASC LIMIT ? OFFSET ?"
 	}
 
 	offset := (page - 1) * perPage
@@ -167,14 +178,6 @@ func (s *Store) getChaptersForSeries(seriesId int64, page, perPage int, search, 
 		chapters = append(chapters, &chapter)
 	}
 	if sortBy == "auto" {
-		// sort.Slice(series.Chapters, func(i, j int) bool {
-		// 	isLess := util.NaturalSortLess(series.Chapters[i].Path, series.Chapters[j].Path)
-		// 	if strings.ToLower(sortDir) == "desc" {
-		// 		return !isLess
-		// 	}
-		// 	return isLess
-		// })
-
 		// Use the ChapterSorter to sort chapters
 		chapterTitles := make([]string, len(chapters))
 		for i, chapter := range chapters {
@@ -224,10 +227,19 @@ func getChapterTitle(chapter *models.Chapter) string {
 }
 
 // GetChapterByID fetches a single chapter by its ID.
-func (s *Store) GetChapterByID(id int64) (*models.Chapter, error) {
+func (s *Store) GetChapterByID(id int64, userID int64) (*models.Chapter, error) {
 	var chapter models.Chapter
 	var thumb sql.NullString
-	err := s.db.QueryRow("SELECT id, series_id, path, page_count, read, progress_percent, thumbnail FROM chapters WHERE id = ?", id).Scan(&chapter.ID, &chapter.SeriesID, &chapter.Path, &chapter.PageCount, &chapter.Read, &chapter.ProgressPercent, &thumb)
+	query := `
+		SELECT c.id, c.series_id, c.path, c.page_count,
+		       COALESCE(ucp.read, 0) as read,
+		       COALESCE(ucp.progress_percent, 0) as progress_percent,
+		       c.thumbnail
+		FROM chapters c
+		LEFT JOIN user_chapter_progress ucp ON c.id = ucp.chapter_id AND ucp.user_id = ?
+		WHERE c.id = ?
+	`
+	err := s.db.QueryRow(query, userID, id).Scan(&chapter.ID, &chapter.SeriesID, &chapter.Path, &chapter.PageCount, &chapter.Read, &chapter.ProgressPercent, &thumb)
 	if err != nil {
 		return nil, err
 	}
@@ -236,9 +248,16 @@ func (s *Store) GetChapterByID(id int64) (*models.Chapter, error) {
 }
 
 // UpdateChapterProgress updates the reading progress for a given chapter.
-func (s *Store) UpdateChapterProgress(chapterID int64, progressPercent int, read bool) error {
-	_, err := s.db.Exec("UPDATE chapters SET progress_percent = ?, read = ?, updated_at = ? WHERE id = ?",
-		progressPercent, read, time.Now(), chapterID)
+func (s *Store) UpdateChapterProgress(chapterID int64, userID int64, progressPercent int, read bool) error {
+	query := `
+		INSERT INTO user_chapter_progress (user_id, chapter_id, progress_percent, read, updated_at)
+		VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+		ON CONFLICT(user_id, chapter_id) DO UPDATE SET
+			progress_percent = excluded.progress_percent,
+			read = excluded.read,
+			updated_at = CURRENT_TIMESTAMP;
+	`
+	_, err := s.db.Exec(query, userID, chapterID, progressPercent, read)
 	return err
 }
 
@@ -307,13 +326,13 @@ func (s *Store) GetAllChaptersForThumbnailing() ([]*models.Chapter, error) {
 }
 
 // GetChapterNeighbors finds the previous and next chapter IDs based on sort settings.
-func (s *Store) GetChapterNeighbors(seriesID, currentChapterID int64) (map[string]*int64, error) {
-	settings, err := s.GetSeriesSettings(seriesID)
+func (s *Store) GetChapterNeighbors(seriesID, currentChapterID, userID int64) (map[string]*int64, error) {
+	settings, err := s.GetSeriesSettings(seriesID, userID)
 	if err != nil {
 		return nil, err
 	}
 	var chapters []*models.Chapter
-	chapters, err = s.getChaptersForSeries(seriesID, 1, 10000, "", settings.SortBy, settings.SortDir)
+	chapters, err = s.getChaptersForSeries(seriesID, userID, 1, 10000, "", settings.SortBy, settings.SortDir)
 	if err != nil {
 		return nil, err
 	}
@@ -382,7 +401,7 @@ func (s *Store) GetTagByID(id int64) (*models.Tag, error) {
 }
 
 // ListSeriesByTagID retrieves a paginated, searchable, and sortable list of series for a given tag.
-func (s *Store) ListSeriesByTagID(tagID int64, page, perPage int, search, sortBy, sortDir string) ([]*models.Series, int, error) {
+func (s *Store) ListSeriesByTagID(tagID int64, userID int64, page, perPage int, search, sortBy, sortDir string) ([]*models.Series, int, error) {
 	var args []interface{}
 	var countArgs []interface{}
 
@@ -400,12 +419,15 @@ func (s *Store) ListSeriesByTagID(tagID int64, page, perPage int, search, sortBy
 
 	// --- Main Query ---
 	query := `
-        SELECT s.id, s.title, s.path, s.thumbnail, s.custom_cover_url, s.created_at, s.updated_at, s.total_chapters, s.read_chapters
+        SELECT s.id, s.title, s.path, s.thumbnail, s.custom_cover_url, s.created_at, s.updated_at, s.total_chapters,
+               (SELECT COUNT(*) FROM chapters c2
+                JOIN user_chapter_progress ucp2 ON c2.id = ucp2.chapter_id
+                WHERE c2.series_id = s.id AND ucp2.user_id = ? AND ucp2.read = 1) as read_chapters
         FROM series s
         JOIN series_tags st ON s.id = st.series_id
         WHERE st.tag_id = ?
     `
-	args = append(args, tagID)
+	args = append(args, userID, tagID)
 	if search != "" {
 		query += " AND s.title LIKE ?"
 		args = append(args, "%"+search+"%")
@@ -420,7 +442,7 @@ func (s *Store) ListSeriesByTagID(tagID int64, page, perPage int, search, sortBy
 		query += fmt.Sprintf(" ORDER BY s.updated_at %s", sortDir)
 	case "progress":
 		// Avoid division by zero
-		query += fmt.Sprintf(" ORDER BY CASE WHEN s.total_chapters > 0 THEN CAST(s.read_chapters AS REAL) / s.total_chapters ELSE 0 END %s, s.title ASC", sortDir)
+		query += fmt.Sprintf(" ORDER BY CASE WHEN s.total_chapters > 0 THEN CAST((SELECT COUNT(*) FROM chapters c2 JOIN user_chapter_progress ucp2 ON c2.id = ucp2.chapter_id WHERE c2.series_id = s.id AND ucp2.user_id = %d AND ucp2.read = 1) AS REAL) / s.total_chapters ELSE 0 END %s, s.title ASC", userID, sortDir)
 	default: // "title"
 		query += fmt.Sprintf(" ORDER BY s.title %s", sortDir)
 	}

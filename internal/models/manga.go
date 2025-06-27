@@ -5,6 +5,15 @@ package models
 
 import "time"
 
+// User represents a user account.
+type User struct {
+	ID           int64     `json:"id"`
+	Username     string    `json:"username"`
+	PasswordHash string    `json:"-"` // Never expose password hash
+	Role         string    `json:"role"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
 // Series represents a single manga series.
 type Series struct {
 	ID             int64      `json:"id"`
@@ -28,8 +37,8 @@ type Chapter struct {
 	ID              int64     `json:"id"`
 	SeriesID        int64     `json:"series_id"`
 	Path            string    `json:"path"`
-	PageCount       int       `json:"page_count"`
 	Thumbnail       string    `json:"thumbnail,omitempty"`
+	PageCount       int       `json:"page_count"`
 	Read            bool      `json:"read"`
 	ProgressPercent int       `json:"progress_percent"`
 	CreatedAt       time.Time `json:"-"` // Hide from JSON responses
@@ -49,8 +58,10 @@ type Tag struct {
 	SeriesCount int    `json:"series_count,omitempty"`
 }
 
+// SeriesSettings holds per-user sort preferences for a series.
 type SeriesSettings struct {
 	SortBy   string `json:"sort_by"`  // e.g. "auto", "path"
 	SortDir  string `json:"sort_dir"` // e.g. "asc", "desc"
 	SeriesID int64  `json:"-"`        // Hide from JSON responses
+	// UserID   int64  `json:"-"`        // Hide from JSON responses
 }

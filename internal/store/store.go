@@ -58,12 +58,54 @@ func (s *Store) UpdateSeriesCoverURL(seriesID int64, url string) (int64, error) 
 }
 
 // MarkAllChaptersAs updates the 'read' status for all chapters of a series.
-func (s *Store) MarkAllChaptersAs(seriesID int64, read bool) error {
-	_, err := s.db.Exec("UPDATE chapters SET read = ?, progress_percent = ? WHERE series_id = ?",
-		read,
-		map[bool]int{true: 100, false: 0}[read], // Set progress to 100 if read, 0 if unread
-		seriesID)
-	return err
+func (s *Store) MarkAllChaptersAs(seriesID int64, read bool, userID int64) error {
+	// get chapter ids from series by joining chapters and series tables
+	query := `
+		SELECT c.id
+		FROM chapters c
+		JOIN series s ON c.series_id = s.id
+		WHERE s.id = ?
+	`
+	rows, err := s.db.Query(query, seriesID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	var chapterIDs []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return err
+		}
+		chapterIDs = append(chapterIDs, id)
+	}
+
+	// Update user_chapter_progress for each chapter individually
+	query = `
+		INSERT INTO user_chapter_progress (user_id, chapter_id, progress_percent, read, updated_at)
+		VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+		ON CONFLICT(user_id, chapter_id) DO UPDATE SET
+			progress_percent = excluded.progress_percent,
+			read = excluded.read,
+			updated_at = CURRENT_TIMESTAMP;
+	`
+	stmt, err := s.db.Prepare(query)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	progressPercent := map[bool]int{true: 100, false: 0}[read] // Set progress to 100 if read, 0 if unread
+
+	for _, chapterID := range chapterIDs {
+		_, err := stmt.Exec(userID, chapterID, progressPercent, read)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // AddOrUpdateChapter adds a chapter or updates its page count if it already exists.
@@ -274,9 +316,9 @@ func (s *Store) UpdateAllSeriesThumbnails() error {
 }
 
 // GetSeriesSettings retrieves the sort settings for a series.
-func (s *Store) GetSeriesSettings(seriesID int64) (*models.SeriesSettings, error) {
+func (s *Store) GetSeriesSettings(seriesID int64, userID int64) (*models.SeriesSettings, error) {
 	var settings models.SeriesSettings
-	err := s.db.QueryRow("SELECT sort_by, sort_dir FROM series_settings WHERE series_id = ?", seriesID).Scan(&settings.SortBy, &settings.SortDir)
+	err := s.db.QueryRow("SELECT sort_by, sort_dir FROM user_series_settings WHERE series_id = ? AND user_id = ?", seriesID, userID).Scan(&settings.SortBy, &settings.SortDir)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			// Return default settings if not found
@@ -290,10 +332,10 @@ func (s *Store) GetSeriesSettings(seriesID int64) (*models.SeriesSettings, error
 }
 
 // UpdateSeriesSettings saves the sort settings for a series.
-func (s *Store) UpdateSeriesSettings(seriesID int64, sortBy, sortDir string) error {
-	query := `INSERT INTO series_settings (series_id, sort_by, sort_dir) VALUES (?, ?, ?)
-              ON CONFLICT(series_id) DO UPDATE SET sort_by=excluded.sort_by, sort_dir=excluded.sort_dir;`
-	_, err := s.db.Exec(query, seriesID, sortBy, sortDir)
+func (s *Store) UpdateSeriesSettings(seriesID int64, userID int64, sortBy, sortDir string) error {
+	query := `INSERT INTO user_series_settings (series_id, user_id, sort_by, sort_dir) VALUES (?, ?, ?, ?)
+              ON CONFLICT(user_id, series_id) DO UPDATE SET sort_by=excluded.sort_by, sort_dir=excluded.sort_dir;`
+	_, err := s.db.Exec(query, seriesID, userID, sortBy, sortDir)
 	return err
 }
 

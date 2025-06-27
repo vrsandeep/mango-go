@@ -23,6 +23,7 @@ func TestTagHandlers(t *testing.T) {
 
 	t.Run("List Tags", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/api/tags", nil)
+		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 
@@ -45,6 +46,7 @@ func TestTagHandlers(t *testing.T) {
 
 	t.Run("List Series By Tag", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/api/tags/1/series", nil)
+		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 

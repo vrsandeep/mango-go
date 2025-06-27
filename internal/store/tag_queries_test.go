@@ -41,30 +41,30 @@ func TestListSeriesByTagID(t *testing.T) {
 	db.Exec("INSERT INTO series_tags (series_id, tag_id) VALUES (1, 1)")
 
 	t.Run("Get series by tag", func(t *testing.T) {
-		series, total, err := s.ListSeriesByTagID(1, 1, 10, "", "", "")
+		series, total, err := s.ListSeriesByTagID(1, 1, 1, 10, "", "", "")
 		if err != nil {
 			t.Fatalf("ListSeriesByTagID failed: %v", err)
 		}
 		if total != 1 {
-			t.Errorf("Expected total count of 1, got %d", total)
+			t.Errorf("Expected 1 series, got %d", total)
 		}
 		if len(series) != 1 {
-			t.Fatalf("Expected 1 series, got %d", len(series))
+			t.Errorf("Expected 1 series, got %d", len(series))
 		}
 		if series[0].Title != "Series A" {
-			t.Errorf("Expected to get 'Series A', got '%s'", series[0].Title)
+			t.Errorf("Expected series title 'Series A', got '%s'", series[0].Title)
 		}
 	})
 
 	t.Run("Get series by tag with search", func(t *testing.T) {
-		_, total, _ := s.ListSeriesByTagID(1, 1, 10, "Nonexistent", "title", "asc")
+		_, total, _ := s.ListSeriesByTagID(1, 1, 1, 10, "Nonexistent", "title", "asc")
 		if total != 0 {
-			t.Errorf("Expected total count of 0 for search miss, got %d", total)
+			t.Errorf("Expected 0 series for search 'Nonexistent', got %d", total)
 		}
 
-		_, total, _ = s.ListSeriesByTagID(1, 1, 10, "Series A", "title", "asc")
+		_, total, _ = s.ListSeriesByTagID(1, 1, 1, 10, "Series A", "title", "asc")
 		if total != 1 {
-			t.Errorf("Expected total count of 1 for search hit, got %d", total)
+			t.Errorf("Expected 1 series for search 'Series A', got %d", total)
 		}
 	})
 }

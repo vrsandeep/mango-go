@@ -109,7 +109,7 @@ func TestDeleteChapterByPath(t *testing.T) {
 		t.Fatalf("DeleteChapterByPath failed: %v", err)
 	}
 
-	_, err = s.GetChapterByID(chapterID)
+	_, err = s.GetChapterByID(chapterID, 1)
 	if err == nil {
 		t.Error("Expected error when getting deleted chapter, but got nil")
 	}
@@ -117,7 +117,7 @@ func TestDeleteChapterByPath(t *testing.T) {
 	// Verify other chapter still exists
 	var chapterCount int
 	var series *models.Series
-	series, chapterCount, err = s.GetSeriesByID(seriesID, 1, 10, "", "", "")
+	series, chapterCount, err = s.GetSeriesByID(seriesID, 1, 1, 10, "", "", "")
 	if err != nil {
 		t.Errorf("Other chapter was deleted unexpectedly: %v", err)
 	}
@@ -127,7 +127,6 @@ func TestDeleteChapterByPath(t *testing.T) {
 	if series.Chapters[0].ID == chapterID {
 		t.Errorf("Expected chapter with ID %d to be deleted", chapterID)
 	}
-
 }
 
 func TestDeleteEmptySeries(t *testing.T) {
@@ -144,7 +143,7 @@ func TestDeleteEmptySeries(t *testing.T) {
 
 	var series *models.Series
 	var chapterCount int
-	_, chapterCount, err = s.GetSeriesByID(seriesID, 1, 1, "", "", "")
+	_, chapterCount, err = s.GetSeriesByID(seriesID, 1, 1, 1, "", "", "")
 	if err == nil {
 		t.Error("Expected error when getting deleted series, but got nil")
 	}
@@ -167,7 +166,7 @@ func TestUpdateChapterThumbnail(t *testing.T) {
 		t.Fatalf("UpdateChapterThumbnail failed: %v", err)
 	}
 
-	chapter, _ := s.GetChapterByID(chapterID)
+	chapter, _ := s.GetChapterByID(chapterID, 1)
 	if chapter.Thumbnail != newThumbnail {
 		t.Errorf("Thumbnail was not updated correctly")
 	}
@@ -186,7 +185,7 @@ func TestUpdateAllSeriesThumbnails(t *testing.T) {
 		t.Fatalf("UpdateAllSeriesThumbnails failed: %v", err)
 	}
 
-	series, chapterCount, _ := s.GetSeriesByID(seriesID, 1, 1, "", "", "")
+	series, chapterCount, _ := s.GetSeriesByID(seriesID, 1, 1, 1, "", "", "")
 	if series.Thumbnail != firstChapterThumb {
 		t.Errorf("Series thumbnail was not updated to first chapter's thumbnail")
 	}

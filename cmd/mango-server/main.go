@@ -3,16 +3,19 @@ package main
 import (
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"time"
 
 	"github.com/vrsandeep/mango-go/internal/api"
+	"github.com/vrsandeep/mango-go/internal/auth"
 	"github.com/vrsandeep/mango-go/internal/core"
 	"github.com/vrsandeep/mango-go/internal/downloader"
 	"github.com/vrsandeep/mango-go/internal/downloader/providers"
 	"github.com/vrsandeep/mango-go/internal/downloader/providers/mangadex"
 	"github.com/vrsandeep/mango-go/internal/downloader/providers/weebcentral"
 	"github.com/vrsandeep/mango-go/internal/library"
+	"github.com/vrsandeep/mango-go/internal/store"
 	"github.com/vrsandeep/mango-go/internal/subscription"
 )
 
@@ -23,6 +26,28 @@ func main() {
 		log.Fatalf("Fatal error during application setup: %v", err)
 	}
 	defer app.Close()
+
+	// --- First User Provisioning ---
+	st := store.New(app.DB)
+	userCount, err := st.CountUsers()
+	if err != nil {
+		log.Fatalf("Could not check user count: %v", err)
+	}
+	if userCount == 0 {
+		log.Println("No users found. Creating default admin account.")
+		password := generateRandomPassword(12)
+		passwordHash, _ := auth.HashPassword(password)
+		_, err := st.CreateUser("admin", passwordHash, "admin")
+		if err != nil {
+			log.Fatalf("Could not create default admin user: %v", err)
+		}
+		log.Println("==================================================")
+		log.Println("Default admin user created.")
+		log.Printf("Username: admin")
+		log.Printf("Password: %s", password)
+		log.Println("Please change this password immediately.")
+		log.Println("==================================================")
+	}
 
 	// Initial library scan on startup
 	log.Println("Performing initial library scan...")
@@ -67,4 +92,14 @@ func main() {
 	if err := http.ListenAndServe(addr, server.Router()); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
+}
+
+func generateRandomPassword(length int) string {
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	seededRand := rand.New(rand.NewSource(time.Now().UnixNano()))
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = charset[seededRand.Intn(len(charset))]
+	}
+	return string(b)
 }

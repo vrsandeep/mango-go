@@ -4,6 +4,7 @@
 package api
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrsandeep/mango-go/internal/auth"
 	"github.com/vrsandeep/mango-go/internal/config"
 	"github.com/vrsandeep/mango-go/internal/core"
 	"github.com/vrsandeep/mango-go/internal/models"
@@ -59,6 +61,47 @@ func setupTestServer(t *testing.T) (*Server, *sql.DB) {
 	return server, db
 }
 
+// GetAuthCookie creates a user, logs them in, and returns a valid session cookie.
+func GetAuthCookie(t *testing.T, s *Server, username, password, role string) *http.Cookie {
+	t.Helper()
+
+	// Step 1: CORRECTLY hash the password before creating the user.
+	passwordHash, err := auth.HashPassword(password)
+	if err != nil {
+		t.Fatalf("Failed to hash password for test user: %v", err)
+	}
+	// The store's CreateUser expects a hash, not a plaintext password.
+	_, err = s.store.CreateUser(username, passwordHash, role)
+	if err != nil {
+		t.Fatalf("Failed to create test user '%s': %v", username, err)
+	}
+
+	// Step 2: Log in as the newly created user to get a session.
+	loginPayload := map[string]string{"username": username, "password": password}
+	payloadBytes, _ := json.Marshal(loginPayload)
+	req, _ := http.NewRequest("POST", "/api/users/login", bytes.NewBuffer(payloadBytes))
+	req.Header.Set("Content-Type", "application/json")
+
+	rr := httptest.NewRecorder()
+	s.Router().ServeHTTP(rr, req)
+
+	// Assert that the login was successful.
+	if status := rr.Code; status != http.StatusOK {
+		t.Fatalf("Login failed within test helper for user '%s': got status %d, want 200", username, status)
+	}
+
+	// Step 3: Extract the session cookie from the response.
+	cookies := rr.Result().Cookies()
+	for _, cookie := range cookies {
+		if cookie.Name == "session_token" {
+			return cookie
+		}
+	}
+
+	t.Fatal("Failed to get session cookie after successful login for test user")
+	return nil
+}
+
 func TestMain(m *testing.M) {
 	// Setup can be done here if it's shared across all tests in the package
 	// For simplicity, we'll set it up in each test function for now.
@@ -70,6 +113,7 @@ func TestHandleListSeries(t *testing.T) {
 	router := server.Router()
 
 	req, _ := http.NewRequest("GET", "/api/series", nil)
+	req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
@@ -95,6 +139,7 @@ func TestHandleGetSeries(t *testing.T) {
 
 	t.Run("Success", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/api/series/1", nil)
+		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 
@@ -113,6 +158,7 @@ func TestHandleGetSeries(t *testing.T) {
 
 	t.Run("Not Found", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/api/series/999", nil)
+		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 		if status := rr.Code; status != http.StatusNotFound {
@@ -127,6 +173,7 @@ func TestHandleGetPage(t *testing.T) {
 
 	t.Run("Success", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/api/series/1/chapters/1/pages/2", nil)
+		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 
@@ -140,6 +187,7 @@ func TestHandleGetPage(t *testing.T) {
 
 	t.Run("Page Not Found", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/api/series/1/chapters/1/pages/99", nil)
+		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 		if status := rr.Code; status != http.StatusNotFound {
@@ -149,6 +197,7 @@ func TestHandleGetPage(t *testing.T) {
 
 	t.Run("Chapter Not Found", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/api/series/1/chapters/99/pages/1", nil)
+		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 		if status := rr.Code; status != http.StatusNotFound {
@@ -183,6 +232,7 @@ func TestServeReaderHTML(t *testing.T) {
 
 	// Perform the request
 	req, _ := http.NewRequest("GET", "/reader/series/1/chapters/1", nil)
+	req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 

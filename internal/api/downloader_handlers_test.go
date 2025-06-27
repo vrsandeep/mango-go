@@ -60,6 +60,7 @@ func TestDownloaderHandlers(t *testing.T) {
 
 	t.Run("List Providers", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/api/providers", nil)
+		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 
@@ -78,6 +79,7 @@ func TestDownloaderHandlers(t *testing.T) {
 
 	t.Run("Provider Search", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/api/providers/mockadex/search?q=manga", nil)
+		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 
@@ -93,6 +95,7 @@ func TestDownloaderHandlers(t *testing.T) {
 
 	t.Run("Provider Get Chapters", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/api/providers/mockadex/series/mock-series-1", nil)
+		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 
@@ -117,6 +120,7 @@ func TestDownloaderHandlers(t *testing.T) {
 		}
 		body, _ := json.Marshal(payload)
 		req, _ := http.NewRequest("POST", "/api/downloads/queue", bytes.NewBuffer(body))
+		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 
@@ -140,6 +144,7 @@ func TestHandleGetDownloadQueue(t *testing.T) {
 	server.db.Exec("INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at) VALUES ('Test', 'Ch. 1', 'id1', 'mockadex', ?)", time.Now())
 
 	req, _ := http.NewRequest("GET", "/api/downloads/queue", nil)
+	req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
@@ -154,7 +159,6 @@ func TestHandleGetDownloadQueue(t *testing.T) {
 	}
 }
 
-// TODO: tests for the handleQueueAction endpoint
 func TestHandleQueueAction(t *testing.T) {
 	server := setupTestServerWithProviders(t)
 	router := server.Router()
@@ -167,6 +171,7 @@ func TestHandleQueueAction(t *testing.T) {
 		}{Action: "pause_all"}
 		body, _ := json.Marshal(payload)
 		req, _ := http.NewRequest("POST", "/api/downloads/action", bytes.NewBuffer(body))
+		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 
@@ -196,6 +201,7 @@ func TestHandleQueueAction(t *testing.T) {
 		}{Action: "resume_all"}
 		body, _ := json.Marshal(payload)
 		req, _ := http.NewRequest("POST", "/api/downloads/action", bytes.NewBuffer(body))
+		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 
@@ -226,6 +232,7 @@ func TestHandleQueueAction(t *testing.T) {
 		}{Action: "retry_failed"}
 		body, _ := json.Marshal(payload)
 		req, _ := http.NewRequest("POST", "/api/downloads/action", bytes.NewBuffer(body))
+		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 
@@ -256,6 +263,7 @@ func TestHandleQueueAction(t *testing.T) {
 		}{Action: "delete_completed"}
 		body, _ := json.Marshal(payload)
 		req, _ := http.NewRequest("POST", "/api/downloads/action", bytes.NewBuffer(body))
+		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 
@@ -282,6 +290,7 @@ func TestHandleQueueAction(t *testing.T) {
 		}{Action: "invalid_action"}
 		body, _ := json.Marshal(payload)
 		req, _ := http.NewRequest("POST", "/api/downloads/action", bytes.NewBuffer(body))
+		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 

@@ -32,19 +32,17 @@ func TestListSeries(t *testing.T) {
 	s := New(db)
 
 	t.Run("Without Search", func(t *testing.T) {
-		seriesList, seriesCount, err := s.ListSeries(1, 50, "", "title", "desc")
+		seriesList, seriesCount, err := s.ListSeries(1, 1, 50, "", "title", "desc")
 		if err != nil {
 			t.Fatalf("ListSeries failed: %v", err)
 		}
 		if seriesCount != 2 {
 			t.Errorf("Expected 2 series, got %d", seriesCount)
 		}
-
 		if len(seriesList) != 2 {
 			t.Fatalf("Expected 2 series, got %d", len(seriesList))
 		}
-
-		// Test sorting
+		// Check sorting
 		if seriesList[0].Title != "Series B" {
 			t.Errorf("Expected first series to be 'Series B' due to sorting, got '%s'", seriesList[0].Title)
 		}
@@ -60,22 +58,22 @@ func TestListSeries(t *testing.T) {
 	})
 
 	t.Run("With Search", func(t *testing.T) {
-		seriesList, seriesCount, err := s.ListSeries(1, 50, "A", "title", "asc")
+		seriesList, seriesCount, err := s.ListSeries(1, 1, 50, "A", "title", "asc")
 		if err != nil {
 			t.Fatalf("ListSeries with search failed: %v", err)
 		}
 		if seriesCount != 1 {
-			t.Errorf("Expected 1 series for search 'A', got %d", seriesCount)
+			t.Errorf("Expected 1 series, got %d", seriesCount)
 		}
 		if len(seriesList) != 1 {
-			t.Fatalf("Expected 1 series for search 'A', got %d", len(seriesList))
+			t.Fatalf("Expected 1 series, got %d", len(seriesList))
 		}
 		if seriesList[0].Title != "Series A" {
-			t.Errorf("Expected title 'Series A', got '%s'", seriesList[0].Title)
+			t.Errorf("Expected series to be 'Series A', got '%s'", seriesList[0].Title)
 		}
 	})
 	t.Run("With Invalid Sort Direction", func(t *testing.T) {
-		seriesList, seriesCount, err := s.ListSeries(1, 50, "", "title", "invalid")
+		seriesList, seriesCount, err := s.ListSeries(1, 1, 50, "", "title", "invalid")
 		if err != nil {
 			t.Fatalf("ListSeries with invalid sort direction failed: %v", err)
 		}
@@ -101,7 +99,7 @@ func TestGetSeriesByID(t *testing.T) {
 	s := New(db)
 
 	t.Run("Success", func(t *testing.T) {
-		series, count, err := s.GetSeriesByID(2, 1, 10, "ch1", "path", "asc") // Get Series A
+		series, count, err := s.GetSeriesByID(2, 1, 1, 10, "ch1", "path", "asc") // Get Series A
 		if err != nil {
 			t.Fatalf("GetSeriesByID failed: %v", err)
 		}
@@ -129,7 +127,7 @@ func TestGetSeriesByID(t *testing.T) {
 	})
 
 	t.Run("Not Found", func(t *testing.T) {
-		_, count, err := s.GetSeriesByID(999, 1, 10, "", "", "")
+		_, count, err := s.GetSeriesByID(999, 1, 1, 10, "", "", "")
 		if err == nil {
 			t.Error("Expected an error for non-existent series, got nil")
 		}
@@ -165,7 +163,7 @@ func TestUpdateSeriesCoverURL(t *testing.T) {
 	}
 
 	// Verify the update
-	series, count, err := s.GetSeriesByID(seriesID, 1, 1, "", "", "")
+	series, count, err := s.GetSeriesByID(seriesID, 1, 1, 1, "", "", "")
 	if err != nil {
 		t.Fatalf("GetSeriesByID failed after update: %v", err)
 	}
@@ -185,7 +183,7 @@ func TestGetChapterByID(t *testing.T) {
 	s := New(db)
 
 	t.Run("Success", func(t *testing.T) {
-		chapter, err := s.GetChapterByID(1) // Get chapter for Series B
+		chapter, err := s.GetChapterByID(1, 1) // Get chapter for Series B
 		if err != nil {
 			t.Fatalf("GetChapterByID failed: %v", err)
 		}
@@ -204,7 +202,7 @@ func TestGetChapterByID(t *testing.T) {
 	})
 
 	t.Run("Not Found", func(t *testing.T) {
-		_, err := s.GetChapterByID(999)
+		_, err := s.GetChapterByID(999, 1)
 		if err == nil {
 			t.Error("Expected an error for non-existent chapter, got nil")
 		}
@@ -220,13 +218,13 @@ func TestUpdateChapterProgress(t *testing.T) {
 	newProgress := 50
 	newReadStatus := true
 
-	err := s.UpdateChapterProgress(chapterID, newProgress, newReadStatus)
+	err := s.UpdateChapterProgress(chapterID, 1, newProgress, newReadStatus)
 	if err != nil {
 		t.Fatalf("UpdateChapterProgress failed: %v", err)
 	}
 
 	// Verify that the data was updated correctly
-	chapter, err := s.GetChapterByID(chapterID)
+	chapter, err := s.GetChapterByID(chapterID, 1)
 	if err != nil {
 		t.Fatalf("Failed to get chapter after update: %v", err)
 	}

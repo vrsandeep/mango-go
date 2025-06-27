@@ -1,10 +1,11 @@
 package store_test
 
 import (
-	"github.com/vrsandeep/mango-go/internal/store"
-	"github.com/vrsandeep/mango-go/internal/testutil"
 	"testing"
 	"time"
+
+	"github.com/vrsandeep/mango-go/internal/store"
+	"github.com/vrsandeep/mango-go/internal/testutil"
 )
 
 func TestSeriesSettings(t *testing.T) {
@@ -20,8 +21,11 @@ func TestSeriesSettings(t *testing.T) {
 	}
 	seriesID, _ := res.LastInsertId()
 
+	// Create a dummy user for testing
+	userID := int64(1)
+
 	// Test getting default settings
-	settings, err := s.GetSeriesSettings(seriesID)
+	settings, err := s.GetSeriesSettings(seriesID, userID)
 	if err != nil {
 		t.Fatalf("GetSeriesSettings failed for new series: %v", err)
 	}
@@ -30,13 +34,13 @@ func TestSeriesSettings(t *testing.T) {
 	}
 
 	// Test updating settings
-	err = s.UpdateSeriesSettings(seriesID, "path", "desc")
+	err = s.UpdateSeriesSettings(seriesID, userID, "path", "desc")
 	if err != nil {
 		t.Fatalf("UpdateSeriesSettings failed: %v", err)
 	}
 
 	// Test getting updated settings
-	newSettings, err := s.GetSeriesSettings(seriesID)
+	newSettings, err := s.GetSeriesSettings(seriesID, userID)
 	if err != nil {
 		t.Fatalf("GetSeriesSettings failed after update: %v", err)
 	}

@@ -20,6 +20,7 @@ func TestHandleSubscribeToSeries(t *testing.T) {
 		}
 		body, _ := json.Marshal(payload)
 		req, _ := http.NewRequest("POST", "/api/subscriptions", bytes.NewBuffer(body))
+		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 

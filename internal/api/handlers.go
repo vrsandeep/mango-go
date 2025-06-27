@@ -33,13 +33,19 @@ func getListParams(r *http.Request) (page, perPage int, search, sortBy, sortDir 
 
 // handleListSeries is updated to handle search and sort.
 func (s *Server) handleListSeries(w http.ResponseWriter, r *http.Request) {
-	page, perPage, search, sortBy, sortDir := getListParams(r)
-
-	series, total, err := s.store.ListSeries(page, perPage, search, sortBy, sortDir)
-	if err != nil {
-		RespondWithError(w, http.StatusInternalServerError, "Failed to retrieve series from database")
+	user := getUserFromContext(r)
+	if user == nil {
+		RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
+
+	page, perPage, search, sortBy, sortDir := getListParams(r)
+	series, total, err := s.store.ListSeries(user.ID, page, perPage, search, sortBy, sortDir)
+	if err != nil {
+		RespondWithError(w, http.StatusInternalServerError, "Failed to fetch series")
+		return
+	}
+
 	w.Header().Set("X-Total-Count", strconv.Itoa(total))
 	RespondWithJSON(w, http.StatusOK, series)
 }
@@ -53,7 +59,13 @@ func (s *Server) handleGetSeries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	settings, err := s.store.GetSeriesSettings(seriesID)
+	user := getUserFromContext(r)
+	if user == nil {
+		RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	settings, err := s.store.GetSeriesSettings(seriesID, user.ID)
 	if err != nil {
 		log.Printf("Failed to retrieve settings for series %d: %v", seriesID, err)
 	}
@@ -61,13 +73,13 @@ func (s *Server) handleGetSeries(w http.ResponseWriter, r *http.Request) {
 
 	// save settings to series if they exist
 	if sortBy != "" || sortDir != "" {
-		s.store.UpdateSeriesSettings(seriesID, sortBy, sortDir)
+		s.store.UpdateSeriesSettings(seriesID, user.ID, sortBy, sortDir)
 	} else {
 		sortBy = settings.SortBy   // Use default sort from settings if not specified
 		sortDir = settings.SortDir // Use default direction from settings if not specified
 	}
 
-	series, total, err := s.store.GetSeriesByID(seriesID, page, perPage, search, sortBy, sortDir)
+	series, total, err := s.store.GetSeriesByID(seriesID, user.ID, page, perPage, search, sortBy, sortDir)
 	if err != nil {
 		RespondWithError(w, http.StatusNotFound, "Series not found")
 		return
@@ -124,6 +136,7 @@ func (s *Server) handleMarkAllAs(w http.ResponseWriter, r *http.Request) {
 		RespondWithError(w, http.StatusBadRequest, "Invalid series ID")
 		return
 	}
+	user := getUserFromContext(r)
 
 	var payload struct {
 		Read bool `json:"read"`
@@ -133,7 +146,7 @@ func (s *Server) handleMarkAllAs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.store.MarkAllChaptersAs(seriesID, payload.Read); err != nil {
+	if err := s.store.MarkAllChaptersAs(seriesID, payload.Read, user.ID); err != nil {
 		log.Printf("Failed to mark all chapters for series %d: %v", seriesID, err)
 		RespondWithError(w, http.StatusInternalServerError, "Failed to update chapters")
 		return
@@ -190,7 +203,13 @@ func (s *Server) handleGetPage(w http.ResponseWriter, r *http.Request) {
 	pageIndex := pageNumber - 1
 
 	// Get chapter details (we need its path) from the database
-	chapter, err := s.store.GetChapterByID(chapterID)
+	user := getUserFromContext(r)
+	if user == nil {
+		RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	chapter, err := s.store.GetChapterByID(chapterID, user.ID)
 	if err != nil {
 		RespondWithError(w, http.StatusNotFound, "Chapter not found")
 		return
@@ -267,7 +286,13 @@ func (s *Server) handleGetChapterDetails(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	chapter, err := s.store.GetChapterByID(chapterID)
+	user := getUserFromContext(r)
+	if user == nil {
+		RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	chapter, err := s.store.GetChapterByID(chapterID, user.ID)
 	if err != nil {
 		RespondWithError(w, http.StatusNotFound, "Chapter not found")
 		return
@@ -285,6 +310,12 @@ func (s *Server) handleUpdateProgress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	user := getUserFromContext(r)
+	if user == nil {
+		RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
 	var payload struct {
 		ProgressPercent int  `json:"progress_percent"`
 		Read            bool `json:"read"`
@@ -295,7 +326,7 @@ func (s *Server) handleUpdateProgress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = s.store.UpdateChapterProgress(chapterID, payload.ProgressPercent, payload.Read)
+	err = s.store.UpdateChapterProgress(chapterID, user.ID, payload.ProgressPercent, payload.Read)
 	if err != nil {
 		log.Printf("Failed to update progress for chapter %d: %v", chapterID, err)
 		RespondWithError(w, http.StatusInternalServerError, "Failed to update progress")
@@ -307,6 +338,13 @@ func (s *Server) handleUpdateProgress(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 	seriesID, _ := strconv.ParseInt(chi.URLParam(r, "seriesID"), 10, 64)
+
+	user := getUserFromContext(r)
+	if user == nil {
+		RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
 	var payload struct {
 		SortBy  string `json:"sort_by"`
 		SortDir string `json:"sort_dir"`
@@ -315,7 +353,7 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 		RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
-	if err := s.store.UpdateSeriesSettings(seriesID, payload.SortBy, payload.SortDir); err != nil {
+	if err := s.store.UpdateSeriesSettings(seriesID, user.ID, payload.SortBy, payload.SortDir); err != nil {
 		RespondWithError(w, http.StatusInternalServerError, "Failed to update settings")
 		return
 	}
@@ -326,7 +364,13 @@ func (s *Server) handleGetChapterNeighbors(w http.ResponseWriter, r *http.Reques
 	seriesID, _ := strconv.ParseInt(chi.URLParam(r, "seriesID"), 10, 64)
 	chapterID, _ := strconv.ParseInt(chi.URLParam(r, "chapterID"), 10, 64)
 
-	neighbors, err := s.store.GetChapterNeighbors(seriesID, chapterID)
+	user := getUserFromContext(r)
+	if user == nil {
+		RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	neighbors, err := s.store.GetChapterNeighbors(seriesID, chapterID, user.ID)
 	if err != nil {
 		RespondWithError(w, http.StatusInternalServerError, "Failed to calculate neighbors")
 		return

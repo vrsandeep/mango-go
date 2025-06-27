@@ -50,45 +50,63 @@ func (s *Server) Router() http.Handler {
 	FileServer(r, "/static", filesDir)
 
 	// API routes
-	r.Route("/api", func(r chi.Router) {
-		r.Get("/version", s.handleGetVersion)
+	r.Post("/api/users/login", s.handleLogin)
+	r.Get("/api/version", s.handleGetVersion)
+	r.Group(func(r chi.Router) {
+		r.Use(s.AuthMiddleware)
 
-		r.Get("/series", s.handleListSeries)
-		r.Get("/series/{seriesID}", s.handleGetSeries)
-		r.Post("/series/{seriesID}/cover", s.handleUpdateCover)
-		r.Post("/series/{seriesID}/mark-all-as", s.handleMarkAllAs)
-		r.Post("/series/{seriesID}/settings", s.handleUpdateSettings)
-		r.Post("/series/{seriesID}/tags", s.handleAddTag)
-		r.Delete("/series/{seriesID}/tags/{tagID}", s.handleRemoveTag)
-		r.Get("/series/{seriesID}/chapters/{chapterID}", s.handleGetChapterDetails)
-		r.Get("/series/{seriesID}/chapters/{chapterID}/pages/{pageNumber}", s.handleGetPage)
-		r.Get("/series/{seriesID}/chapters/{chapterID}/neighbors", s.handleGetChapterNeighbors)
-		r.Post("/chapters/{chapterID}/progress", s.handleUpdateProgress)
+		r.Post("/api/users/logout", s.handleLogout)
+		r.Get("/api/users/me", s.handleGetMe)
 
-		// New Tag Endpoints
-		r.Get("/tags", s.handleListTags)
-		r.Get("/tags/{tagID}", s.handleGetTagDetails) // To get a single tag's name
-		r.Get("/tags/{tagID}/series", s.handleListSeriesByTag)
+		r.Route("/api", func(r chi.Router) {
 
-		// Admin Job Triggers
-		r.Post("/admin/scan-library", s.handleScanLibrary)
-		r.Post("/admin/scan-incremental", s.handleScanIncremental)
-		r.Post("/admin/prune-database", s.handlePruneDatabase)
-		r.Post("/admin/generate-thumbnails", s.handleGenerateThumbnails)
+			r.Get("/series", s.handleListSeries)
+			r.Get("/series/{seriesID}", s.handleGetSeries)
+			r.Post("/series/{seriesID}/cover", s.handleUpdateCover)
+			r.Post("/series/{seriesID}/mark-all-as", s.handleMarkAllAs)
+			r.Post("/series/{seriesID}/settings", s.handleUpdateSettings)
+			r.Post("/series/{seriesID}/tags", s.handleAddTag)
+			r.Delete("/series/{seriesID}/tags/{tagID}", s.handleRemoveTag)
+			r.Get("/series/{seriesID}/chapters/{chapterID}", s.handleGetChapterDetails)
+			r.Get("/series/{seriesID}/chapters/{chapterID}/pages/{pageNumber}", s.handleGetPage)
+			r.Get("/series/{seriesID}/chapters/{chapterID}/neighbors", s.handleGetChapterNeighbors)
+			r.Post("/chapters/{chapterID}/progress", s.handleUpdateProgress)
 
-		// Downloader Routes
-		r.Get("/providers", s.handleListProviders)
-		r.Get("/providers/{providerID}/search", s.handleProviderSearch)
-		r.Get("/providers/{providerID}/series/{seriesIdentifier}", s.handleProviderGetChapters)
-		r.Post("/downloads/queue", s.handleAddChaptersToQueue)
-		r.Get("/downloads/queue", s.handleGetDownloadQueue)
-		r.Post("/subscriptions", s.handleSubscribeToSeries)
-		r.Post("/downloads/action", s.handleQueueAction)
+			// New Tag Endpoints
+			r.Get("/tags", s.handleListTags)
+			r.Get("/tags/{tagID}", s.handleGetTagDetails) // To get a single tag's name
+			r.Get("/tags/{tagID}/series", s.handleListSeriesByTag)
 
-		// Subscription Routes
-		r.Get("/subscriptions", s.handleListSubscriptions)
-		r.Post("/subscriptions/{subID}/recheck", s.handleRecheckSubscription)
-		r.Delete("/subscriptions/{subID}", s.handleDeleteSubscription)
+			// Admin Job Triggers
+			r.Route("/admin", func(r chi.Router) {
+				r.Use(s.AdminOnlyMiddleware)
+
+				r.Post("/scan-library", s.handleScanLibrary)
+				r.Post("/scan-incremental", s.handleScanIncremental)
+				r.Post("/prune-database", s.handlePruneDatabase)
+				r.Post("/generate-thumbnails", s.handleGenerateThumbnails)
+
+				// New User Management Routes
+				r.Get("/users", s.handleAdminListUsers)
+				r.Post("/users", s.handleAdminCreateUser)
+				r.Put("/users/{userID}", s.handleAdminUpdateUser)
+				r.Delete("/users/{userID}", s.handleAdminDeleteUser)
+			})
+
+			// Downloader Routes
+			r.Get("/providers", s.handleListProviders)
+			r.Get("/providers/{providerID}/search", s.handleProviderSearch)
+			r.Get("/providers/{providerID}/series/{seriesIdentifier}", s.handleProviderGetChapters)
+			r.Post("/downloads/queue", s.handleAddChaptersToQueue)
+			r.Get("/downloads/queue", s.handleGetDownloadQueue)
+			r.Post("/subscriptions", s.handleSubscribeToSeries)
+			r.Post("/downloads/action", s.handleQueueAction)
+
+			// Subscription Routes
+			r.Get("/subscriptions", s.handleListSubscriptions)
+			r.Post("/subscriptions/{subID}/recheck", s.handleRecheckSubscription)
+			r.Delete("/subscriptions/{subID}", s.handleDeleteSubscription)
+		})
 	})
 
 	// WebSocket route
@@ -97,6 +115,13 @@ func (s *Server) Router() http.Handler {
 	})
 
 	// Frontend Routes
+	r.Get("/login", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./web/login.html")
+	})
+	r.Get("/admin/users", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./web/admin_users.html")
+	})
+
 	// Downloader Frontend Routes
 	r.Route("/downloads", func(r chi.Router) {
 		r.Get("/plugins", func(w http.ResponseWriter, r *http.Request) {
