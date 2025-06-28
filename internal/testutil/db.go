@@ -32,6 +32,12 @@ func SetupTestDB(t *testing.T) *sql.DB {
 		t.Fatalf("Failed to open in-memory database: %v", err)
 	}
 
+	// Enable foreign keys before running migrations
+	_, err = db.Exec("PRAGMA foreign_keys = ON;")
+	if err != nil {
+		t.Fatalf("Failed to enable foreign key support before migrations: %v", err)
+	}
+
 	// Attach a cleanup function to automatically close the DB when the test completes.
 	t.Cleanup(func() {
 		db.Close()

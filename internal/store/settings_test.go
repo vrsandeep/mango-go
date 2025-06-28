@@ -12,6 +12,14 @@ func TestSeriesSettings(t *testing.T) {
 	db := testutil.SetupTestDB(t)
 	s := store.New(db)
 
+	// Create a dummy user for testing
+	userID := int64(1)
+	_, err := db.Exec(`INSERT INTO users (id, username, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?)`,
+		userID, "testuser", "password", "user", time.Now())
+	if err != nil {
+		t.Fatalf("Failed to insert user: %v", err)
+	}
+
 	// Create a dummy series
 	res, err := db.Exec(
 		`INSERT INTO series (id, title, path, created_at, updated_at) VALUES (1, 'Series B', '/path/b', ?, ?)`,
@@ -20,9 +28,6 @@ func TestSeriesSettings(t *testing.T) {
 		t.Fatalf("Failed to insert series: %v", err)
 	}
 	seriesID, _ := res.LastInsertId()
-
-	// Create a dummy user for testing
-	userID := int64(1)
 
 	// Test getting default settings
 	settings, err := s.GetSeriesSettings(seriesID, userID)

@@ -11,7 +11,9 @@ func TestListTagsWithCounts(t *testing.T) {
 	db := testutil.SetupTestDB(t)
 	s := New(db)
 
-	db.Exec("INSERT INTO series (id, title, path) VALUES (1, 'Series A', '/a')")
+	// db.Exec("INSERT INTO series (id, title, path) VALUES (1, 'Series A', '/a')")
+	db.Exec(`INSERT INTO series (id, title, path, created_at, updated_at)
+			VALUES (1, 'Series A', '/a', datetime('now'), datetime('now'))`)
 	db.Exec("INSERT INTO tags (id, name) VALUES (1, 'action'), (2, 'comedy')")
 	db.Exec("INSERT INTO series_tags (series_id, tag_id) VALUES (1, 1)")
 

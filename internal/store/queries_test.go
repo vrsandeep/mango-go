@@ -23,6 +23,14 @@ func populateDB(t *testing.T, db *sql.DB) {
 		t.Fatalf("Failed to populate chapter in test database: %v", err)
 		return
 	}
+
+	_, err = db.Exec(`
+		INSERT INTO users (id, username, password_hash, role, created_at)
+		VALUES (1, 'testuser', 'password', 'user', CURRENT_TIMESTAMP)`)
+	if err != nil {
+		t.Fatalf("Failed to populate user in test database: %v", err)
+		return
+	}
 }
 
 func TestListSeries(t *testing.T) {
