@@ -10,7 +10,10 @@ let state = {
 let loadCards;
 let sortBySelect;
 let sortDirBtn;
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  const currentUser = await checkAuth();
+  if (!currentUser) return;
+
   const cardsGrid = document.getElementById('cards-grid');
   const searchInput = document.getElementById('search-input');
   sortBySelect = document.getElementById('sort-by');

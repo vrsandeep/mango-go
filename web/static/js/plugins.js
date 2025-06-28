@@ -1,4 +1,7 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  const currentUser = await checkAuth();
+  if (!currentUser) return;
+
   // --- State Management ---
   let state = {
     chapters: [],

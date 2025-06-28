@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Mango</title>
+    <link rel="stylesheet" href="/static/css/library_grid.css">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .auth-container {
+            width: 100%;
+            max-width: 360px;
+            padding: 2rem;
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .auth-form h2 {
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-size: 1rem;
+        }
+        .auth-form button {
+            width: 100%;
+            padding: 0.75rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 5px;
+            background-color: var(--accent-color);
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .auth-form button:hover {
+            opacity: 0.9;
+        }
+        .error-message {
+            color: #ff4500;
+            text-align: center;
+            margin-top: 1rem;
+            display: none; /* Hidden by default */
+        }
+    </style>
+</head>
+<body class="dark-theme">
+    <div class="auth-container">
+        <form class="auth-form" id="login-form">
+            <h2>Login to Mango</h2>
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <button type="submit">Login</button>
+            <p class="error-message" id="error-message"></p>
+        </form>
+    </div>
+
+    <script src="/static/js/auth.js"></script>
+    <script>
+        // First, check if the user is already authenticated. If so, redirect them away from the login page.
+        checkAuth().then(user => {
+            if (user) {
+                window.location.href = '/library';
+            }
+        });
+
+        const loginForm = document.getElementById('login-form');
+        const errorMessage = document.getElementById('error-message');
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            errorMessage.style.display = 'none';
+
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch('/api/users/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                if (response.ok) {
+                    window.location.href = '/library';
+                } else {
+                    const errorData = await response.json();
+                    errorMessage.textContent = errorData.error || 'Login failed. Please check your credentials.';
+                    errorMessage.style.display = 'block';
+                }
+            } catch (err) {
+                console.error("Login request failed:", err);
+                errorMessage.textContent = 'An error occurred. Please try again later.';
+                errorMessage.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

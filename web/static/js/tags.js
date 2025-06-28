@@ -1,4 +1,7 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  const currentUser = await checkAuth();
+  if (!currentUser) return;
+
   const tagsList = document.getElementById('tags-list');
 
   const loadTags = async () => {

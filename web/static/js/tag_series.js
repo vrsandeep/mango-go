@@ -46,7 +46,10 @@ const renderCards = (cardsList, cardsGrid) => {
   });
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  const currentUser = await checkAuth();
+  if (!currentUser) return;
+
   const tagId = window.location.pathname.split('/')[2];
   const pageTitleEl = document.getElementById('page-title');
   const loadTagTitle = async () => {

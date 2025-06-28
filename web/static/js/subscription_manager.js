@@ -1,4 +1,7 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  const currentUser = await checkAuth();
+  if (!currentUser) return;
+
   const providerSelect = document.getElementById('provider-select');
   const subTableBody = document.getElementById('sub-table-body');
 

@@ -1,4 +1,7 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  const currentUser = await checkAuth();
+  if (!currentUser) return;
+
   const queueTableBody = document.getElementById('queue-table-body');
   const headerActionButtons = document.querySelectorAll('.header-actions button');
   const pauseResumeBtn = document.getElementById('pause-resume-btn');

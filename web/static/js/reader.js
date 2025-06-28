@@ -1,4 +1,7 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async() => {
+  const currentUser = await checkAuth();
+  if (!currentUser) return;
+
   const pathParts = window.location.pathname.split('/');
   const seriesId = pathParts[3];
   const chapterId = pathParts[5];

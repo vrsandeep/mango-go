@@ -1,4 +1,7 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  const currentUser = await checkAuth("admin");
+  if (!currentUser) return;
+
   const startJob = async (endpoint, button) => {
     button.disabled = true;
     const jobEl = button.closest('.job-item');
@@ -49,6 +52,12 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.start-job-btn').forEach(button => {
     button.addEventListener('click', (e) => {
       startJob(e.target.dataset.endpoint, e.target);
+    });
+  });
+
+  document.querySelectorAll('.href').forEach(button => {
+    button.addEventListener('click', (e) => {
+      window.location.href = e.target.dataset.endpoint;
     });
   });
 
