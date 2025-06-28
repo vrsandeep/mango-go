@@ -23,21 +23,27 @@ func InitDB(path string) (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
-	// Ping the database to verify the connection is alive.
-	if err = db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %w", err)
-	}
-
 	// Enable foreign key support in SQLite
 	_, err = db.Exec("PRAGMA foreign_keys = ON;")
 	if err != nil {
 		return nil, fmt.Errorf("failed to enable foreign key support: %w", err)
 	}
 
+	// Ping the database to verify the connection is alive.
+	if err = db.Ping(); err != nil {
+		return nil, fmt.Errorf("failed to connect to database: %w", err)
+	}
+
 	return db, nil
 }
 
 func RunMigrations(database *sql.DB) error {
+	// Enable foreign keys before running migrations
+	_, err := database.Exec("PRAGMA foreign_keys = ON;")
+	if err != nil {
+		return fmt.Errorf("failed to enable foreign key support before migrations: %w", err)
+	}
+
 	driver, err := sqlite3.WithInstance(database, &sqlite3.Config{})
 	if err != nil {
 		return fmt.Errorf("could not create sqlite3 migration driver: %w", err)
