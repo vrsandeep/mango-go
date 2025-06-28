@@ -99,10 +99,10 @@ func (s *Server) Router() http.Handler {
 			r.Get("/providers/{providerID}/series/{seriesIdentifier}", s.handleProviderGetChapters)
 			r.Post("/downloads/queue", s.handleAddChaptersToQueue)
 			r.Get("/downloads/queue", s.handleGetDownloadQueue)
-			r.Post("/subscriptions", s.handleSubscribeToSeries)
 			r.Post("/downloads/action", s.handleQueueAction)
 
 			// Subscription Routes
+			r.Post("/subscriptions", s.handleSubscribeToSeries)
 			r.Get("/subscriptions", s.handleListSubscriptions)
 			r.Post("/subscriptions/{subID}/recheck", s.handleRecheckSubscription)
 			r.Delete("/subscriptions/{subID}", s.handleDeleteSubscription)

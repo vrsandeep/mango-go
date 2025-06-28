@@ -49,16 +49,8 @@ func main() {
 		log.Println("==================================================")
 	}
 
-	// Initial library scan on startup
-	log.Println("Performing initial library scan...")
-	scanner := library.NewScanner(app.Config, app.DB)
-
-	if err := scanner.Scan(nil, nil); err != nil {
-		log.Printf("Warning: initial library scan failed: %v", err)
-	}
-	log.Println("Initial scan complete.")
-
 	// Start periodic scanning in the background
+	scanner := library.NewScanner(app.Config, app.DB)
 	go func() {
 		ticker := time.NewTicker(time.Duration(app.Config.ScanInterval) * time.Minute)
 		for range ticker.C {
@@ -72,7 +64,6 @@ func main() {
 
 	// Initialize the downloader providers
 	// Register all available downloader providers here.
-	// providers.Register(mockadex.New())
 	providers.Register(mangadex.New())
 	providers.Register(weebcentral.New())
 

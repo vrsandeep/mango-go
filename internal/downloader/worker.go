@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -25,7 +27,7 @@ var (
 	jobQueue   chan *models.DownloadQueueItem
 	isPaused   bool
 	mu         sync.Mutex
-	numWorkers = 4 // Number of concurrent downloads
+	numWorkers = int(math.Min(4, float64(runtime.NumCPU()))) // Number of concurrent downloads
 )
 
 // StartWorkerPool initializes and starts the download workers.
