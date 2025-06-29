@@ -5,6 +5,8 @@ let seriesTitleEl;
 let breadCrumbSeriesTitleEl;
 let seriesThumbEl;
 let renderTags;
+let allTags = []; // To store the master list of all tags
+let currentSeriesTags = [];
 const getCardsLoadingUrl = () => {
   return GET_CHAPTERS_URL
     .replace("STATE_CURRENT_PAGE", state.currentPage)
@@ -74,6 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const tagsContainer = document.getElementById('tags-container');
   const tagInput = document.getElementById('tag-input');
+  const autocompleteSuggestions = document.getElementById('autocomplete-suggestions');
 
   const editSeriesBtn = document.getElementById('edit-series-btn');
   const editModal = document.getElementById('edit-modal');
@@ -86,8 +89,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const updateCover = async (url) => {
     await fetch(`/api/series/${seriesId}/cover`, {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({url: url})
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: url })
     });
     seriesThumbEl.src = url; // Update image on the page immediately
   };
@@ -118,8 +121,8 @@ document.addEventListener('DOMContentLoaded', () => {
   modalSaveBtn.addEventListener('click', async () => {
     await fetch(`/api/series/${seriesId}/cover`, {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({url: coverUrlInput.value})
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: coverUrlInput.value })
     });
     editModal.style.display = 'none';
     // Reload the page to reflect changes
@@ -129,8 +132,8 @@ document.addEventListener('DOMContentLoaded', () => {
   markAllReadBtn.addEventListener('click', async () => {
     await fetch(`/api/series/${seriesId}/mark-all-as`, {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({read: true})
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ read: true })
     });
     showToast('All chapters marked as read.');
     setTimeout(() => {
@@ -141,8 +144,8 @@ document.addEventListener('DOMContentLoaded', () => {
   markAllUnreadBtn.addEventListener('click', async () => {
     await fetch(`/api/series/${seriesId}/mark-all-as`, {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({read: false})
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ read: false })
     });
     showToast('All chapters marked as unread.');
     setTimeout(() => {
@@ -166,7 +169,16 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // --- Tag Logic ---
+  const loadAllTags = async () => {
+    try {
+      const response = await fetch('/api/tags');
+      allTags = await response.json() || [];
+    } catch (e) {
+      console.error("Failed to load all tags:", e);
+    }
+  };
   renderTags = (tags) => {
+    currentSeriesTags = tags;
     tagsContainer.innerHTML = '';
     tags.forEach(tag => {
       const tagEl = document.createElement('div');
@@ -177,31 +189,92 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const addTag = async (tagName) => {
-    const response = await fetch(`/api/series/${seriesId}/tags`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({name: tagName})
-    });
-    if (response.ok) {
+    const normalizedTagName = tagName.trim().toLowerCase();
+    if (normalizedTagName === '' || currentSeriesTags.some(t => t.name === normalizedTagName)) {
       tagInput.value = '';
-      loadCards(true); // Reload everything to get updated tags
+      return;
+    }
+    try {
+      const response = await fetch(`/api/series/${seriesId}/tags`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: normalizedTagName })
+      });
+      if (response.ok) {
+        tagInput.value = '';
+        autocompleteSuggestions.style.display = 'none';
+        const newTag = await response.json();
+        currentSeriesTags.push(newTag);
+        renderTags(currentSeriesTags);
+        // loadCards(true); // Reload everything to get updated tags
+      }
+    } catch (e) {
+      console.error("Failed to add tag:", e);
     }
   };
 
   const removeTag = async (tagId) => {
-    await fetch(`/api/series/${seriesId}/tags/${tagId}`, {method: 'DELETE'});
+    await fetch(`/api/series/${seriesId}/tags/${tagId}`, { method: 'DELETE' });
     loadCards(true);
   };
 
-  tagInput.addEventListener('keyup', (e) => {
-    if (e.key === 'Enter' && tagInput.value.trim() !== '') {
-      addTag(tagInput.value.trim());
+  // tagInput.addEventListener('keyup', (e) => {
+  //   if (e.key === 'Enter' && tagInput.value.trim() !== '') {
+  //     addTag(tagInput.value.trim());
+  //   }
+  // });
+  tagInput.addEventListener('input', () => {
+    const query = tagInput.value.toLowerCase();
+    if (query.length === 0) {
+      autocompleteSuggestions.style.display = 'none';
+      return;
+    }
+
+    const suggestions = allTags.filter(tag => tag.name.toLowerCase().includes(query) && !currentSeriesTags.some(st => st.name === tag.name));
+
+    autocompleteSuggestions.innerHTML = '';
+    if (suggestions.length > 0) {
+      suggestions.slice(0, 5).forEach(suggestion => { // Limit to 5 suggestions
+        const item = document.createElement('div');
+        item.className = 'suggestion-item';
+        item.textContent = suggestion.name;
+        item.addEventListener('click', () => {
+          addTag(suggestion.name);
+        });
+        autocompleteSuggestions.appendChild(item);
+      });
+      autocompleteSuggestions.style.display = 'block';
+    } else {
+      autocompleteSuggestions.style.display = 'none';
     }
   });
+  tagInput.addEventListener('keydown', (e) => {
+    const suggestions = autocompleteSuggestions.querySelectorAll('.suggestion-item');
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const activeSuggestion = autocompleteSuggestions.querySelector('.active');
+      if (activeSuggestion) {
+        addTag(activeSuggestion.textContent);
+      } else {
+        addTag(tagInput.value);
+      }
+    } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      // Keyboard navigation logic for suggestions
+    }
+  });
+  // Hide suggestions when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.tag-input-container')) {
+      autocompleteSuggestions.style.display = 'none';
+    }
+  });
+
 
   tagsContainer.addEventListener('click', (e) => {
     if (e.target.classList.contains('tag-remove-btn')) {
       removeTag(e.target.dataset.tagId);
     }
   });
+
+  loadAllTags();
 });

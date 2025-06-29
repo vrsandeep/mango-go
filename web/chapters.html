@@ -13,11 +13,80 @@
         .tag-remove-btn { cursor: pointer; font-weight: bold; }
         .tag-input { margin-bottom: 1rem; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 5px; background-color: var(--card-bg); color: var(--text-color); width: 100%; max-width: 400px; }
 
-        .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; }
+        .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; flex-wrap: wrap; }
         .page-header-left { display: flex; align-items: center; gap: 1rem; }
-        .breadcrumb { font-size: 0.9rem; color: #aaa; margin-bottom: 2rem; }
-        .breadcrumb a { color: #aaa; } .breadcrumb a:hover { color: var(--accent-color); }
+        .breadcrumb { font-size: 0.9rem; color: var(--subtle-text-color); margin-bottom: 1.5rem; }
+        .breadcrumb a { color: var(--subtle-text-color); } .breadcrumb a:hover { color: var(--accent-color); }
         .edit-btn { background: none; border: 1px solid var(--border-color); color: var(--text-color); padding: 8px; border-radius: 5px; cursor: pointer; }
+
+        /* New Unified Tag Input Styles */
+        .tags-section {
+            margin-bottom: 1.5rem;
+        }
+        .tags-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            padding: 0.5rem;
+            background-color: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+        }
+        .tags-wrapper i {
+            font-size: 1.2rem;
+            color: var(--subtle-text-color);
+        }
+        .tag {
+            background-color: var(--btn-bg);
+            padding: 0.25rem 0.75rem;
+            border-radius: 15px;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+        .tag-remove-btn {
+            cursor: pointer;
+            font-weight: bold;
+            margin-left: 0.25rem;
+        }
+        .tag-input-container {
+            position: relative;
+            flex-grow: 1;
+        }
+        #tag-input {
+            border: none;
+            background: none;
+            color: var(--text-color);
+            padding: 0.5rem;
+            font-size: 1rem;
+            outline: none;
+            width: 100%;
+            min-width: 150px;
+        }
+        .autocomplete-suggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 100;
+            display: none; /* Hidden by default */
+        }
+        .suggestion-item {
+            padding: 0.75rem;
+            cursor: pointer;
+        }
+        .suggestion-item:hover, .suggestion-item.active {
+            background-color: var(--accent-color);
+            color: white;
+        }
 
         /* Modal Styles */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 1000; }
@@ -74,8 +143,19 @@
         </div>
         <span id="total-count" class="total-count"></span>
         <!-- Merge tag-input into tags-container and any new tags should be added here -->
-        <div class="tags-container" id="tags-container"></div>
-        <input type="text" class="tag-input" id="tag-input" placeholder="Add a tag here.">
+        <!-- <div class="tags-container" id="tags-container"></div>
+        <input type="text" class="tag-input" id="tag-input" placeholder="Add a tag here."> -->
+        <!-- Unified Tag Component -->
+        <div class="tags-section">
+            <div class="tags-wrapper" id="tags-wrapper">
+                <i class="ph-bold ph-tag"></i>
+                <div class="tags-container" id="tags-container"></div>
+                <div class="tag-input-container">
+                    <input type="text" id="tag-input" placeholder="Add a tag...">
+                    <div class="autocomplete-suggestions" id="autocomplete-suggestions"></div>
+                </div>
+            </div>
+        </div>
         <div class="library-controls">
             <div class="search-bar">
                 <input type="search" id="search-input" placeholder="Search chapters...">
