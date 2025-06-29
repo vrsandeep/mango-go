@@ -89,3 +89,23 @@ func TestDeleteCompletedQueueItems(t *testing.T) {
 		t.Errorf("Expected queue to be empty, but count is %d", count)
 	}
 }
+
+func TestEmptyQueue(t *testing.T) {
+	db := testutil.SetupTestDB(t)
+	s := New(db)
+	s.db.Exec(`INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Manga', 'Ch 1', 'id1', 'p1', ?, 'queued')`, time.Now())
+	s.db.Exec(`INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Manga', 'Ch 2', 'id2', 'p1', ?, 'failed')`, time.Now())
+	s.db.Exec(`INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Manga', 'Ch 3', 'id3', 'p1', ?, 'in_progress')`, time.Now())
+	s.db.Exec(`INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Manga', 'Ch 4', 'id4', 'p1', ?, 'completed')`, time.Now())
+
+	err := s.EmptyQueue()
+	if err != nil {
+		t.Fatalf("EmptyQueue failed: %v", err)
+	}
+
+	var count int
+	s.db.QueryRow("SELECT COUNT(*) FROM download_queue").Scan(&count)
+	if count != 2 {
+		t.Errorf("Expected 2 items (in_progress, completed) to remain, but count is %d", count)
+	}
+}

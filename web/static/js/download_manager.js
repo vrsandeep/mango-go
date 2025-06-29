@@ -100,6 +100,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         e.target.textContent = newAction === 'pause_all' ? 'Resume All' : 'Pause All';
         return;
       }
+      if (action === 'empty_queue') {
+        if (!confirm('Are you sure you want to remove all queued and failed items? This cannot be undone.')) {
+          return;
+        }
+      }
 
       await fetch('/api/downloads/action', {
         method: 'POST',

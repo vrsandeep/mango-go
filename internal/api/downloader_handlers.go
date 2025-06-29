@@ -117,6 +117,8 @@ func (s *Server) handleQueueAction(w http.ResponseWriter, r *http.Request) {
 		s.store.ResetFailedQueueItems()
 	case "delete_completed":
 		s.store.DeleteCompletedQueueItems()
+	case "empty_queue": // New action
+		s.store.EmptyQueue()
 	default:
 		RespondWithError(w, http.StatusBadRequest, "Invalid action")
 		return

@@ -493,6 +493,13 @@ func (s *Store) DeleteCompletedQueueItems() error {
 	return err
 }
 
+// EmptyQueue removes all items from the queue that are not completed or in progress.
+func (s *Store) EmptyQueue() error {
+	query := "DELETE FROM download_queue WHERE status = 'queued' OR status = 'failed'"
+	_, err := s.db.Exec(query)
+	return err
+}
+
 // GetAllSubscriptions retrieves all subscriptions, optionally filtered by provider ID.
 func (s *Store) GetAllSubscriptions(providerIDFilter string) ([]*models.Subscription, error) {
 	query := "SELECT id, series_title, series_identifier, provider_id, created_at, last_checked_at FROM subscriptions"

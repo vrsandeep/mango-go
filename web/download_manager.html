@@ -13,6 +13,14 @@
         .header-actions button:hover { background-color: var(--accent-color); color: white; }
         .header-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
         .header-actions button:disabled:hover { background-color: var(--btn-bg); color: white; }
+        .header-actions button.danger {
+            border-color: #8B0000;
+            color: #ff4500;
+        }
+        .header-actions button.danger:hover {
+            background-color: #8B0000;
+            color: white;
+        }
         .queue-table { width: 100%; border-collapse: collapse;  margin-bottom: 1.5rem; }
         .queue-table th, .queue-table td { padding: 0.75rem; text-align: left; border-bottom: 1px solid var(--border-color); background-color: var(--card-bg); }
         .queue-table th:nth-child(3), .queue-table td:nth-child(3) { width: 20%; }
@@ -61,6 +69,7 @@
             <button data-action="retry_failed">Retry Failed</button>
             <button data-action="refresh">Refresh Queue</button>
             <button data-action="pause_all" id="pause-resume-btn">Pause All</button>
+            <button data-action="empty_queue" class="danger">Empty Queue</button>
         </div>
         <div class="table-container">
             <table class="queue-table">

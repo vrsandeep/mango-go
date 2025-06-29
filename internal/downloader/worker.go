@@ -32,7 +32,7 @@ var (
 
 // StartWorkerPool initializes and starts the download workers.
 func StartWorkerPool(app *core.App) {
-	jobQueue = make(chan *models.DownloadQueueItem, 100)
+	jobQueue = make(chan *models.DownloadQueueItem, numWorkers)
 	st := store.New(app.DB)
 
 	// On startup, re-queue any items that were "in_progress".
@@ -50,16 +50,20 @@ func StartWorkerPool(app *core.App) {
 			mu.Unlock()
 
 			if !paused {
-				items, err := st.GetQueuedDownloadItems(numWorkers * 2) // Fetch more than the number of workers
-				if err != nil {
-					log.Printf("Error fetching queued items: %v", err)
-				} else {
-					for _, item := range items {
-						jobQueue <- item
+				// Fetch enough jobs to fill the buffer if it's empty.
+				// We only fetch enough jobs to fill the buffer if it's empty.
+				if len(jobQueue) == 0 {
+					items, err := st.GetQueuedDownloadItems(numWorkers)
+					if err != nil {
+						log.Printf("Error fetching queued items: %v", err)
+					} else {
+						for _, item := range items {
+							jobQueue <- item
+						}
 					}
 				}
 			}
-			time.Sleep(10 * time.Second) // Check for new jobs every 10 seconds
+			time.Sleep(5 * time.Second) // Check for new jobs every 10 seconds
 		}
 	}()
 }

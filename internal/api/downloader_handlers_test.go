@@ -284,6 +284,37 @@ func TestHandleQueueAction(t *testing.T) {
 		}
 		server.db.Exec("DELETE FROM download_queue") // Clean up after test
 	})
+
+	t.Run("Empty Queue", func(t *testing.T) {
+		// Add items with various statuses
+		server.db.Exec("INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Manga', 'Ch 1', 'id1', 'p1', ?, 'queued')", time.Now())
+		server.db.Exec("INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Manga', 'Ch 2', 'id2', 'p1', ?, 'failed')", time.Now())
+		server.db.Exec("INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Manga', 'Ch 3', 'id3', 'p1', ?, 'completed')", time.Now())
+
+		payload := `{"action": "empty_queue"}`
+		req, _ := http.NewRequest("POST", "/api/downloads/action", bytes.NewBufferString(payload))
+		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusOK {
+			t.Fatalf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		}
+
+		// Verify only the 'completed' item remains
+		var count int
+		server.db.QueryRow("SELECT COUNT(*) FROM download_queue").Scan(&count)
+		if count != 1 {
+			t.Errorf("Expected 1 item to remain in queue, but found %d", count)
+		}
+
+		var status string
+		server.db.QueryRow("SELECT status FROM download_queue").Scan(&status)
+		if status != "completed" {
+			t.Errorf("The remaining item should have status 'completed', but has '%s'", status)
+		}
+	})
+
 	t.Run("Test invalid action", func(t *testing.T) {
 		payload := struct {
 			Action string `json:"action"`
