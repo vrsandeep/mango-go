@@ -259,3 +259,49 @@ func TestSubscribeToSeries(t *testing.T) {
 		t.Errorf("Expected 1 item in subscriptions after second call, but found %d", count)
 	}
 }
+
+func TestSeriesSettings(t *testing.T) {
+	db := testutil.SetupTestDB(t)
+	defer db.Close()
+	s := New(db)
+
+	// Create a test user and series
+	_, err := db.Exec(`INSERT INTO users (id, username, password_hash, role, created_at) VALUES (1, 'testuser', 'password', 'user', CURRENT_TIMESTAMP)`)
+	if err != nil {
+		t.Fatalf("Failed to create test user: %v", err)
+	}
+
+	_, err = db.Exec(`INSERT INTO series (id, title, path, created_at, updated_at) VALUES (1, 'Test Series', '/path/to/series', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`)
+	if err != nil {
+		t.Fatalf("Failed to create test series: %v", err)
+	}
+
+	// Test default settings
+	settings, err := s.GetSeriesSettings(1, 1)
+	if err != nil {
+		t.Fatalf("GetSeriesSettings failed: %v", err)
+	}
+	if settings.SortBy != "auto" {
+		t.Errorf("Expected default sort_by to be 'auto', got %s", settings.SortBy)
+	}
+	if settings.SortDir != "asc" {
+		t.Errorf("Expected default sort_dir to be 'asc', got %s", settings.SortDir)
+	}
+
+	// Test updating settings
+	err = s.UpdateSeriesSettings(1, 1, "path", "desc")
+	if err != nil {
+		t.Fatalf("UpdateSeriesSettings failed: %v", err)
+	}
+
+	settings, err = s.GetSeriesSettings(1, 1)
+	if err != nil {
+		t.Fatalf("GetSeriesSettings failed after update: %v", err)
+	}
+	if settings.SortBy != "path" {
+		t.Errorf("Expected sort_by to be 'path', got %s", settings.SortBy)
+	}
+	if settings.SortDir != "desc" {
+		t.Errorf("Expected sort_dir to be 'desc', got %s", settings.SortDir)
+	}
+}

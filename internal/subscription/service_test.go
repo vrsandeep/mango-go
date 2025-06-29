@@ -46,6 +46,9 @@ func setupTestApp(t *testing.T) *core.App {
 	}
 }
 func TestSubscriptionService(t *testing.T) {
+	// Clear the provider registry before each test
+	providers.UnregisterAll()
+
 	app := setupTestApp(t)
 	st := store.New(app.DB)
 

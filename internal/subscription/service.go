@@ -88,15 +88,19 @@ func (s *Service) CheckSingleSubscription(subID int64) {
 	}
 
 	// Filter out chapters that are already in the queue
-	// and that were published after the subscription was created.
+	// and that were published after the subscription was last checked or created.
 	var newChapters []models.ChapterResult
 	for _, remoteChapter := range remoteChapters {
 		// Check if chapter is already queued
 		if _, exists := existingSet[remoteChapter.Identifier]; exists {
 			continue
 		}
-		// Check if chapter was published after the subscription was created.
-		if remoteChapter.PublishedAt.After(sub.CreatedAt) {
+		// Check if chapter was published after the subscription was last checked or created.
+		lastCheckedAt := sub.LastCheckedAt
+		if lastCheckedAt == nil {
+			lastCheckedAt = &sub.CreatedAt
+		}
+		if remoteChapter.PublishedAt.After(*lastCheckedAt) {
 			newChapters = append(newChapters, remoteChapter)
 		}
 	}
