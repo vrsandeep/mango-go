@@ -159,6 +159,10 @@ func (s *Server) Router() http.Handler {
 		http.ServeFile(w, r, "./web/reader.html")
 	})
 
+	r.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./web/static/images/favicon.ico")
+	})
+
 	// Add a redirect from the root to the main library page
 	r.Get("/", http.RedirectHandler("/library", http.StatusMovedPermanently).ServeHTTP)
 
