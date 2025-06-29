@@ -495,7 +495,7 @@ func (s *Store) DeleteCompletedQueueItems() error {
 
 // EmptyQueue removes all items from the queue that are not completed or in progress.
 func (s *Store) EmptyQueue() error {
-	query := "DELETE FROM download_queue WHERE status = 'queued' OR status = 'failed'"
+	query := "DELETE FROM download_queue WHERE status = 'queued' OR status = 'failed' OR status = 'paused'"
 	_, err := s.db.Exec(query)
 	return err
 }
