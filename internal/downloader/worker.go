@@ -17,7 +17,7 @@ import (
 
 	"github.com/vrsandeep/mango-go/internal/core"
 	"github.com/vrsandeep/mango-go/internal/downloader/providers"
-	"github.com/vrsandeep/mango-go/internal/library"
+	"github.com/vrsandeep/mango-go/internal/jobs"
 	"github.com/vrsandeep/mango-go/internal/models"
 	"github.com/vrsandeep/mango-go/internal/store"
 	"github.com/vrsandeep/mango-go/internal/websocket"
@@ -81,8 +81,7 @@ func worker(id int, app *core.App, st *store.Store) {
 			st.UpdateQueueItemStatus(job.ID, "completed", "Download finished successfully.")
 			// Trigger a library scan to pick up the new chapter
 			go func() {
-				scanner := library.NewScanner(app.Config, app.DB)
-				scanner.Scan(nil, nil)
+				jobs.RunIncrementalScan(app)
 			}()
 		}
 	}
