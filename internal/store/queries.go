@@ -36,10 +36,15 @@ func (s *Store) ListSeries(userID int64, page, perPage int, search, sortBy, sort
         SELECT
             s.id, s.title, s.path, s.thumbnail, s.custom_cover_url, s.created_at, s.updated_at,
             s.total_chapters,
-            (SELECT COUNT(*) FROM chapters c2
-             JOIN user_chapter_progress ucp2 ON c2.id = ucp2.chapter_id
-             WHERE c2.series_id = s.id AND ucp2.user_id = ? AND ucp2.read = 1) as read_chapters
+			COALESCE(ucp_counts.read_count, 0) as read_chapters
         FROM series s
+        LEFT JOIN (
+            SELECT c.series_id, COUNT(ucp.chapter_id) as read_count
+            FROM user_chapter_progress ucp
+            JOIN chapters c ON ucp.chapter_id = c.id
+            WHERE ucp.user_id = ? AND ucp.read = 1
+            GROUP BY c.series_id
+        ) ucp_counts ON s.id = ucp_counts.series_id
     `
 	args = append(args, userID)
 	if search != "" {
@@ -56,7 +61,7 @@ func (s *Store) ListSeries(userID int64, page, perPage int, search, sortBy, sort
 	case "updated_at":
 		query += fmt.Sprintf(" ORDER BY s.updated_at %s", sortDir)
 	case "progress":
-		query += fmt.Sprintf(" ORDER BY CASE WHEN s.total_chapters > 0 THEN CAST((SELECT COUNT(*) FROM chapters c2 JOIN user_chapter_progress ucp2 ON c2.id = ucp2.chapter_id WHERE c2.series_id = s.id AND ucp2.user_id = %d AND ucp2.read = 1) AS REAL) / s.total_chapters ELSE 0 END %s, s.title ASC", userID, sortDir)
+		query += fmt.Sprintf(" ORDER BY CASE WHEN s.total_chapters > 0 THEN CAST(ucp_counts.read_count AS REAL) / s.total_chapters ELSE 0 END %s, s.title ASC", sortDir)
 	default:
 		query += fmt.Sprintf(" ORDER BY s.title %s", sortDir)
 	}
@@ -104,6 +109,8 @@ func (s *Store) GetSeriesByID(id int64, userID int64, page, perPage int, search,
 	series.Thumbnail = thumb.String
 	series.CustomCoverURL = customCover.String
 	series.Tags, _ = s.getTagsForSeries(id)
+	// Fetch per-user settings
+	series.Settings, _ = s.GetSeriesSettings(id, userID)
 
 	// Fetch total chapters count
 	totalChapters := series.TotalChapters
@@ -133,7 +140,9 @@ func (s *Store) getChaptersForSeries(seriesId int64, userID int64, page, perPage
 		SELECT c.id, c.path, c.page_count,
 		       COALESCE(ucp.read, 0) as read,
 		       COALESCE(ucp.progress_percent, 0) as progress_percent,
-		       c.thumbnail
+		       c.thumbnail,
+			   c.created_at,
+			   c.updated_at
 		FROM chapters c
 		LEFT JOIN user_chapter_progress ucp ON c.id = ucp.chapter_id AND ucp.user_id = ?
 		WHERE c.series_id = ?
@@ -170,7 +179,7 @@ func (s *Store) getChaptersForSeries(seriesId int64, userID int64, page, perPage
 	for rows.Next() {
 		var chapter models.Chapter
 		var chapThumb sql.NullString
-		if err := rows.Scan(&chapter.ID, &chapter.Path, &chapter.PageCount, &chapter.Read, &chapter.ProgressPercent, &chapThumb); err != nil {
+		if err := rows.Scan(&chapter.ID, &chapter.Path, &chapter.PageCount, &chapter.Read, &chapter.ProgressPercent, &chapThumb, &chapter.CreatedAt, &chapter.UpdatedAt); err != nil {
 			return nil, err
 		}
 		chapter.Thumbnail = chapThumb.String
@@ -234,31 +243,19 @@ func (s *Store) GetChapterByID(id int64, userID int64) (*models.Chapter, error) 
 		SELECT c.id, c.series_id, c.path, c.page_count,
 		       COALESCE(ucp.read, 0) as read,
 		       COALESCE(ucp.progress_percent, 0) as progress_percent,
-		       c.thumbnail
+		       c.thumbnail,
+			   c.created_at,
+			   c.updated_at
 		FROM chapters c
 		LEFT JOIN user_chapter_progress ucp ON c.id = ucp.chapter_id AND ucp.user_id = ?
 		WHERE c.id = ?
 	`
-	err := s.db.QueryRow(query, userID, id).Scan(&chapter.ID, &chapter.SeriesID, &chapter.Path, &chapter.PageCount, &chapter.Read, &chapter.ProgressPercent, &thumb)
+	err := s.db.QueryRow(query, userID, id).Scan(&chapter.ID, &chapter.SeriesID, &chapter.Path, &chapter.PageCount, &chapter.Read, &chapter.ProgressPercent, &thumb, &chapter.CreatedAt, &chapter.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
 	chapter.Thumbnail = thumb.String
 	return &chapter, nil
-}
-
-// UpdateChapterProgress updates the reading progress for a given chapter.
-func (s *Store) UpdateChapterProgress(chapterID int64, userID int64, progressPercent int, read bool) error {
-	query := `
-		INSERT INTO user_chapter_progress (user_id, chapter_id, progress_percent, read, updated_at)
-		VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-		ON CONFLICT(user_id, chapter_id) DO UPDATE SET
-			progress_percent = excluded.progress_percent,
-			read = excluded.read,
-			updated_at = CURRENT_TIMESTAMP;
-	`
-	_, err := s.db.Exec(query, userID, chapterID, progressPercent, read)
-	return err
 }
 
 func (s *Store) getTagsForSeries(seriesID int64) ([]*models.Tag, error) {
@@ -420,10 +417,15 @@ func (s *Store) ListSeriesByTagID(tagID int64, userID int64, page, perPage int, 
 	// --- Main Query ---
 	query := `
         SELECT s.id, s.title, s.path, s.thumbnail, s.custom_cover_url, s.created_at, s.updated_at, s.total_chapters,
-               (SELECT COUNT(*) FROM chapters c2
-                JOIN user_chapter_progress ucp2 ON c2.id = ucp2.chapter_id
-                WHERE c2.series_id = s.id AND ucp2.user_id = ? AND ucp2.read = 1) as read_chapters
+               COALESCE(ucp_counts.read_count, 0) as read_chapters
         FROM series s
+        LEFT JOIN (
+            SELECT c.series_id, COUNT(ucp.chapter_id) as read_count
+            FROM user_chapter_progress ucp
+            JOIN chapters c ON ucp.chapter_id = c.id
+            WHERE ucp.user_id = ? AND ucp.read = 1
+            GROUP BY c.series_id
+        ) ucp_counts ON s.id = ucp_counts.series_id
         JOIN series_tags st ON s.id = st.series_id
         WHERE st.tag_id = ?
     `
@@ -442,7 +444,7 @@ func (s *Store) ListSeriesByTagID(tagID int64, userID int64, page, perPage int, 
 		query += fmt.Sprintf(" ORDER BY s.updated_at %s", sortDir)
 	case "progress":
 		// Avoid division by zero
-		query += fmt.Sprintf(" ORDER BY CASE WHEN s.total_chapters > 0 THEN CAST((SELECT COUNT(*) FROM chapters c2 JOIN user_chapter_progress ucp2 ON c2.id = ucp2.chapter_id WHERE c2.series_id = s.id AND ucp2.user_id = %d AND ucp2.read = 1) AS REAL) / s.total_chapters ELSE 0 END %s, s.title ASC", userID, sortDir)
+		query += fmt.Sprintf(" ORDER BY CASE WHEN s.total_chapters > 0 THEN CAST(ucp_counts.read_count AS REAL) / s.total_chapters ELSE 0 END %s, s.title ASC", sortDir)
 	default: // "title"
 		query += fmt.Sprintf(" ORDER BY s.title %s", sortDir)
 	}

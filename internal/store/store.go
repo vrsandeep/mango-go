@@ -108,6 +108,20 @@ func (s *Store) MarkAllChaptersAs(seriesID int64, read bool, userID int64) error
 	return nil
 }
 
+// UpdateChapterProgress updates the reading progress for a given chapter.
+func (s *Store) UpdateChapterProgress(chapterID int64, userID int64, progressPercent int, read bool) error {
+	query := `
+		INSERT INTO user_chapter_progress (user_id, chapter_id, progress_percent, read, updated_at)
+		VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+		ON CONFLICT(user_id, chapter_id) DO UPDATE SET
+			progress_percent = excluded.progress_percent,
+			read = excluded.read,
+			updated_at = CURRENT_TIMESTAMP;
+	`
+	_, err := s.db.Exec(query, userID, chapterID, progressPercent, read)
+	return err
+}
+
 // AddOrUpdateChapter adds a chapter or updates its page count if it already exists.
 // It uses the file path as a unique identifier for the chapter.
 // This operation must be done in a transaction.
@@ -318,7 +332,11 @@ func (s *Store) UpdateAllSeriesThumbnails() error {
 // GetSeriesSettings retrieves the sort settings for a series.
 func (s *Store) GetSeriesSettings(seriesID int64, userID int64) (*models.SeriesSettings, error) {
 	var settings models.SeriesSettings
-	err := s.db.QueryRow("SELECT sort_by, sort_dir FROM user_series_settings WHERE series_id = ? AND user_id = ?", seriesID, userID).Scan(&settings.SortBy, &settings.SortDir)
+	err := s.db.QueryRow(`
+		SELECT sort_by, sort_dir
+		FROM user_series_settings
+		WHERE series_id = ? AND user_id = ?
+	`, seriesID, userID).Scan(&settings.SortBy, &settings.SortDir)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			// Return default settings if not found

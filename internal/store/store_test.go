@@ -305,3 +305,31 @@ func TestSeriesSettings(t *testing.T) {
 		t.Errorf("Expected sort_dir to be 'desc', got %s", settings.SortDir)
 	}
 }
+
+func TestUpdateChapterProgress(t *testing.T) {
+	db := testutil.SetupTestDB(t)
+	populateDB(t, db)
+	s := New(db)
+
+	chapterID := int64(1)
+	newProgress := 50
+	newReadStatus := true
+
+	err := s.UpdateChapterProgress(chapterID, 1, newProgress, newReadStatus)
+	if err != nil {
+		t.Fatalf("UpdateChapterProgress failed: %v", err)
+	}
+
+	// Verify that the data was updated correctly
+	chapter, err := s.GetChapterByID(chapterID, 1)
+	if err != nil {
+		t.Fatalf("Failed to get chapter after update: %v", err)
+	}
+
+	if chapter.ProgressPercent != newProgress {
+		t.Errorf("Expected progress_percent to be %d, got %d", newProgress, chapter.ProgressPercent)
+	}
+	if chapter.Read != newReadStatus {
+		t.Errorf("Expected read status to be %t, got %t", newReadStatus, chapter.Read)
+	}
+}

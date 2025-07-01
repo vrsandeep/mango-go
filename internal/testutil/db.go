@@ -2,8 +2,10 @@ package testutil
 
 import (
 	"database/sql"
+	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -20,6 +22,19 @@ const (
 	tinyPNG_D = "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNkYPhfz0AEYBxVSF+FAP5FDvcfRYWgAAAAAElFTkSuQmCC" // Blue
 	tinyPNG_E = "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mP8/5+hnoEIwDiqkL4KAcT9GO0U4BxoAAAAAElFTkSuQmCC" // Yellow
 )
+
+// findProjectRoot walks up from the current file to find the project root directory.
+func findProjectRoot() (string, error) {
+	_, b, _, _ := runtime.Caller(0)
+	currentDir := filepath.Dir(b)
+	for i := 0; i < 5; i++ { // Limit search to 5 levels up to prevent infinite loops
+		if _, err := os.Stat(filepath.Join(currentDir, "go.mod")); err == nil {
+			return currentDir, nil
+		}
+		currentDir = filepath.Dir(currentDir)
+	}
+	return "", fmt.Errorf("could not find project root containing go.mod")
+}
 
 // SetupTestDB creates an in-memory SQLite database and applies all migrations.
 // It returns the database connection, ready for use in tests.
@@ -42,6 +57,11 @@ func SetupTestDB(t *testing.T) *sql.DB {
 	t.Cleanup(func() {
 		db.Close()
 	})
+	projectRoot, err := findProjectRoot()
+	if err != nil {
+		t.Fatalf("Failed to setup test DB: %v", err)
+	}
+	migrationsPath := filepath.Join(projectRoot, "migrations")
 
 	// Get a migration driver instance
 	driver, err := sqlite3.WithInstance(db, &sqlite3.Config{})
@@ -51,7 +71,8 @@ func SetupTestDB(t *testing.T) *sql.DB {
 
 	// We need to find the migrations directory. This path assumes tests are run
 	// from a package two levels deep (e.g., internal/api). Adjust if needed.
-	m, err := migrate.NewWithDatabaseInstance("file://../../migrations", "sqlite3", driver)
+	// m, err := migrate.NewWithDatabaseInstance("file://../../migrations", "sqlite3", driver)
+	m, err := migrate.NewWithDatabaseInstance(fmt.Sprintf("file://%s", migrationsPath), "sqlite3", driver)
 	if err != nil {
 		t.Fatalf("Failed to create migrate instance: %v", err)
 	}

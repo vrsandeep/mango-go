@@ -59,6 +59,7 @@ func (s *Server) Router() http.Handler {
 		r.Get("/api/users/me", s.handleGetMe)
 
 		r.Route("/api", func(r chi.Router) {
+			r.Get("/home", s.handleGetHomePageData)
 
 			r.Get("/series", s.handleListSeries)
 			r.Get("/series/{seriesID}", s.handleGetSeries)
