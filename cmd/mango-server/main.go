@@ -59,6 +59,9 @@ func main() {
 	// Start periodic scanning in the background
 	scanner := library.NewScanner(app.Config, app.DB)
 	go func() {
+		scanner.Scan(nil, nil)
+	}()
+	go func() {
 		ticker := time.NewTicker(time.Duration(app.Config.ScanInterval) * time.Minute)
 		for range ticker.C {
 			log.Println("Performing periodic library scan...")
