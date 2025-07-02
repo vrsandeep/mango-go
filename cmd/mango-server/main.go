@@ -1,10 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/vrsandeep/mango-go/internal/api"
@@ -20,6 +24,9 @@ import (
 )
 
 func main() {
+	log.SetOutput(os.Stdout)
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
 	// Initialize the core application components
 	app, err := core.New()
 	if err != nil {
@@ -77,12 +84,35 @@ func main() {
 	// Setup the API server
 	server := api.NewServer(app)
 	addr := fmt.Sprintf(":%d", app.Config.Port)
-	log.Printf("Starting web server on %s", addr)
-
-	// Start the HTTP server
-	if err := http.ListenAndServe(addr, server.Router()); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+	httpServer := &http.Server{
+		Addr:    addr,
+		Handler: server.Router(),
 	}
+	// --- Graceful Shutdown ---
+	// Start the server in a goroutine so it doesn't block.
+	go func() {
+		log.Printf("Starting web server on %s", httpServer.Addr)
+		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Could not start server: %v", err)
+		}
+	}()
+
+	// Wait for an interrupt signal.
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	log.Println("Shutting down server...")
+
+	// Create a context with a timeout to allow existing connections to finish.
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Attempt a graceful shutdown.
+	if err := httpServer.Shutdown(ctx); err != nil {
+		log.Fatalf("Server forced to shutdown: %v", err)
+	}
+
+	log.Println("Server exiting.")
 }
 
 func generateRandomPassword(length int) string {

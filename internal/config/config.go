@@ -3,6 +3,8 @@ package config
 
 import (
 	// use Viper for loading the config.yml file.
+	"strings"
+
 	"github.com/spf13/viper"
 )
 
@@ -25,6 +27,13 @@ func Load() (*Config, error) {
 	viper.SetConfigName("config") // name of config file (without extension)
 	viper.SetConfigType("yml")    // or "yaml"
 	viper.AddConfigPath(".")      // looking for config in the current directory
+
+	// --- Environment Variable Overrides ---
+	// This tells Viper to look for environment variables with a "MANGO_" prefix.
+	// e.g., MANGO_DATABASE_PATH will override the `database.path` key.
+	viper.SetEnvPrefix("MANGO")
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	viper.AutomaticEnv()
 
 	// Set default values
 	viper.SetDefault("port", 8080)

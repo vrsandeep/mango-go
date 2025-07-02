@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  mango:
+    build: .
+    container_name: mango-go
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - GIN_MODE=release
+      # Override the database and library paths to point to the mounted volumes.
+      - MANGO_DATABASE_PATH=/app/data/mango.db
+      - MANGO_LIBRARY_PATH=/manga
+      # You can also override the port, e.g., - MANGO_PORT=80
+
+    # Volumes for persistent data. This ensures your database and library
+    # are not lost when the container is stopped or updated.
+    volumes:
+      # Mount a local directory named 'data' into the container at /app/data
+      # This will store the SQLite database and any other app data.
+      - ./data:/app/data
+      # Mount your actual manga library on your host machine to /manga inside the container.
+      - ./manga:/manga
+
+networks:
+  default:
+    name: mango-network

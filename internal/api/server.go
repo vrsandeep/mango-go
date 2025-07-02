@@ -172,6 +172,14 @@ func (s *Server) Router() http.Handler {
 		http.ServeFile(w, r, "./web/static/images/favicon.ico")
 	})
 
+	r.Get("/api/health", func(w http.ResponseWriter, r *http.Request) {
+		if err := s.db.Ping(); err != nil {
+			RespondWithError(w, http.StatusServiceUnavailable, "Database connection failed")
+			return
+		}
+		RespondWithJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	})
+
 	return r
 }
 
