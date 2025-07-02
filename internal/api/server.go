@@ -144,6 +144,14 @@ func (s *Server) Router() http.Handler {
 		http.ServeFile(w, r, "./web/chapters.html")
 	})
 
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./web/home.html")
+	})
+
+	r.Get("/library", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./web/series.html")
+	})
+
 	r.Get("/library", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "./web/series.html")
 	})
@@ -163,9 +171,6 @@ func (s *Server) Router() http.Handler {
 	r.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "./web/static/images/favicon.ico")
 	})
-
-	// Add a redirect from the root to the main library page
-	r.Get("/", http.RedirectHandler("/library", http.StatusMovedPermanently).ServeHTTP)
 
 	return r
 }

@@ -1,0 +1,47 @@
+.home-section {
+    margin-bottom: 3rem;
+}
+
+.home-section h2 {
+    margin-bottom: 1rem;
+    font-size: 1.5rem;
+}
+
+.horizontal-scroll-container {
+    display: flex;
+    overflow-x: auto;
+    gap: 1.5rem;
+    padding-bottom: 1.5rem; /* For scrollbar spacing */
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent-color) var(--btn-bg);
+}
+
+/* Hide scrollbar for Webkit browsers but keep functionality */
+.horizontal-scroll-container::-webkit-scrollbar {
+    height: 8px;
+}
+.horizontal-scroll-container::-webkit-scrollbar-track {
+    background: var(--btn-bg);
+    border-radius: 4px;
+}
+.horizontal-scroll-container::-webkit-scrollbar-thumb {
+    background-color: var(--accent-color);
+    border-radius: 4px;
+}
+
+.home-section .item-card {
+    flex: 0 0 160px; /* Prevent cards from shrinking */
+    width: 160px;
+}
+
+.badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background-color: var(--accent-color);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}

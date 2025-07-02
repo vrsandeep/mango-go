@@ -3,9 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manga Library</title>
-    <link rel="stylesheet" href="https://unpkg.com/phosphor-icons@1.4.2/src/css/icons.css">
+    <title>Home - Mango</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="[https://unpkg.com/phosphor-icons@1.4.2/src/css/icons.css](https://unpkg.com/phosphor-icons@1.4.2/src/css/icons.css)">
+    <link rel="stylesheet" href="/static/css/common.css">
     <link rel="stylesheet" href="/static/css/library_grid.css">
+    <link rel="stylesheet" href="/static/css/home.css">
 </head>
 <body>
     <header class="main-header">
@@ -13,8 +16,8 @@
             <button class="menu-toggle" id="menu-toggle-btn"><i class="ph-bold ph-list"></i></button>
             <nav class="nav-links" id="nav-links">
                 <div class="sidebar-logo">
-                  <img src="/static/images/logo.svg" alt="Mango Logo" class="header-logo">
                   <!-- <svg class="header-logo" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM4 4h16v11.17l-3.17-3.17-2 2-3-3-3.17 3.17L4 12.34V4z"/></svg> -->
+                  <img src="/static/images/logo.svg" alt="Mango Logo" class="header-logo">
                 </div>
                 <a href="/">Home</a>
                 <a href="/library">Library</a>
@@ -37,37 +40,13 @@
             <button id="logout-btn" class="auth-only" style="display: none;">Logout</button>
         </div>
     </header>
-
-    <main class="container">
-        <h1>Library</h1>
-        <span id="total-count" class="total-count"></span>
-        <div class="library-controls">
-            <div class="search-bar">
-                <input type="search" id="search-input" placeholder="Search series...">
-            </div>
-            <div class="sort-controls">
-                <span>Sort by:</span>
-                <select id="sort-by">
-                    <option value="title">Name</option>
-                    <option value="updated_at">Date Modified</option>
-                    <option value="progress">Progress</option>
-                </select>
-                <button id="sort-dir-btn">▲</button>
-            </div>
-        </div>
-        <div class="grid" id="cards-grid"></div>
-        <div class="pagination-container" id="pagination-container"></div>
-        <!-- <div class="footer">
-            <button id="load-more-btn">Load More</button>
-        </div> -->
+    <main class="container" id="home-container">
+        <!-- Sections will be rendered here by JS -->
+        <p>Loading your personalized home page...</p>
     </main>
-
-    <footer class="main-footer">
-        <span id="version-footer"></span>
-    </footer>
+    <footer class="main-footer"><span id="version-footer"></span></footer>
     <script src="/static/js/header.js"></script>
     <script src="/static/js/auth.js"></script>
-    <script src="/static/js/series.js"></script>
-    <script src="/static/js/library_grid.js"></script>
+    <script src="/static/js/home.js"></script>
 </body>
 </html>

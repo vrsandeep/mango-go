@@ -101,7 +101,6 @@ func (s *Store) GetNextUp(userID int64, limit int) ([]*models.HomeSectionItem, e
 			sortBy = settings.SortBy
 			sortDir = settings.SortDir
 		}
-		log.Printf("GetNextUp: sortBy: %s, sortDir: %s", sortBy, sortDir)
 		series, _, err := s.GetSeriesByID(seriesID, userID, 1, 9999, "", sortBy, sortDir) // Fetch all chapters
 		if err != nil {
 			log.Printf("GetNextUp: could not get series by ID %d: %v", seriesID, err)
