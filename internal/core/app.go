@@ -2,6 +2,7 @@ package core
 
 import (
 	"database/sql"
+	"embed"
 	"fmt"
 	"log"
 
@@ -19,11 +20,13 @@ type App struct {
 	DB      *sql.DB
 	WsHub   *websocket.Hub
 	Version string
+	WebFS        embed.FS
+	MigrationsFS embed.FS
 }
 
 // New sets up and returns a new App instance. It handles loading the
 // configuration, initializing the database connection, and running migrations.
-func New() (*App, error) {
+func New(webFS, migrationsFS embed.FS) (*App, error) {
 	// Load configuration from config.yml
 	cfg, err := config.Load()
 	if err != nil {
@@ -37,7 +40,7 @@ func New() (*App, error) {
 	}
 
 	// Run database migrations
-	if err := db.RunMigrations(database); err != nil {
+	if err := db.RunMigrations(database, migrationsFS); err != nil {
 		// We can't proceed without a valid database schema.
 		// Close the DB connection before failing.
 		database.Close()
@@ -55,6 +58,8 @@ func New() (*App, error) {
 		DB:      database,
 		WsHub:   hub,
 		Version: Version,
+		WebFS:        webFS,
+		MigrationsFS: migrationsFS,
 	}, nil
 }
 

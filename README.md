@@ -1,7 +1,12 @@
 ### Mango-Go
 This project is a rewrite of the self-hosted manga server and web reader, [Mango](https://github.com/vrsandeep/Mango/), from Crystal into the Go programming language. The goal is to create a modern, performant, and easy-to-maintain application that retains the core functionality of the original while leveraging the strengths of Go's ecosystem.
 
-## Production Deployment (Docker)
+
+## Installation & Usage
+
+There are two primary ways to run Mango-Go: via Docker (recommended for production) or as a single, standalone binary.
+
+### Option 1: Production Deployment (Docker)
 
 The recommended way to run Mango-Go in production is by using Docker and Docker Compose. This ensures a consistent, secure, and easily manageable setup.
 
@@ -49,6 +54,36 @@ The recommended way to run Mango-Go in production is by using Docker and Docker 
 
 5.  **Access Mango-Go:**
     Open your web browser and navigate to `http://localhost:8080`. Log in with the admin credentials. It is highly recommended to change this password immediately via the Admin > User Management page.
+
+### Option 2: Standalone Binary (Local/Manual Deployment)
+
+The application can be compiled into a single, portable binary file that contains all necessary web assets and migrations. This is great for quick local use or for deploying on systems without Docker.
+
+1.  **Build the Binary:**
+    From the root of the project directory, run the following command:
+    ```sh
+    go build -o mango-server ./cmd/mango-server
+    ```
+    This will create an executable file named `mango-server` (or `mango-server.exe` on Windows).
+
+2.  **Configure:**
+    Create a `config.yml` file in the same directory as the `mango-server` binary. You can also use environment variables (see `config.yml.example`).
+    ```yml
+    # config.yml
+    library:
+      path: "/path/to/your/manga"
+    database:
+      path: "./mango.db"
+    port: 8080
+    ```
+
+3.  **Run the Application:**
+    Simply execute the binary:
+    ```sh
+    ./mango-server
+    ```
+    The application will start, and you can access it at `http://localhost:8080`. All data, including the database, will be stored in the same directory.
+
 
 ### Data Persistence
 

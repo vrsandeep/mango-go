@@ -18,27 +18,17 @@ COPY . .
 # -ldflags "-w -s": Strips debugging information, reducing the binary size.
 # CGO_ENABLED=1: Required for the go-sqlite3 driver.
 RUN CGO_ENABLED=1 go build -ldflags="-w -s" -o /mango-server ./cmd/mango-server
+# RUN CGO_ENABLED=0 go build -tags "sqlite_omit_load_extension" -ldflags="-w -s" -o /mango-server ./cmd/mango-server
 
-FROM alpine:latest
+FROM scratch
+# FROM alpine:latest
 
-# Install runtime dependencies. ca-certificates is needed for making HTTPS requests (e.g., to MangaDex).
-# sqlite is needed for the database driver.
-RUN apk add --no-cache ca-certificates sqlite
+COPY --from=builder /mango-server /mango-server
 
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
-
-WORKDIR /app
-
-COPY --from=builder /mango-server /usr/local/bin/mango-server
-COPY web ./web
-COPY migrations ./migrations
-COPY config.yml .
-
-RUN mkdir /app/data && chown -R appuser:appgroup /app/data
-RUN chown -R appuser:appgroup /app
-
-USER appuser
+# Copy the CA certificates, which are necessary for making HTTPS requests
+# (e.g., to the MangaDex API).
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 EXPOSE 8080
 
-ENTRYPOINT ["mango-server"]
+CMD ["/mango-server"]

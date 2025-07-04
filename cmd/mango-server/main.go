@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"embed"
 	"fmt"
 	"log"
 	"math/rand"
@@ -23,16 +24,24 @@ import (
 	"github.com/vrsandeep/mango-go/internal/subscription"
 )
 
+// --- Asset Embedding ---
+//go:embed all:web
+var webFS embed.FS
+
+//go:embed all:migrations
+var migrationsFS embed.FS
+
 func main() {
 	log.SetOutput(os.Stdout)
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
 	// Initialize the core application components
-	app, err := core.New()
+	app, err := core.New(webFS, migrationsFS)
 	if err != nil {
 		log.Fatalf("Fatal error during application setup: %v", err)
 	}
 	defer app.Close()
+
 
 	// --- First User Provisioning ---
 	st := store.New(app.DB)

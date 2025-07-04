@@ -5,9 +5,13 @@ package api
 
 import (
 	"database/sql"
+	"io"
+	"io/fs"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -19,7 +23,6 @@ import (
 // Server holds the dependencies for our API.
 type Server struct {
 	app *core.App
-	// config *config.Config
 	db    *sql.DB
 	store *store.Store
 }
@@ -28,7 +31,6 @@ type Server struct {
 func NewServer(app *core.App) *Server {
 	return &Server{
 		app: app,
-		// config: cfg,
 		db:    app.DB,
 		store: store.New(app.DB),
 	}
@@ -115,63 +117,6 @@ func (s *Server) Router() http.Handler {
 		s.app.WsHub.ServeWs(w, r)
 	})
 
-	// Frontend Routes
-	r.Get("/login", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "./web/login.html")
-	})
-	r.Get("/admin/users", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "./web/admin_users.html")
-	})
-
-	// Downloader Frontend Routes
-	r.Route("/downloads", func(r chi.Router) {
-		r.Get("/plugins", func(w http.ResponseWriter, r *http.Request) {
-			http.ServeFile(w, r, "./web/plugins.html")
-		})
-		r.Get("/manager", func(w http.ResponseWriter, r *http.Request) {
-			http.ServeFile(w, r, "./web/download_manager.html")
-		})
-		r.Get("/subscriptions", func(w http.ResponseWriter, r *http.Request) {
-			http.ServeFile(w, r, "./web/subscription_manager.html")
-		})
-	})
-
-	r.Get("/admin", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "./web/admin.html")
-	})
-
-	r.Get("/series/{seriesID}", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "./web/chapters.html")
-	})
-
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "./web/home.html")
-	})
-
-	r.Get("/library", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "./web/series.html")
-	})
-
-	r.Get("/library", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "./web/series.html")
-	})
-
-	// Tag Frontend Routes
-	r.Get("/tags", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "./web/tags.html")
-	})
-	r.Get("/tags/{tagID}", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "./web/tag_series.html")
-	})
-
-	r.Get("/reader/series/{seriesID}/chapters/{chapterID}", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "./web/reader.html")
-	})
-
-	r.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "./web/static/images/favicon.ico")
-	})
-
 	r.Get("/api/health", func(w http.ResponseWriter, r *http.Request) {
 		if err := s.db.Ping(); err != nil {
 			RespondWithError(w, http.StatusServiceUnavailable, "Database connection failed")
@@ -179,6 +124,53 @@ func (s *Server) Router() http.Handler {
 		}
 		RespondWithJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
+
+	// Frontend Routes
+	webSubFS, err := fs.Sub(s.app.WebFS, "web")
+	if err != nil {
+		log.Fatalf("Failed to create web sub-filesystem: %v", err)
+	}
+
+	// Create a file server for the static assets within the embedded FS.
+	staticFS, err := fs.Sub(webSubFS, "static")
+	if err != nil {
+		log.Fatalf("Failed to create static sub-filesystem: %v", err)
+	}
+	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
+
+	// Serve the favicon from the embedded FS.
+	r.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		file, _ := staticFS.Open("images/favicon.ico")
+		defer file.Close()
+		http.ServeContent(w, r, "favicon.ico", time.Time{}, file.(io.ReadSeeker))
+	})
+
+	// Serve all the HTML pages from the root of the embedded web FS.
+	htmlHandler := func(w http.ResponseWriter, r *http.Request) {
+		// Default to serving index.html (our home page)
+		filePath := "home.html"
+
+		// Determine which HTML file to serve based on the URL path
+		if strings.HasPrefix(r.URL.Path, "/login") { filePath = "login.html" }
+		if strings.HasPrefix(r.URL.Path, "/library") { filePath = "series.html" }
+		if strings.HasPrefix(r.URL.Path, "/series/") { filePath = "chapters.html" }
+		if strings.HasPrefix(r.URL.Path, "/tags") { filePath = "tags.html" }
+		if strings.HasPrefix(r.URL.Path, "/tags/") { filePath = "tag_series.html" }
+		if strings.HasPrefix(r.URL.Path, "/downloads/plugins") { filePath = "plugins.html" }
+		if strings.HasPrefix(r.URL.Path, "/downloads/manager") { filePath = "download_manager.html" }
+		if strings.HasPrefix(r.URL.Path, "/downloads/subscriptions") { filePath = "subscription_manager.html" }
+		if strings.HasPrefix(r.URL.Path, "/admin") { filePath = "admin.html" }
+		if strings.HasPrefix(r.URL.Path, "/admin/users") { filePath = "admin_users.html" }
+		if strings.HasPrefix(r.URL.Path, "/reader/") { filePath = "reader.html" }
+
+		file, err := webSubFS.Open(filePath)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		http.ServeContent(w, r, filePath, time.Time{}, file.(io.ReadSeeker))
+	}
+	r.Get("/*", htmlHandler)
 
 	return r
 }
