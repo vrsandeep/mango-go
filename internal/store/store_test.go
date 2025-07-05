@@ -1,7 +1,7 @@
 // This new test file covers all the data access layer functions.
 // It uses an in-memory SQLite database to ensure tests are fast and isolated.
 
-package store
+package store_test
 
 import (
 	"database/sql"
@@ -11,13 +11,14 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/vrsandeep/mango-go/internal/models"
+	"github.com/vrsandeep/mango-go/internal/store"
 	"github.com/vrsandeep/mango-go/internal/testutil"
 )
 
 func TestGetOrCreateSeries(t *testing.T) {
 	db := testutil.SetupTestDB(t)
 	defer db.Close()
-	s := New(db)
+	s := store.New(db)
 
 	tx, err := db.Begin()
 	if err != nil {
@@ -50,7 +51,7 @@ func TestGetOrCreateSeries(t *testing.T) {
 func TestAddOrUpdateChapter(t *testing.T) {
 	db := testutil.SetupTestDB(t)
 	defer db.Close()
-	s := New(db)
+	s := store.New(db)
 
 	tx, err := db.Begin()
 	if err != nil {
@@ -134,7 +135,7 @@ func TestDeleteEmptySeries(t *testing.T) {
 	s, seriesID, _, _ := setupFullTestDB(t, db)
 
 	// Delete the chapter to make the series empty
-	s.db.Exec("DELETE FROM chapters WHERE series_id = ?", seriesID)
+	db.Exec("DELETE FROM chapters WHERE series_id = ?", seriesID)
 
 	err := s.DeleteEmptySeries()
 	if err != nil {
@@ -150,7 +151,7 @@ func TestDeleteEmptySeries(t *testing.T) {
 	if chapterCount != 0 {
 		t.Errorf("Expected 0 chapters in series after deletion, got %d", chapterCount)
 	}
-	err = s.db.QueryRow("SELECT id FROM series WHERE id = ?", seriesID).Scan(&series)
+	err = db.QueryRow("SELECT id FROM series WHERE id = ?", seriesID).Scan(&series)
 	if err != sql.ErrNoRows {
 		t.Errorf("Expected series with ID %d to be deleted, but it still exists", seriesID)
 	}
@@ -178,7 +179,7 @@ func TestUpdateAllSeriesThumbnails(t *testing.T) {
 
 	// Set a custom thumbnail on the first chapter
 	firstChapterThumb := "data:image/jpeg;base64,first"
-	s.db.Exec("UPDATE chapters SET thumbnail = ? WHERE id = 1", firstChapterThumb)
+	db.Exec("UPDATE chapters SET thumbnail = ? WHERE id = 1", firstChapterThumb)
 
 	err := s.UpdateAllSeriesThumbnails()
 	if err != nil {
@@ -195,9 +196,9 @@ func TestUpdateAllSeriesThumbnails(t *testing.T) {
 }
 
 // Helper to set up a more complete DB state for tests
-func setupFullTestDB(t *testing.T, db *sql.DB) (*Store, int64, int64, string) {
+func setupFullTestDB(t *testing.T, db *sql.DB) (*store.Store, int64, int64, string) {
 	t.Helper()
-	s := New(db)
+	s := store.New(db)
 	res, _ := db.Exec(`INSERT INTO series (id, title, path, created_at, updated_at) VALUES (1, 'Test Series', '/path/a', ?, ?)`, time.Now(), time.Now())
 	seriesID, _ := res.LastInsertId()
 	chapterPath := "/path/a/ch1.cbz"
@@ -209,7 +210,7 @@ func setupFullTestDB(t *testing.T, db *sql.DB) (*Store, int64, int64, string) {
 
 func TestAddChaptersToQueue(t *testing.T) {
 	db := testutil.SetupTestDB(t)
-	s := New(db)
+	s := store.New(db)
 	chapters := []models.ChapterResult{
 		{Identifier: "q-ch1", Title: "Chapter 1"},
 		{Identifier: "q-ch2", Title: "Chapter 2"},
@@ -229,7 +230,7 @@ func TestAddChaptersToQueue(t *testing.T) {
 
 func TestSubscribeToSeries(t *testing.T) {
 	db := testutil.SetupTestDB(t)
-	s := New(db)
+	s := store.New(db)
 
 	subscription, err := s.SubscribeToSeries("Sub Manga", "sub-id-1", "mockadex")
 	if err != nil {
@@ -260,56 +261,10 @@ func TestSubscribeToSeries(t *testing.T) {
 	}
 }
 
-func TestSeriesSettings(t *testing.T) {
-	db := testutil.SetupTestDB(t)
-	defer db.Close()
-	s := New(db)
-
-	// Create a test user and series
-	_, err := db.Exec(`INSERT INTO users (id, username, password_hash, role, created_at) VALUES (1, 'testuser', 'password', 'user', CURRENT_TIMESTAMP)`)
-	if err != nil {
-		t.Fatalf("Failed to create test user: %v", err)
-	}
-
-	_, err = db.Exec(`INSERT INTO series (id, title, path, created_at, updated_at) VALUES (1, 'Test Series', '/path/to/series', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`)
-	if err != nil {
-		t.Fatalf("Failed to create test series: %v", err)
-	}
-
-	// Test default settings
-	settings, err := s.GetSeriesSettings(1, 1)
-	if err != nil {
-		t.Fatalf("GetSeriesSettings failed: %v", err)
-	}
-	if settings.SortBy != "auto" {
-		t.Errorf("Expected default sort_by to be 'auto', got %s", settings.SortBy)
-	}
-	if settings.SortDir != "asc" {
-		t.Errorf("Expected default sort_dir to be 'asc', got %s", settings.SortDir)
-	}
-
-	// Test updating settings
-	err = s.UpdateSeriesSettings(1, 1, "path", "desc")
-	if err != nil {
-		t.Fatalf("UpdateSeriesSettings failed: %v", err)
-	}
-
-	settings, err = s.GetSeriesSettings(1, 1)
-	if err != nil {
-		t.Fatalf("GetSeriesSettings failed after update: %v", err)
-	}
-	if settings.SortBy != "path" {
-		t.Errorf("Expected sort_by to be 'path', got %s", settings.SortBy)
-	}
-	if settings.SortDir != "desc" {
-		t.Errorf("Expected sort_dir to be 'desc', got %s", settings.SortDir)
-	}
-}
-
 func TestUpdateChapterProgress(t *testing.T) {
 	db := testutil.SetupTestDB(t)
 	populateDB(t, db)
-	s := New(db)
+	s := store.New(db)
 
 	chapterID := int64(1)
 	newProgress := 50

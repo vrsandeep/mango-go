@@ -1,9 +1,11 @@
 // This file contains tests for the metadata extraction logic.
 
-package library
+package library_test
 
 import (
 	"testing"
+
+	"github.com/vrsandeep/mango-go/internal/library"
 )
 
 func TestExtractMetadataFromPath(t *testing.T) {
@@ -40,7 +42,7 @@ func TestExtractMetadataFromPath(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			series, chapter := ExtractMetadataFromPath(tc.filePath, tc.libraryPath)
+			series, chapter := library.ExtractMetadataFromPath(tc.filePath, tc.libraryPath)
 			if series != tc.expectedSeries {
 				t.Errorf("Expected series '%s', but got '%s'", tc.expectedSeries, series)
 			}

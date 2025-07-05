@@ -1,17 +1,18 @@
 // Verify all subscription-related database functions.
 
-package store
+package store_test
 
 import (
 	"testing"
 	"time"
 
+	"github.com/vrsandeep/mango-go/internal/store"
 	"github.com/vrsandeep/mango-go/internal/testutil"
 )
 
 func TestSubscriptionStore(t *testing.T) {
 	db := testutil.SetupTestDB(t)
-	s := New(db)
+	s := store.New(db)
 
 	// Add subscriptions for testing
 	sub1, _ := s.SubscribeToSeries("Manga A", "id-a", "p1")
@@ -80,9 +81,9 @@ func TestSubscriptionStore(t *testing.T) {
 	})
 
 	t.Run("Get Chapter Identifiers In Queue", func(t *testing.T) {
-		s.db.Exec("INSERT INTO download_queue (series_title, chapter_identifier, provider_id, chapter_title, created_at) VALUES ('Manga C', 'ch-id-1', 'p3', 'Ch 1', ?)", time.Now())
-		s.db.Exec("INSERT INTO download_queue (series_title, chapter_identifier, provider_id, chapter_title, created_at) VALUES ('Manga C', 'ch-id-2', 'p3', 'Ch 2', ?)", time.Now())
-		s.db.Exec("INSERT INTO download_queue (series_title, chapter_identifier, provider_id, chapter_title, created_at) VALUES ('Manga D', 'ch-id-3', 'p4', 'Ch 3', ?)", time.Now())
+		db.Exec("INSERT INTO download_queue (series_title, chapter_identifier, provider_id, chapter_title, created_at) VALUES ('Manga C', 'ch-id-1', 'p3', 'Ch 1', ?)", time.Now())
+		db.Exec("INSERT INTO download_queue (series_title, chapter_identifier, provider_id, chapter_title, created_at) VALUES ('Manga C', 'ch-id-2', 'p3', 'Ch 2', ?)", time.Now())
+		db.Exec("INSERT INTO download_queue (series_title, chapter_identifier, provider_id, chapter_title, created_at) VALUES ('Manga D', 'ch-id-3', 'p4', 'Ch 3', ?)", time.Now())
 
 		ids, err := s.GetChapterIdentifiersInQueue("Manga C", "p3")
 		if err != nil {

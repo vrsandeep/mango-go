@@ -1,4 +1,4 @@
-package api
+package api_test
 
 import (
 	"bytes"
@@ -7,17 +7,19 @@ import (
 	"testing"
 
 	"github.com/vrsandeep/mango-go/internal/store"
+	"github.com/vrsandeep/mango-go/internal/testutil"
 )
 
 func TestHandleMarkAllAs(t *testing.T) {
-	server, db := setupTestServer(t)
+	server, db := testutil.SetupTestServer(t)
 	router := server.Router()
 	s := store.New(db)
+	testutil.PersistOneSeriesAndChapter(t, db)
 
 	t.Run("Mark all as read", func(t *testing.T) {
 		payload := `{"read": true}`
 		req, _ := http.NewRequest("POST", "/api/series/1/mark-all-as", bytes.NewBufferString(payload))
-		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
+		req.AddCookie(testutil.CookieForUser(t, server, "testuser", "password", "user"))
 		req.Header.Set("Content-Type", "application/json")
 
 		rr := httptest.NewRecorder()
@@ -56,7 +58,7 @@ func TestHandleMarkAllAs(t *testing.T) {
 
 		payload := `{"read": false}`
 		req, _ := http.NewRequest("POST", "/api/series/1/mark-all-as", bytes.NewBufferString(payload))
-		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
+		req.AddCookie(testutil.CookieForUser(t, server, "testuser", "password", "user"))
 		req.Header.Set("Content-Type", "application/json")
 
 		rr := httptest.NewRecorder()

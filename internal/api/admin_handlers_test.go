@@ -1,17 +1,19 @@
-package api
+package api_test
 
 import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/vrsandeep/mango-go/internal/testutil"
 )
 
 func TestAdminHandlers(t *testing.T) {
-	server, _ := setupTestServer(t) // This helper sets up a test server and DB
+	server, _ := testutil.SetupTestServer(t) // This helper sets up a test server and DB
 	router := server.Router()
 
-	adminCookie := GetAuthCookie(t, server, "testadmin", "password", "admin")
-	userCookie := GetAuthCookie(t, server, "testuser", "password", "user")
+	adminCookie := testutil.GetAuthCookie(t, server, "testadmin", "password", "admin")
+	userCookie := testutil.GetAuthCookie(t, server, "testuser", "password", "user")
 
 	testCases := []struct {
 		name     string

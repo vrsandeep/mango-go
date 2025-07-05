@@ -1,15 +1,16 @@
-package store
+package store_test
 
 import (
 	"testing"
 	"time"
 
+	"github.com/vrsandeep/mango-go/internal/store"
 	"github.com/vrsandeep/mango-go/internal/testutil"
 )
 
 func TestListTagsWithCounts(t *testing.T) {
 	db := testutil.SetupTestDB(t)
-	s := New(db)
+	s := store.New(db)
 
 	// db.Exec("INSERT INTO series (id, title, path) VALUES (1, 'Series A', '/a')")
 	db.Exec(`INSERT INTO series (id, title, path, created_at, updated_at)
@@ -35,7 +36,7 @@ func TestListTagsWithCounts(t *testing.T) {
 
 func TestListSeriesByTagID(t *testing.T) {
 	db := testutil.SetupTestDB(t)
-	s := New(db)
+	s := store.New(db)
 
 	db.Exec(`INSERT INTO series (id, title, path, created_at, updated_at) VALUES (1, 'Series A', '/a', ?, ?)`, time.Now(), time.Now())
 	db.Exec("INSERT INTO series (id, title, path, created_at, updated_at) VALUES (2, 'Series B', '/b', ?, ?)", time.Now(), time.Now())

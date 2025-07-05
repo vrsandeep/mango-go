@@ -9,9 +9,6 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
-	"os"
-	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -25,6 +22,11 @@ type Server struct {
 	app *core.App
 	db    *sql.DB
 	store *store.Store
+}
+
+// Store returns the store instance.
+func (s *Server) Store() *store.Store {
+	return s.store
 }
 
 // NewServer creates a new Server instance.
@@ -46,10 +48,6 @@ func (s *Server) Router() http.Handler {
 	r.Use(middleware.Recoverer) // Recovers from panics
 	r.Use(middleware.Timeout(60 * time.Second))
 
-	// Add a file server for the /static directory
-	workDir, _ := os.Getwd()
-	filesDir := http.Dir(filepath.Join(workDir, "web", "static"))
-	FileServer(r, "/static", filesDir)
 
 	// API routes
 	r.Post("/api/users/login", s.handleLogin)
@@ -145,32 +143,33 @@ func (s *Server) Router() http.Handler {
 		http.ServeContent(w, r, "favicon.ico", time.Time{}, file.(io.ReadSeeker))
 	})
 
-	// Serve all the HTML pages from the root of the embedded web FS.
-	htmlHandler := func(w http.ResponseWriter, r *http.Request) {
-		// Default to serving index.html (our home page)
-		filePath := "home.html"
-
-		// Determine which HTML file to serve based on the URL path
-		if strings.HasPrefix(r.URL.Path, "/login") { filePath = "login.html" }
-		if strings.HasPrefix(r.URL.Path, "/library") { filePath = "series.html" }
-		if strings.HasPrefix(r.URL.Path, "/series/") { filePath = "chapters.html" }
-		if strings.HasPrefix(r.URL.Path, "/tags") { filePath = "tags.html" }
-		if strings.HasPrefix(r.URL.Path, "/tags/") { filePath = "tag_series.html" }
-		if strings.HasPrefix(r.URL.Path, "/downloads/plugins") { filePath = "plugins.html" }
-		if strings.HasPrefix(r.URL.Path, "/downloads/manager") { filePath = "download_manager.html" }
-		if strings.HasPrefix(r.URL.Path, "/downloads/subscriptions") { filePath = "subscription_manager.html" }
-		if strings.HasPrefix(r.URL.Path, "/admin") { filePath = "admin.html" }
-		if strings.HasPrefix(r.URL.Path, "/admin/users") { filePath = "admin_users.html" }
-		if strings.HasPrefix(r.URL.Path, "/reader/") { filePath = "reader.html" }
-
-		file, err := webSubFS.Open(filePath)
-		if err != nil {
-			http.NotFound(w, r)
-			return
+	// This handler serves a specific HTML file from the embedded FS.
+	serveHTML := func(fileName string) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			file, err := webSubFS.Open(fileName)
+			if err != nil {
+				http.NotFound(w, r)
+				log.Printf("Error serving embedded file %s: %v", fileName, err)
+				return
+			}
+			http.ServeContent(w, r, fileName, time.Time{}, file.(io.ReadSeeker))
 		}
-		http.ServeContent(w, r, filePath, time.Time{}, file.(io.ReadSeeker))
 	}
-	r.Get("/*", htmlHandler)
+
+	r.Get("/", serveHTML("home.html"))
+	r.Get("/login", serveHTML("login.html"))
+	r.Get("/library", serveHTML("series.html"))
+	r.Get("/tags", serveHTML("tags.html"))
+	r.Get("/admin", serveHTML("admin.html"))
+	r.Get("/admin/users", serveHTML("admin_users.html"))
+	r.Get("/downloads/plugins", serveHTML("plugins.html"))
+	r.Get("/downloads/manager", serveHTML("download_manager.html"))
+	r.Get("/downloads/subscriptions", serveHTML("subscription_manager.html"))
+
+	// Dynamic routes that serve a specific base HTML file
+	r.Get("/series/{id}", serveHTML("chapters.html"))
+	r.Get("/tags/{id}", serveHTML("tag_series.html"))
+	r.Get("/reader/series/{seriesID}/chapters/{chapterID}", serveHTML("reader.html"))
 
 	return r
 }

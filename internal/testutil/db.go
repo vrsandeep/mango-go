@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/sqlite3"
@@ -61,7 +62,7 @@ func SetupTestDB(t *testing.T) *sql.DB {
 	if err != nil {
 		t.Fatalf("Failed to setup test DB: %v", err)
 	}
-	migrationsPath := filepath.Join(projectRoot, "migrations")
+	migrationsPath := filepath.Join(projectRoot, "cmd", "mango-server", "migrations")
 
 	// Get a migration driver instance
 	driver, err := sqlite3.WithInstance(db, &sqlite3.Config{})
@@ -100,4 +101,26 @@ func SetupTestLibraryAndDB(t *testing.T) (string, *sql.DB) {
 	CreateTestCBZWithThumbnail(t, seriesADir, "ch2.cbz", []string{"pageB1.jpg"}, tinyPNG_B)
 
 	return rootDir, db
+}
+
+func PersistOneSeriesAndChapter(t *testing.T, db *sql.DB){
+	t.Helper()
+
+	// Create a temporary directory for test archives
+	tempDir := t.TempDir()
+
+	// Populate database with test data
+	series1Path := filepath.Join(tempDir, "Series 1")
+	os.Mkdir(series1Path, 0755)
+	chapter1Path := CreateTestCBZ(t, series1Path, "ch1.cbz", []string{"page1.jpg", "page2.jpg"})
+
+	_, err := db.Exec(`INSERT INTO series (id, title, path, created_at, updated_at) VALUES (1, 'Series 1', ?, ?, ?)`, series1Path, time.Now(), time.Now())
+	if err != nil {
+		t.Fatalf("Failed to insert test series: %v", err)
+	}
+	_, err = db.Exec(`INSERT INTO chapters (id, series_id, path, page_count, created_at, updated_at) VALUES (1, 1, ?, 2, ?, ?)`, chapter1Path, time.Now(), time.Now())
+	if err != nil {
+		t.Fatalf("Failed to insert test chapter: %v", err)
+	}
+
 }

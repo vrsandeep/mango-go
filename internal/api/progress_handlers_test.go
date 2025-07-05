@@ -1,4 +1,4 @@
-package api
+package api_test
 
 import (
 	"bytes"
@@ -9,17 +9,19 @@ import (
 
 	"github.com/vrsandeep/mango-go/internal/models"
 	"github.com/vrsandeep/mango-go/internal/store"
+	"github.com/vrsandeep/mango-go/internal/testutil"
 )
 
 // test file dedicated to the new progress-related API endpoints.
 func TestHandleGetChapterDetails(t *testing.T) {
-	server, _ := setupTestServer(t)
+	server, db := testutil.SetupTestServer(t)
 	router := server.Router()
+	testutil.PersistOneSeriesAndChapter(t, db)
 
 	t.Run("Success", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/api/series/1/chapters/1", nil)
 		rr := httptest.NewRecorder()
-		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
+		req.AddCookie(testutil.CookieForUser(t, server, "testuser", "password", "user"))
 		router.ServeHTTP(rr, req)
 
 		if status := rr.Code; status != http.StatusOK {
@@ -42,7 +44,7 @@ func TestHandleGetChapterDetails(t *testing.T) {
 	t.Run("Not Found", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/api/series/1/chapters/999", nil)
 		rr := httptest.NewRecorder()
-		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
+		req.AddCookie(testutil.CookieForUser(t, server, "testuser", "password", "user"))
 		router.ServeHTTP(rr, req)
 		if status := rr.Code; status != http.StatusNotFound {
 			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusNotFound)
@@ -51,15 +53,16 @@ func TestHandleGetChapterDetails(t *testing.T) {
 }
 
 func TestHandleUpdateProgress(t *testing.T) {
-	server, db := setupTestServer(t)
+	server, db := testutil.SetupTestServer(t)
 	router := server.Router()
 	s := store.New(db)
+	testutil.PersistOneSeriesAndChapter(t, db)
 
 	t.Run("Success", func(t *testing.T) {
 		payload := `{"progress_percent": 75, "read": true}`
 		req, _ := http.NewRequest("POST", "/api/chapters/1/progress", bytes.NewBufferString(payload))
 		req.Header.Set("Content-Type", "application/json")
-		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
+		req.AddCookie(testutil.CookieForUser(t, server, "testuser", "password", "user"))
 
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
@@ -85,7 +88,7 @@ func TestHandleUpdateProgress(t *testing.T) {
 		payload := `{"invalid_json": true}`
 		req, _ := http.NewRequest("POST", "/api/chapters/1/progress", bytes.NewBufferString(payload))
 		req.Header.Set("Content-Type", "application/json")
-		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
+		req.AddCookie(testutil.CookieForUser(t, server, "testuser", "password", "user"))
 
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
@@ -103,7 +106,7 @@ func TestHandleUpdateProgress(t *testing.T) {
 		payload := `{"progress_percent": 75,`
 		req, _ := http.NewRequest("POST", "/api/chapters/1/progress", bytes.NewBufferString(payload))
 		req.Header.Set("Content-Type", "application/json")
-		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
+		req.AddCookie(testutil.CookieForUser(t, server, "testuser", "password", "user"))
 
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)

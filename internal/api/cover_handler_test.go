@@ -1,4 +1,4 @@
-package api
+package api_test
 
 import (
 	"bytes"
@@ -7,26 +7,14 @@ import (
 	"testing"
 
 	"github.com/vrsandeep/mango-go/internal/store"
+	"github.com/vrsandeep/mango-go/internal/testutil"
 )
 
-func CookieForUser(t *testing.T, server *Server, username, password, role string) *http.Cookie {
-	t.Helper()
-	cookie := GetAuthCookie(t, server, username, password, role)
-	if cookie == nil {
-		t.Fatal("Failed to get session cookie after successful login for test user")
-	}
-	// on cleanup, delete the user
-	t.Cleanup(func() {
-		user, _ := server.store.GetUserByUsername(username)
-		server.store.DeleteUser(user.ID)
-	})
-	return cookie
-}
-
 func TestHandleUpdateCover(t *testing.T) {
-	server, db := setupTestServer(t) // This helper is in handlers_test.go
+	server, db := testutil.SetupTestServer(t) // This helper is in handlers_test.go
 	router := server.Router()
 	s := store.New(db)
+	testutil.PersistOneSeriesAndChapter(t, db)
 
 	t.Run("Success", func(t *testing.T) {
 		newCoverURL := "http://example.com/new_cover.jpg"
@@ -34,7 +22,7 @@ func TestHandleUpdateCover(t *testing.T) {
 
 		req, _ := http.NewRequest("POST", "/api/series/1/cover", bytes.NewBufferString(payload))
 		req.Header.Set("Content-Type", "application/json")
-		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
+		req.AddCookie(testutil.CookieForUser(t, server, "testuser", "password", "user"))
 
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
@@ -58,7 +46,7 @@ func TestHandleUpdateCover(t *testing.T) {
 
 	t.Run("Invalid Series ID", func(t *testing.T) {
 		req, _ := http.NewRequest("POST", "/api/series/99x9/cover", bytes.NewBufferString(`{"url": "test"}`))
-		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
+		req.AddCookie(testutil.CookieForUser(t, server, "testuser", "password", "user"))
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 
@@ -72,7 +60,7 @@ func TestHandleUpdateCover(t *testing.T) {
 
 	t.Run("Non existent Series", func(t *testing.T) {
 		req, _ := http.NewRequest("POST", "/api/series/9999/cover", bytes.NewBufferString(`{"url": "test"}`))
-		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
+		req.AddCookie(testutil.CookieForUser(t, server, "testuser", "password", "user"))
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 		if status := rr.Code; status != http.StatusNotFound {
@@ -83,7 +71,7 @@ func TestHandleUpdateCover(t *testing.T) {
 	t.Run("Missing URL", func(t *testing.T) {
 		req, _ := http.NewRequest("POST", "/api/series/1/cover", bytes.NewBufferString(`{}`))
 		req.Header.Set("Content-Type", "application/json")
-		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
+		req.AddCookie(testutil.CookieForUser(t, server, "testuser", "password", "user"))
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 		if status := rr.Code; status != http.StatusBadRequest {
@@ -93,7 +81,7 @@ func TestHandleUpdateCover(t *testing.T) {
 
 	t.Run("Malformed JSON", func(t *testing.T) {
 		req, _ := http.NewRequest("POST", "/api/series/1/cover", bytes.NewBufferString(`{"url":`))
-		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
+		req.AddCookie(testutil.CookieForUser(t, server, "testuser", "password", "user"))
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 		if status := rr.Code; status != http.StatusBadRequest {

@@ -1,4 +1,4 @@
-package store
+package store_test
 
 import (
 	"database/sql"
@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrsandeep/mango-go/internal/store"
 	"github.com/vrsandeep/mango-go/internal/testutil"
 )
 
@@ -37,7 +38,7 @@ func TestListSeries(t *testing.T) {
 	db := testutil.SetupTestDB(t)
 	defer db.Close()
 	populateDB(t, db)
-	s := New(db)
+	s := store.New(db)
 
 	t.Run("Without Search", func(t *testing.T) {
 		seriesList, seriesCount, err := s.ListSeries(1, 1, 50, "", "title", "desc")
@@ -104,7 +105,7 @@ func TestGetSeriesByID(t *testing.T) {
 	db := testutil.SetupTestDB(t)
 	defer db.Close()
 	populateDB(t, db)
-	s := New(db)
+	s := store.New(db)
 
 	t.Run("Success", func(t *testing.T) {
 		series, count, err := s.GetSeriesByID(2, 1, 1, 10, "ch1", "path", "asc") // Get Series A
@@ -147,7 +148,7 @@ func TestGetSeriesByID(t *testing.T) {
 
 func TestUpdateSeriesCoverURL(t *testing.T) {
 	db := testutil.SetupTestDB(t)
-	s := New(db)
+	s := store.New(db)
 
 	seriesID := int64(1)
 	newURL := "http://example.com/cover.png"
@@ -188,7 +189,7 @@ func TestGetChapterByID(t *testing.T) {
 	db := testutil.SetupTestDB(t)
 	defer db.Close()
 	populateDB(t, db)
-	s := New(db)
+	s := store.New(db)
 
 	t.Run("Success", func(t *testing.T) {
 		chapter, err := s.GetChapterByID(1, 1) // Get chapter for Series B
@@ -220,7 +221,7 @@ func TestGetChapterByID(t *testing.T) {
 func TestGetAllChapterPaths(t *testing.T) {
 	db := testutil.SetupTestDB(t)
 	setupFullTestDB(t, db) // Use helper from store_test.go
-	s := New(db)
+	s := store.New(db)
 
 	paths, err := s.GetAllChapterPaths()
 	if err != nil {
@@ -237,7 +238,7 @@ func TestGetAllChapterPaths(t *testing.T) {
 func TestGetAllChaptersForThumbnailing(t *testing.T) {
 	db := testutil.SetupTestDB(t)
 	setupFullTestDB(t, db)
-	s := New(db)
+	s := store.New(db)
 
 	chapters, err := s.GetAllChaptersForThumbnailing()
 	if err != nil {

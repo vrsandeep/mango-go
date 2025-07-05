@@ -1,4 +1,4 @@
-package jobs
+package jobs_test
 
 import (
 	"encoding/json"
@@ -8,6 +8,7 @@ import (
 
 	"github.com/vrsandeep/mango-go/internal/config"
 	"github.com/vrsandeep/mango-go/internal/core"
+	"github.com/vrsandeep/mango-go/internal/jobs"
 	"github.com/vrsandeep/mango-go/internal/testutil"
 	"github.com/vrsandeep/mango-go/internal/websocket"
 )
@@ -35,7 +36,7 @@ func TestRunFullScan(t *testing.T) {
 	// Create a temporary directory and add a test CBZ file
 	testutil.CreateTestCBZFile(t, app.Config.Library.Path, "test.cbz")
 	// Run the full scan job
-	go RunFullScan(app)
+	go jobs.RunFullScan(app)
 	// Listen for progress updates with a timeout to prevent the test from hanging
 	var lastUpdate websocket.ProgressUpdate
 	timeout := time.After(5 * time.Second)
@@ -95,7 +96,7 @@ func TestRunIncrementalScan(t *testing.T) {
 	testutil.CreateTestCBZFile(t, seriesDir, newCbzFile)
 
 	// Run the incremental scan job
-	go RunIncrementalScan(app)
+	go jobs.RunIncrementalScan(app)
 	// Listen for progress updates with a timeout to prevent the test from hanging
 	var lastUpdate websocket.ProgressUpdate
 	timeout := time.After(5 * time.Second)

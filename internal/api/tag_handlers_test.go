@@ -1,4 +1,4 @@
-package api
+package api_test
 
 import (
 	"encoding/json"
@@ -8,22 +8,23 @@ import (
 	"time"
 
 	"github.com/vrsandeep/mango-go/internal/models"
+	"github.com/vrsandeep/mango-go/internal/testutil"
 )
 
 func TestTagHandlers(t *testing.T) {
-	server := setupTestServerWithProviders(t)
+	server, db := SetupTestServerWithProviders(t)
 	router := server.Router()
 
 	// Add a dummy series and tag for testing
-	res, _ := server.db.Exec(`INSERT INTO series (id, title, path, created_at, updated_at) VALUES (1, 'Test', '/test', ?, ?)`, time.Now(), time.Now())
+	res, _ := db.Exec(`INSERT INTO series (id, title, path, created_at, updated_at) VALUES (1, 'Test', '/test', ?, ?)`, time.Now(), time.Now())
 	seriesID, _ := res.LastInsertId()
-	res, _ = server.db.Exec("INSERT INTO tags (id, name) VALUES (1, 'action')")
+	res, _ = db.Exec("INSERT INTO tags (id, name) VALUES (1, 'action')")
 	tagID, _ := res.LastInsertId()
-	server.db.Exec("INSERT INTO series_tags (series_id, tag_id) VALUES (?, ?)", seriesID, tagID)
+	db.Exec("INSERT INTO series_tags (series_id, tag_id) VALUES (?, ?)", seriesID, tagID)
 
 	t.Run("List Tags", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/api/tags", nil)
-		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
+		req.AddCookie(testutil.CookieForUser(t, server, "testuser", "password", "user"))
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 
@@ -46,7 +47,7 @@ func TestTagHandlers(t *testing.T) {
 
 	t.Run("List Series By Tag", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/api/tags/1/series", nil)
-		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
+		req.AddCookie(testutil.CookieForUser(t, server, "testuser", "password", "user"))
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 

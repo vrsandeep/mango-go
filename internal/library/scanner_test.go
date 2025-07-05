@@ -1,6 +1,6 @@
 // This file tests the main library scanner.
 
-package library
+package library_test
 
 import (
 	"path/filepath"
@@ -10,6 +10,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/vrsandeep/mango-go/internal/config"
+	"github.com/vrsandeep/mango-go/internal/library"
 	"github.com/vrsandeep/mango-go/internal/store"
 	"github.com/vrsandeep/mango-go/internal/testutil"
 )
@@ -49,7 +50,7 @@ func TestScannerIntegration(t *testing.T) {
 	cfg := &config.Config{Library: struct {
 		Path string `mapstructure:"path"`
 	}{Path: libraryPath}}
-	scanner := NewScanner(cfg, db)
+	scanner := library.NewScanner(cfg, db)
 	if err := scanner.Scan(nil, nil); err != nil {
 		t.Fatalf("scanner.Scan() failed: %v", err)
 	}

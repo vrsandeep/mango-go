@@ -1,16 +1,17 @@
-package store
+package store_test
 
 import (
 	"testing"
 	"time"
 
+	"github.com/vrsandeep/mango-go/internal/store"
 	"github.com/vrsandeep/mango-go/internal/testutil"
 )
 
 func TestGetDownloadQueue(t *testing.T) {
 	db := testutil.SetupTestDB(t)
-	s := New(db)
-	s.db.Exec(`INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Manga', 'Ch 1', 'id1', 'p1', ?, 'queued'), ('Manga', 'Ch 2', 'id2', 'p1', ?, 'in_progress')`, time.Now(), time.Now())
+	s := store.New(db)
+	db.Exec(`INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Manga', 'Ch 1', 'id1', 'p1', ?, 'queued'), ('Manga', 'Ch 2', 'id2', 'p1', ?, 'in_progress')`, time.Now(), time.Now())
 
 	items, err := s.GetDownloadQueue()
 	if err != nil {
@@ -23,8 +24,8 @@ func TestGetDownloadQueue(t *testing.T) {
 
 func TestGetQueuedDownloadItems(t *testing.T) {
 	db := testutil.SetupTestDB(t)
-	s := New(db)
-	s.db.Exec(`INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Manga', 'Ch 1', 'id1', 'p1', ?, 'queued'), ('Manga', 'Ch 2', 'id2', 'p1', ?, 'in_progress')`, time.Now(), time.Now())
+	s := store.New(db)
+	db.Exec(`INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Manga', 'Ch 1', 'id1', 'p1', ?, 'queued'), ('Manga', 'Ch 2', 'id2', 'p1', ?, 'in_progress')`, time.Now(), time.Now())
 
 	items, err := s.GetQueuedDownloadItems(5)
 	if err != nil {
@@ -40,8 +41,8 @@ func TestGetQueuedDownloadItems(t *testing.T) {
 
 func TestUpdateQueueItemStatus(t *testing.T) {
 	db := testutil.SetupTestDB(t)
-	s := New(db)
-	res, _ := s.db.Exec(`INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Manga', 'Ch 1', 'id1', 'p1', ?, 'queued')`, time.Now())
+	s := store.New(db)
+	res, _ := db.Exec(`INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Manga', 'Ch 1', 'id1', 'p1', ?, 'queued')`, time.Now())
 	id, _ := res.LastInsertId()
 
 	err := s.UpdateQueueItemStatus(id, "completed", "Done")
@@ -50,7 +51,7 @@ func TestUpdateQueueItemStatus(t *testing.T) {
 	}
 
 	var status, message string
-	s.db.QueryRow("SELECT status, message FROM download_queue WHERE id = ?", id).Scan(&status, &message)
+	db.QueryRow("SELECT status, message FROM download_queue WHERE id = ?", id).Scan(&status, &message)
 	if status != "completed" || message != "Done" {
 		t.Errorf("Expected status 'completed' and message 'Done', got '%s' and '%s'", status, message)
 	}
@@ -58,8 +59,8 @@ func TestUpdateQueueItemStatus(t *testing.T) {
 
 func TestResetFailedQueueItems(t *testing.T) {
 	db := testutil.SetupTestDB(t)
-	s := New(db)
-	s.db.Exec(`INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Manga', 'Ch 1', 'id1', 'p1', ?, 'failed')`, time.Now())
+	s := store.New(db)
+	db.Exec(`INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Manga', 'Ch 1', 'id1', 'p1', ?, 'failed')`, time.Now())
 
 	err := s.ResetFailedQueueItems()
 	if err != nil {
@@ -67,7 +68,7 @@ func TestResetFailedQueueItems(t *testing.T) {
 	}
 
 	var status string
-	s.db.QueryRow("SELECT status FROM download_queue WHERE id = 1").Scan(&status)
+	db.QueryRow("SELECT status FROM download_queue WHERE id = 1").Scan(&status)
 	if status != "queued" {
 		t.Errorf("Expected status 'queued' after reset, got '%s'", status)
 	}
@@ -75,8 +76,8 @@ func TestResetFailedQueueItems(t *testing.T) {
 
 func TestDeleteCompletedQueueItems(t *testing.T) {
 	db := testutil.SetupTestDB(t)
-	s := New(db)
-	s.db.Exec(`INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Manga', 'Ch 1', 'id1', 'p1', ?, 'completed')`, time.Now())
+	s := store.New(db)
+	db.Exec(`INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Manga', 'Ch 1', 'id1', 'p1', ?, 'completed')`, time.Now())
 
 	err := s.DeleteCompletedQueueItems()
 	if err != nil {
@@ -84,7 +85,7 @@ func TestDeleteCompletedQueueItems(t *testing.T) {
 	}
 
 	var count int
-	s.db.QueryRow("SELECT COUNT(*) FROM download_queue").Scan(&count)
+	db.QueryRow("SELECT COUNT(*) FROM download_queue").Scan(&count)
 	if count != 0 {
 		t.Errorf("Expected queue to be empty, but count is %d", count)
 	}
@@ -92,11 +93,11 @@ func TestDeleteCompletedQueueItems(t *testing.T) {
 
 func TestEmptyQueue(t *testing.T) {
 	db := testutil.SetupTestDB(t)
-	s := New(db)
-	s.db.Exec(`INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Manga', 'Ch 1', 'id1', 'p1', ?, 'queued')`, time.Now())
-	s.db.Exec(`INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Manga', 'Ch 2', 'id2', 'p1', ?, 'failed')`, time.Now())
-	s.db.Exec(`INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Manga', 'Ch 3', 'id3', 'p1', ?, 'in_progress')`, time.Now())
-	s.db.Exec(`INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Manga', 'Ch 4', 'id4', 'p1', ?, 'completed')`, time.Now())
+	s := store.New(db)
+	db.Exec(`INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Manga', 'Ch 1', 'id1', 'p1', ?, 'queued')`, time.Now())
+	db.Exec(`INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Manga', 'Ch 2', 'id2', 'p1', ?, 'failed')`, time.Now())
+	db.Exec(`INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Manga', 'Ch 3', 'id3', 'p1', ?, 'in_progress')`, time.Now())
+	db.Exec(`INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Manga', 'Ch 4', 'id4', 'p1', ?, 'completed')`, time.Now())
 
 	err := s.EmptyQueue()
 	if err != nil {
@@ -104,7 +105,7 @@ func TestEmptyQueue(t *testing.T) {
 	}
 
 	var count int
-	s.db.QueryRow("SELECT COUNT(*) FROM download_queue").Scan(&count)
+	db.QueryRow("SELECT COUNT(*) FROM download_queue").Scan(&count)
 	if count != 2 {
 		t.Errorf("Expected 2 items (in_progress, completed) to remain, but count is %d", count)
 	}

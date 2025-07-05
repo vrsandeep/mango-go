@@ -1,4 +1,4 @@
-package api
+package api_test
 
 import (
 	"bytes"
@@ -9,15 +9,16 @@ import (
 	"testing"
 
 	"github.com/vrsandeep/mango-go/internal/models"
+	"github.com/vrsandeep/mango-go/internal/testutil"
 )
 
 func TestAdminUserHandlers(t *testing.T) {
-	server, _ := setupTestServer(t) // This helper sets up a test server and DB
+	server, db := testutil.SetupTestServer(t) // This helper sets up a test server and DB
 	router := server.Router()
 
 	// Create admin and regular user for testing roles
-	adminCookie := GetAuthCookie(t, server, "testadmin", "password", "admin")
-	userCookie := GetAuthCookie(t, server, "testuser", "password", "user")
+	adminCookie := testutil.GetAuthCookie(t, server, "testadmin", "password", "admin")
+	userCookie := testutil.GetAuthCookie(t, server, "testuser", "password", "user")
 
 	t.Run("Admin can list users", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/api/admin/users", nil)
@@ -73,7 +74,7 @@ func TestAdminUserHandlers(t *testing.T) {
 		}
 		query := "SELECT username, role FROM users WHERE id = ?"
 		var username, role string
-		err := server.db.QueryRow(query, createdUserID).Scan(&username, &role)
+		err := db.QueryRow(query, createdUserID).Scan(&username, &role)
 		if err != nil {
 			t.Fatalf("Failed to query updated user: %v", err)
 		}

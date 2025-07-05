@@ -1,14 +1,16 @@
-package api
+package api_test
 
 // A test file for the downloader API endpoints.
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
+	"github.com/vrsandeep/mango-go/internal/api"
 	"github.com/vrsandeep/mango-go/internal/config"
 	"github.com/vrsandeep/mango-go/internal/core"
 	"github.com/vrsandeep/mango-go/internal/downloader/providers"
@@ -19,7 +21,7 @@ import (
 )
 
 // setupTestServerWithProviders initializes a full core.App and api.Server for integration testing.
-func setupTestServerWithProviders(t *testing.T) *Server {
+func SetupTestServerWithProviders(t *testing.T) (*api.Server, *sql.DB) {
 	t.Helper()
 	hub := websocket.NewHub()
 	go hub.Run()
@@ -51,16 +53,16 @@ func setupTestServerWithProviders(t *testing.T) *Server {
 
 	})
 
-	return NewServer(app)
+	return api.NewServer(app), db
 }
 
 func TestDownloaderHandlers(t *testing.T) {
-	server := setupTestServerWithProviders(t)
+	server, db := SetupTestServerWithProviders(t)
 	router := server.Router()
 
 	t.Run("List Providers", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/api/providers", nil)
-		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
+		req.AddCookie(testutil.CookieForUser(t, server, "testuser", "password", "user"))
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 
@@ -79,7 +81,7 @@ func TestDownloaderHandlers(t *testing.T) {
 
 	t.Run("Provider Search", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/api/providers/mockadex/search?q=manga", nil)
-		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
+		req.AddCookie(testutil.CookieForUser(t, server, "testuser", "password", "user"))
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 
@@ -95,7 +97,7 @@ func TestDownloaderHandlers(t *testing.T) {
 
 	t.Run("Provider Get Chapters", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/api/providers/mockadex/series/mock-series-1", nil)
-		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
+		req.AddCookie(testutil.CookieForUser(t, server, "testuser", "password", "user"))
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 
@@ -110,7 +112,7 @@ func TestDownloaderHandlers(t *testing.T) {
 	})
 
 	t.Run("Add Chapters to Queue", func(t *testing.T) {
-		payload := ChapterQueuePayload{
+		payload := api.ChapterQueuePayload{
 			SeriesTitle: "Test Manga",
 			ProviderID:  "mockadex",
 			Chapters: []models.ChapterResult{
@@ -120,7 +122,7 @@ func TestDownloaderHandlers(t *testing.T) {
 		}
 		body, _ := json.Marshal(payload)
 		req, _ := http.NewRequest("POST", "/api/downloads/queue", bytes.NewBuffer(body))
-		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
+		req.AddCookie(testutil.CookieForUser(t, server, "testuser", "password", "user"))
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 
@@ -129,7 +131,7 @@ func TestDownloaderHandlers(t *testing.T) {
 		}
 
 		var count int
-		server.db.QueryRow("SELECT COUNT(*) FROM download_queue").Scan(&count)
+		db.QueryRow("SELECT COUNT(*) FROM download_queue").Scan(&count)
 		if count != 2 {
 			t.Errorf("Expected 2 items in queue, but found %d", count)
 		}
@@ -137,14 +139,14 @@ func TestDownloaderHandlers(t *testing.T) {
 }
 
 func TestHandleGetDownloadQueue(t *testing.T) {
-	server := setupTestServerWithProviders(t)
+	server, db := SetupTestServerWithProviders(t)
 	router := server.Router()
 
 	// Add a dummy item to the queue
-	server.db.Exec("INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at) VALUES ('Test', 'Ch. 1', 'id1', 'mockadex', ?)", time.Now())
+	db.Exec("INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at) VALUES ('Test', 'Ch. 1', 'id1', 'mockadex', ?)", time.Now())
 
 	req, _ := http.NewRequest("GET", "/api/downloads/queue", nil)
-	req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
+	req.AddCookie(testutil.CookieForUser(t, server, "testuser", "password", "user"))
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
@@ -160,18 +162,18 @@ func TestHandleGetDownloadQueue(t *testing.T) {
 }
 
 func TestHandleQueueAction(t *testing.T) {
-	server := setupTestServerWithProviders(t)
+	server, db := SetupTestServerWithProviders(t)
 	router := server.Router()
 
 	t.Run("Test pause all action", func(t *testing.T) {
 		// Add a dummy item to the queue
-		server.db.Exec("INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at) VALUES ('Test', 'Ch. 1', 'id1', 'mockadex', ?)", time.Now())
+		db.Exec("INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at) VALUES ('Test', 'Ch. 1', 'id1', 'mockadex', ?)", time.Now())
 		payload := struct {
 			Action string `json:"action"`
 		}{Action: "pause_all"}
 		body, _ := json.Marshal(payload)
 		req, _ := http.NewRequest("POST", "/api/downloads/action", bytes.NewBuffer(body))
-		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
+		req.AddCookie(testutil.CookieForUser(t, server, "testuser", "password", "user"))
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 
@@ -186,22 +188,22 @@ func TestHandleQueueAction(t *testing.T) {
 		}
 		// Check db
 		var count int
-		server.db.QueryRow("SELECT COUNT(*) FROM download_queue WHERE status = 'paused'").Scan(&count)
+		db.QueryRow("SELECT COUNT(*) FROM download_queue WHERE status = 'paused'").Scan(&count)
 		if count != 1 {
 			t.Errorf("Expected 1 paused item, got %d", count)
 		}
-		server.db.Exec("DELETE FROM download_queue") // Clean up after test
+		db.Exec("DELETE FROM download_queue") // Clean up after test
 	})
 
 	t.Run("Test resume all action", func(t *testing.T) {
 		// Add a dummy item to the queue
-		server.db.Exec("INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Test', 'Ch. 1', 'id1', 'mockadex', ?, ?)", time.Now(), "paused")
+		db.Exec("INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Test', 'Ch. 1', 'id1', 'mockadex', ?, ?)", time.Now(), "paused")
 		payload := struct {
 			Action string `json:"action"`
 		}{Action: "resume_all"}
 		body, _ := json.Marshal(payload)
 		req, _ := http.NewRequest("POST", "/api/downloads/action", bytes.NewBuffer(body))
-		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
+		req.AddCookie(testutil.CookieForUser(t, server, "testuser", "password", "user"))
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 
@@ -216,23 +218,23 @@ func TestHandleQueueAction(t *testing.T) {
 		}
 		// Check db
 		var count int
-		server.db.QueryRow("SELECT COUNT(*) FROM download_queue WHERE status = 'queued'").Scan(&count)
+		db.QueryRow("SELECT COUNT(*) FROM download_queue WHERE status = 'queued'").Scan(&count)
 		if count != 1 {
 			t.Errorf("Expected 1 queued item, got %d", count)
 		}
-		server.db.Exec("DELETE FROM download_queue") // Clean up after test
+		db.Exec("DELETE FROM download_queue") // Clean up after test
 	})
 
 	t.Run("Test retry failed items", func(t *testing.T) {
 		// Add a failed item to the queue
-		server.db.Exec("INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Test', 'Ch. 2', 'id2', 'mockadex', ?, 'failed')", time.Now())
+		db.Exec("INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Test', 'Ch. 2', 'id2', 'mockadex', ?, 'failed')", time.Now())
 
 		payload := struct {
 			Action string `json:"action"`
 		}{Action: "retry_failed"}
 		body, _ := json.Marshal(payload)
 		req, _ := http.NewRequest("POST", "/api/downloads/action", bytes.NewBuffer(body))
-		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
+		req.AddCookie(testutil.CookieForUser(t, server, "testuser", "password", "user"))
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 
@@ -247,23 +249,23 @@ func TestHandleQueueAction(t *testing.T) {
 		}
 		// Check db
 		var count int
-		server.db.QueryRow("SELECT COUNT(*) FROM download_queue WHERE status = 'queued'").Scan(&count)
+		db.QueryRow("SELECT COUNT(*) FROM download_queue WHERE status = 'queued'").Scan(&count)
 		if count != 1 {
 			t.Errorf("Expected 1 queued item after reset, got %d", count)
 		}
-		server.db.Exec("DELETE FROM download_queue") // Clean up after test
+		db.Exec("DELETE FROM download_queue") // Clean up after test
 	})
 
 	t.Run("Test delete completed items", func(t *testing.T) {
 		// Add a completed item to the queue
-		server.db.Exec("INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Test', 'Ch. 3', 'id3', 'mockadex', ?, 'completed')", time.Now())
+		db.Exec("INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Test', 'Ch. 3', 'id3', 'mockadex', ?, 'completed')", time.Now())
 
 		payload := struct {
 			Action string `json:"action"`
 		}{Action: "delete_completed"}
 		body, _ := json.Marshal(payload)
 		req, _ := http.NewRequest("POST", "/api/downloads/action", bytes.NewBuffer(body))
-		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
+		req.AddCookie(testutil.CookieForUser(t, server, "testuser", "password", "user"))
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 
@@ -278,22 +280,22 @@ func TestHandleQueueAction(t *testing.T) {
 		}
 		// Check db
 		var count int
-		server.db.QueryRow("SELECT COUNT(*) FROM download_queue WHERE status = 'completed'").Scan(&count)
+		db.QueryRow("SELECT COUNT(*) FROM download_queue WHERE status = 'completed'").Scan(&count)
 		if count != 0 {
 			t.Errorf("Expected 0 completed items after deletion, got %d", count)
 		}
-		server.db.Exec("DELETE FROM download_queue") // Clean up after test
+		db.Exec("DELETE FROM download_queue") // Clean up after test
 	})
 
 	t.Run("Empty Queue", func(t *testing.T) {
 		// Add items with various statuses
-		server.db.Exec("INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Manga', 'Ch 1', 'id1', 'p1', ?, 'queued')", time.Now())
-		server.db.Exec("INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Manga', 'Ch 2', 'id2', 'p1', ?, 'failed')", time.Now())
-		server.db.Exec("INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Manga', 'Ch 3', 'id3', 'p1', ?, 'completed')", time.Now())
+		db.Exec("INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Manga', 'Ch 1', 'id1', 'p1', ?, 'queued')", time.Now())
+		db.Exec("INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Manga', 'Ch 2', 'id2', 'p1', ?, 'failed')", time.Now())
+		db.Exec("INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Manga', 'Ch 3', 'id3', 'p1', ?, 'completed')", time.Now())
 
 		payload := `{"action": "empty_queue"}`
 		req, _ := http.NewRequest("POST", "/api/downloads/action", bytes.NewBufferString(payload))
-		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
+		req.AddCookie(testutil.CookieForUser(t, server, "testuser", "password", "user"))
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 
@@ -303,13 +305,13 @@ func TestHandleQueueAction(t *testing.T) {
 
 		// Verify only the 'completed' item remains
 		var count int
-		server.db.QueryRow("SELECT COUNT(*) FROM download_queue").Scan(&count)
+		db.QueryRow("SELECT COUNT(*) FROM download_queue").Scan(&count)
 		if count != 1 {
 			t.Errorf("Expected 1 item to remain in queue, but found %d", count)
 		}
 
 		var status string
-		server.db.QueryRow("SELECT status FROM download_queue").Scan(&status)
+		db.QueryRow("SELECT status FROM download_queue").Scan(&status)
 		if status != "completed" {
 			t.Errorf("The remaining item should have status 'completed', but has '%s'", status)
 		}
@@ -321,7 +323,7 @@ func TestHandleQueueAction(t *testing.T) {
 		}{Action: "invalid_action"}
 		body, _ := json.Marshal(payload)
 		req, _ := http.NewRequest("POST", "/api/downloads/action", bytes.NewBuffer(body))
-		req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
+		req.AddCookie(testutil.CookieForUser(t, server, "testuser", "password", "user"))
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 

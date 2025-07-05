@@ -1,16 +1,17 @@
-package store
+package store_test
 
 import (
 	"testing"
 	"time"
 
 	"github.com/vrsandeep/mango-go/internal/auth"
+	"github.com/vrsandeep/mango-go/internal/store"
 	"github.com/vrsandeep/mango-go/internal/testutil"
 )
 
 func TestUserStore_CreateAndGet(t *testing.T) {
 	db := testutil.SetupTestDB(t)
-	s := New(db)
+	s := store.New(db)
 
 	passwordHash, _ := auth.HashPassword("password123")
 
@@ -54,7 +55,7 @@ func TestUserStore_CreateAndGet(t *testing.T) {
 
 func TestUserStore_UpdateAndDelete(t *testing.T) {
 	db := testutil.SetupTestDB(t)
-	s := New(db)
+	s := store.New(db)
 
 	passwordHash, _ := auth.HashPassword("password123")
 	user, _ := s.CreateUser("userToUpdate", passwordHash, "user")
@@ -96,7 +97,7 @@ func TestUserStore_UpdateAndDelete(t *testing.T) {
 
 func TestUserStore_Sessions(t *testing.T) {
 	db := testutil.SetupTestDB(t)
-	s := New(db)
+	s := store.New(db)
 	passwordHash, _ := auth.HashPassword("password123")
 	user, _ := s.CreateUser("sessionuser", passwordHash, "user")
 
@@ -122,7 +123,7 @@ func TestUserStore_Sessions(t *testing.T) {
 		// Manually insert an expired token
 		expiredToken := "expired-token"
 		expiry := time.Now().Add(-1 * time.Hour)
-		s.db.Exec("INSERT INTO sessions (token, user_id, expiry) VALUES (?, ?, ?)", expiredToken, user.ID, expiry)
+		db.Exec("INSERT INTO sessions (token, user_id, expiry) VALUES (?, ?, ?)", expiredToken, user.ID, expiry)
 
 		_, err := s.GetUserFromSession(expiredToken)
 		if err == nil {
@@ -148,7 +149,7 @@ func TestUserStore_Sessions(t *testing.T) {
 
 func TestUserStore_ListAndCount(t *testing.T) {
 	db := testutil.SetupTestDB(t)
-	s := New(db)
+	s := store.New(db)
 
 	count, err := s.CountUsers()
 	if err != nil {

@@ -1,9 +1,11 @@
-package library
+package library_test
 
 import (
 	"encoding/base64"
 	"strings"
 	"testing"
+
+	"github.com/vrsandeep/mango-go/internal/library"
 )
 
 func TestGenerateThumbnail(t *testing.T) {
@@ -12,7 +14,7 @@ func TestGenerateThumbnail(t *testing.T) {
 	pngData, _ := base64.StdEncoding.DecodeString(validPngB64)
 
 	t.Run("Success case", func(t *testing.T) {
-		thumb, err := GenerateThumbnail(pngData)
+		thumb, err := library.GenerateThumbnail(pngData)
 		if err != nil {
 			t.Fatalf("GenerateThumbnail failed with valid data: %v", err)
 		}
@@ -26,7 +28,7 @@ func TestGenerateThumbnail(t *testing.T) {
 
 	t.Run("Error case with invalid data", func(t *testing.T) {
 		invalidData := []byte("this is not an image")
-		_, err := GenerateThumbnail(invalidData)
+		_, err := library.GenerateThumbnail(invalidData)
 		if err == nil {
 			t.Error("GenerateThumbnail should have failed with invalid data, but it did not")
 		}

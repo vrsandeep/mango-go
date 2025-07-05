@@ -1,4 +1,4 @@
-package api
+package api_test
 
 import (
 	"bytes"
@@ -8,14 +8,15 @@ import (
 	"testing"
 
 	"github.com/vrsandeep/mango-go/internal/models"
+	"github.com/vrsandeep/mango-go/internal/testutil"
 )
 
 func TestAuthHandlers(t *testing.T) {
-	server, _ := setupTestServer(t)
+	server, _ := testutil.SetupTestServer(t)
 	router := server.Router()
 
 	// Pre-create a user for login tests
-	GetAuthCookie(t, server, "testuser", "password123", "user")
+	testutil.GetAuthCookie(t, server, "testuser", "password123", "user")
 
 	t.Run("Successful Login", func(t *testing.T) {
 		payload := `{"username":"testuser", "password":"password123"}`
@@ -59,7 +60,7 @@ func TestAuthHandlers(t *testing.T) {
 
 	t.Run("Get Me (Authenticated)", func(t *testing.T) {
 		// Use the helper to get a valid session cookie
-		userCookie := GetAuthCookie(t, server, "getme_user", "password", "user")
+		userCookie := testutil.GetAuthCookie(t, server, "getme_user", "password", "user")
 
 		if userCookie == nil {
 			t.Fatal("Failed to get session cookie after successful login for getme_user user")
@@ -97,7 +98,7 @@ func TestAuthHandlers(t *testing.T) {
 	})
 
 	t.Run("Successful Logout", func(t *testing.T) {
-		userCookie := GetAuthCookie(t, server, "logout_user", "password", "user")
+		userCookie := testutil.GetAuthCookie(t, server, "logout_user", "password", "user")
 
 		req, _ := http.NewRequest("POST", "/api/users/logout", nil)
 		req.AddCookie(userCookie)

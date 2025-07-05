@@ -1,4 +1,4 @@
-package subscription
+package subscription_test
 
 import (
 	"testing"
@@ -9,6 +9,7 @@ import (
 	"github.com/vrsandeep/mango-go/internal/downloader/providers"
 	"github.com/vrsandeep/mango-go/internal/models"
 	"github.com/vrsandeep/mango-go/internal/store"
+	"github.com/vrsandeep/mango-go/internal/subscription"
 	"github.com/vrsandeep/mango-go/internal/testutil"
 	"github.com/vrsandeep/mango-go/internal/websocket"
 )
@@ -59,7 +60,7 @@ func TestSubscriptionService(t *testing.T) {
 	subTime := time.Now().Add(-1 * time.Hour)
 	app.DB.Exec("INSERT INTO subscriptions (id, series_title, series_identifier, provider_id, created_at) VALUES (?, ?, ?, ?, ?)", 1, "Test Sub", "test-id", "mocksub", subTime)
 
-	service := NewService(app)
+	service := subscription.NewService(app)
 
 	// Run the check for this specific subscription
 	service.CheckSingleSubscription(1)

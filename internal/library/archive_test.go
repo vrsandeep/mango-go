@@ -1,13 +1,15 @@
 // This file tests the archive parsing logic for CBZ and CBR files.
 // It includes a helper function to create a temporary test CBZ file.
 
-package library
+package library_test
 
 import (
 	"archive/zip"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/vrsandeep/mango-go/internal/library"
 )
 
 // createTestCBZ is a helper function that creates a temporary CBZ file
@@ -61,7 +63,7 @@ func TestParseArchive(t *testing.T) {
 	t.Run("Parse Valid CBZ", func(t *testing.T) {
 		cbzPath := createTestCBZ(t, tempDir)
 
-		pages, firstPageData, err := ParseArchive(cbzPath)
+		pages, firstPageData, err := library.ParseArchive(cbzPath)
 		if err != nil {
 			t.Fatalf("ParseArchive failed for CBZ: %v", err)
 		}
@@ -90,7 +92,7 @@ func TestParseArchive(t *testing.T) {
 		unsupportedPath := filepath.Join(tempDir, "test.txt")
 		os.WriteFile(unsupportedPath, []byte("hello"), 0644)
 
-		_, _, err := ParseArchive(unsupportedPath)
+		_, _, err := library.ParseArchive(unsupportedPath)
 		if err == nil {
 			t.Error("Expected an error for unsupported archive type, but got nil")
 		}
@@ -119,7 +121,7 @@ func TestParseCBR(t *testing.T) {
 	// print cbrPath for debugging
 	t.Logf("Testing CBR parsing with file: %s", cbrPath)
 
-	pages, firstPageData, err := ParseArchive(cbrPath)
+	pages, firstPageData, err := library.ParseArchive(cbrPath)
 	if err != nil {
 		t.Fatalf("ParseArchive failed for CBR: %v", err)
 	}
