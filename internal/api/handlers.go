@@ -317,16 +317,17 @@ func (s *Server) handleUpdateProgress(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var payload struct {
-		ProgressPercent int  `json:"progress_percent"`
+		ProgressPercent float32  `json:"progress_percent"`
 		Read            bool `json:"read"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		log.Printf("Invalid request payload: %v", err)
 		return
 	}
 
-	err = s.store.UpdateChapterProgress(chapterID, user.ID, payload.ProgressPercent, payload.Read)
+	err = s.store.UpdateChapterProgress(chapterID, user.ID, int(payload.ProgressPercent), payload.Read)
 	if err != nil {
 		log.Printf("Failed to update progress for chapter %d: %v", chapterID, err)
 		RespondWithError(w, http.StatusInternalServerError, "Failed to update progress")

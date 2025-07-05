@@ -10,7 +10,8 @@ services:
       # Override the database and library paths to point to the mounted volumes.
       - MANGO_DATABASE_PATH=/app/data/mango.db
       - MANGO_LIBRARY_PATH=/manga
-      # You can also override the port, e.g., - MANGO_PORT=80
+      # You can also override the port, e.g.,
+      # - MANGO_PORT=80
 
     # Volumes for persistent data. This ensures your database and library
     # are not lost when the container is stopped or updated.

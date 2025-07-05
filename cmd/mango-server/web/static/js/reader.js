@@ -65,7 +65,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else {
       progress = progressPercent || state.chapterData.progress_percent;
     }
-    const page = Math.ceil((progress / 100) * state.chapterData.page_count);
+    const page = Math.ceil((progress / 100) * state.chapterData.page_count) || 1;
     modalProgress.textContent = `Progress: ${page}/${state.chapterData.page_count} (${progress.toFixed(1)}%)`;
   };
   const findNeighboringChapters = async () => {
@@ -132,7 +132,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else {
       progress = progressPercent || state.chapterData.progress_percent;
     }
-    const page = Math.ceil((progress / 100) * state.chapterData.page_count);
+    const page = Math.ceil((progress / 100) * state.chapterData.page_count) || 1;
     jumpToPageSelect.value = page;
   };
 
@@ -265,7 +265,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   jumpToPageSelect.addEventListener('change', (e) => {
     const pageNum = parseInt(e.target.value, 10);
     if (state.readingMode === 'single_page') {
-      state.currentPage = pageNum;
+      state.currentPage = pageNum || 1;
       updateSinglePageView();
     } else {
       document.getElementById(`page-${pageNum}`).scrollIntoView({ behavior: 'smooth' });
@@ -350,7 +350,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
         window.scrollTo(0, (scrollableHeight * savedProgress) / 100);
       } else {
-        var pageNum = Math.ceil((savedProgress / 100) * state.chapterData.page_count);
+        var pageNum = Math.ceil((savedProgress / 100) * state.chapterData.page_count) || 1;
         jumpToPageSelect.value = pageNum;
         state.currentPage = pageNum;
         updateSinglePageView();

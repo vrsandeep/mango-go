@@ -95,12 +95,12 @@ document.addEventListener('DOMContentLoaded', () => {
     seriesThumbEl.src = url; // Update image on the page immediately
   };
 
-  seriesThumbEl.addEventListener('click', () => {
-    const newUrl = prompt("Enter new cover image URL:", seriesThumbEl.src);
-    if (newUrl && newUrl.trim() !== '') {
-      updateCover(newUrl.trim());
-    }
-  });
+  // seriesThumbEl.addEventListener('click', () => {
+  //   const newUrl = prompt("Enter new cover image URL:", seriesThumbEl.src);
+  //   if (newUrl && newUrl.trim() !== '') {
+  //     updateCover(newUrl.trim());
+  //   }
+  // });
 
   // --- Event Listeners ---
 

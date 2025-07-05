@@ -67,7 +67,7 @@ The application can be compiled into a single, portable binary file that contain
     This will create an executable file named `mango-server` (or `mango-server.exe` on Windows).
 
 2.  **Configure:**
-    Create a `config.yml` file in the same directory as the `mango-server` binary. You can also use environment variables (see `config.yml.example`).
+    Create a `config.yml` file in the same directory as the `mango-server` binary. You can also use environment variables (see `docker-compose.yml`).
     ```yml
     # config.yml
     library:

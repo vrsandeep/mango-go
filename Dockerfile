@@ -18,17 +18,22 @@ COPY . .
 # -ldflags "-w -s": Strips debugging information, reducing the binary size.
 # CGO_ENABLED=1: Required for the go-sqlite3 driver.
 RUN CGO_ENABLED=1 go build -ldflags="-w -s" -o /mango-server ./cmd/mango-server
-# RUN CGO_ENABLED=0 go build -tags "sqlite_omit_load_extension" -ldflags="-w -s" -o /mango-server ./cmd/mango-server
 
-FROM scratch
-# FROM alpine:latest
+# Use alpine as the base image. It's lightweight but contains the necessary
+# runtime libraries (like musl libc) that our binary depends on.
+FROM alpine:latest
 
+# Install runtime dependencies. ca-certificates is needed for making HTTPS requests.
+# sqlite-libs provides the .so files needed by the compiled Go binary.
+RUN apk add --no-cache ca-certificates sqlite-libs
+
+# Copy the compiled binary from the builder stage.
 COPY --from=builder /mango-server /mango-server
 
-# Copy the CA certificates, which are necessary for making HTTPS requests
-# (e.g., to the MangaDex API).
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-
+# Expose the port the application will run on.
 EXPOSE 8080
 
-CMD ["/mango-server"]
+# Set the entrypoint for the container.
+# Note: Since we are not using a non-root user in this simple setup,
+# the binary will run as root. For enhanced security, a non-root user could be added.
+ENTRYPOINT ["/mango-server"]
