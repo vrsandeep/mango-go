@@ -18,6 +18,7 @@ import (
 	"github.com/vrsandeep/mango-go/internal/downloader/providers"
 	"github.com/vrsandeep/mango-go/internal/downloader/providers/mangadex"
 	"github.com/vrsandeep/mango-go/internal/downloader/providers/weebcentral"
+	"github.com/vrsandeep/mango-go/internal/jobs"
 	"github.com/vrsandeep/mango-go/internal/library"
 	"github.com/vrsandeep/mango-go/internal/store"
 	"github.com/vrsandeep/mango-go/internal/subscription"
@@ -60,9 +61,7 @@ func main() {
 
 	// Start periodic scanning in the background
 	scanner := library.NewScanner(app.Config, app.DB)
-	go func() {
-		scanner.Scan(nil, nil)
-	}()
+	go jobs.RunIncrementalScan(app)
 	go func() {
 		ticker := time.NewTicker(time.Duration(app.Config.ScanInterval) * time.Minute)
 		for range ticker.C {

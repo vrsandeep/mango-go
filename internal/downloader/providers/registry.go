@@ -35,7 +35,6 @@ func GetAll() []models.ProviderInfo {
 
 func UnregisterAll() {
 	// Clear the registry
-	// registry = make(map[string]models.Provider)
 	for k := range registry {
 		delete(registry, k)
 	}

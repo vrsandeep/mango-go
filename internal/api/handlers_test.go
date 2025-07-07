@@ -119,7 +119,7 @@ func TestHandleGetPage(t *testing.T) {
 }
 
 func TestServeReaderHTML(t *testing.T) {
-	server := testutil.SetupTestServerEmbedded(t)
+	server, _ := testutil.SetupTestServer(t)
 	router := server.Router()
 
 	// --- Get the expected content directly from the embedded source ---

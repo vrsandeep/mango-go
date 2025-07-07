@@ -72,7 +72,6 @@ func SetupTestDB(t *testing.T) *sql.DB {
 
 	// We need to find the migrations directory. This path assumes tests are run
 	// from a package two levels deep (e.g., internal/api). Adjust if needed.
-	// m, err := migrate.NewWithDatabaseInstance("file://../../migrations", "sqlite3", driver)
 	m, err := migrate.NewWithDatabaseInstance(fmt.Sprintf("file://%s", migrationsPath), "sqlite3", driver)
 	if err != nil {
 		t.Fatalf("Failed to create migrate instance: %v", err)
