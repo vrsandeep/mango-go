@@ -11,6 +11,7 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
+            background-color: var(--bg-color);
         }
         .auth-container {
             width: 100%;
@@ -19,6 +20,8 @@
             background-color: var(--card-bg);
             border-radius: 8px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            border: 1px solid var(--border-color);
+            margin: 0 auto;
         }
         .auth-form h2 {
             text-align: center;
@@ -32,9 +35,11 @@
             display: block;
             margin-bottom: 0.5rem;
             font-weight: 600;
+            color: var(--text-color);
         }
         .form-group input {
             width: 100%;
+            box-sizing: border-box;
             padding: 0.75rem;
             border: 1px solid var(--border-color);
             border-radius: 5px;
@@ -44,15 +49,19 @@
         }
         .auth-form button {
             width: 100%;
+            box-sizing: border-box;
             padding: 0.75rem;
             font-size: 1.1rem;
             font-weight: 600;
             border: none;
             border-radius: 5px;
             background-color: var(--accent-color);
-            color: white;
+            color: var(--text-color);
             cursor: pointer;
             transition: background-color 0.2s;
+            margin-bottom: 1rem;
+            margin-top: 1rem;
+            text-transform: uppercase;
         }
         .auth-form button:hover {
             opacity: 0.9;
@@ -63,11 +72,24 @@
             margin-top: 1rem;
             display: none; /* Hidden by default */
         }
+        .sidebar-logo {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        .sidebar-logo .header-logo {
+            height: 100px;
+            width: 100px;
+        }
     </style>
 </head>
 <body class="dark-theme">
     <div class="auth-container">
         <form class="auth-form" id="login-form">
+            <div class="sidebar-logo">
+                <img src="/static/images/logo.svg" alt="Mango Logo" class="header-logo">
+            </div>
             <h2>Login to Mango</h2>
             <div class="form-group">
                 <label for="username">Username</label>

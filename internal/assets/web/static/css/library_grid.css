@@ -22,8 +22,8 @@ a { color: var(--accent-color); text-decoration: none; }
 }
 .header-logo {
   display: block;
-  height: 36px;
-  width: 36px;
+  height: 48px;
+    width: 48px;
   fill: var(--text-color);
   margin-right: 0.5rem;
 }
@@ -252,6 +252,8 @@ a { color: var(--accent-color); text-decoration: none; }
     z-index: 1002;
   }
   .header-logo {
+    height: 36px;
+      width: 36px;
     display: none;
   }
   .nav-links {
@@ -281,6 +283,8 @@ a { color: var(--accent-color); text-decoration: none; }
   }
   .nav-links .sidebar-logo .header-logo {
     display: block;
+    height: 36px;
+      width: 36px;
   }
   .nav-links a {
     padding: 1rem 1.5rem;
