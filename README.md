@@ -99,14 +99,14 @@ While a `config.yml` file exists, it is best practice to configure the applicati
 #### Project Structure
 The project follows a standard Go layout:
 
-- `/cmd/mango-cli`: The entry point for the command-line application.
 - `/internal`: Contains all the core application logic, separated by concern:
 - `/config`: Configuration loading.
 - `/db`: Database initialization.
 - `/library`: The main library scanning and parsing logic.
 - `/models`: Core data structures.
 - `/store`: The data access layer for all database queries.
-- `/migrations`: SQL files for database schema migrations.
+- `/assets/web`: Contains all the html files powering the front end.
+- `/assets/migrations`: SQL files for database schema migrations.
 
 #### Running Tests
 To run all unit and integration tests, execute the following command from the project root:

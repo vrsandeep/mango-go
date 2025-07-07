@@ -23,9 +23,20 @@ RUN CGO_ENABLED=1 go build -ldflags="-w -s" -o /mango-server .
 # runtime libraries (like musl libc) that our binary depends on.
 FROM alpine:latest
 
+# Create new user and group
+RUN addgroup -S mango && adduser -S mango -G mango
+
+WORKDIR /app
+
 # Install runtime dependencies. ca-certificates is needed for making HTTPS requests.
 # sqlite-libs provides the .so files needed by the compiled Go binary.
 RUN apk add --no-cache ca-certificates sqlite-libs
+
+RUN mkdir /app/data && chown -R mango:mango /app/data
+RUN chown -R mango:mango /app
+
+# Change to the new user and group
+USER mango
 
 # Copy the compiled binary from the builder stage.
 COPY --from=builder /mango-server /mango-server

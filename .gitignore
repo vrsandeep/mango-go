@@ -2,9 +2,7 @@ mango.db
 manga/
 .DS_Store
 .vscode/
+.cursor/
 .idea/
 data/
-
-
-#Ignore cursor AI rules
-.cursor/rules/codacy.mdc
+mango-go

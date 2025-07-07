@@ -87,7 +87,7 @@
         // First, check if the user is already authenticated. If so, redirect them away from the login page.
         checkAuth().then(user => {
             if (user) {
-                window.location.href = '/library';
+                window.location.href = '/';
             }
         });
 
@@ -109,7 +109,7 @@
                 });
 
                 if (response.ok) {
-                    window.location.href = '/library';
+                    window.location.href = '/';
                 } else {
                     const errorData = await response.json();
                     errorMessage.textContent = errorData.error || 'Login failed. Please check your credentials.';
