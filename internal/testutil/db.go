@@ -62,7 +62,7 @@ func SetupTestDB(t *testing.T) *sql.DB {
 	if err != nil {
 		t.Fatalf("Failed to setup test DB: %v", err)
 	}
-	migrationsPath := filepath.Join(projectRoot, "cmd", "mango-server", "migrations")
+	migrationsPath := filepath.Join(projectRoot, "internal", "assets", "migrations")
 
 	// Get a migration driver instance
 	driver, err := sqlite3.WithInstance(db, &sqlite3.Config{})

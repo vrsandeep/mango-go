@@ -5,10 +5,14 @@ package api_test
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strings"
 	"testing"
 
+	"github.com/vrsandeep/mango-go/internal/assets"
 	"github.com/vrsandeep/mango-go/internal/models"
 	"github.com/vrsandeep/mango-go/internal/testutil"
 )
@@ -114,80 +118,80 @@ func TestHandleGetPage(t *testing.T) {
 	})
 }
 
-// test to ensure the reader.html serves chapters correctly.
-// func TestServeReaderHTML(t *testing.T) {
-// 	server, _ := SetupTestServer(t)
-// 	router := server.Router()
+func TestServeReaderHTML(t *testing.T) {
+	server := testutil.SetupTestServerEmbedded(t)
+	router := server.Router()
 
-// 	// The handler's http.ServeFile uses "./web/reader.html", which assumes
-// 	// the app is run from the project root. We must replicate this condition.
-// 	originalWD, err := os.Getwd()
-// 	if err != nil {
-// 		t.Fatalf("Failed to get current working directory: %v", err)
-// 	}
-// 	// Change to project root (which is two levels up from internal/api)
-// 	if err := os.Chdir("../../"); err != nil {
-// 		t.Fatalf("Failed to change directory to project root: %v", err)
-// 	}
-// 	// Ensure we change back to the original directory after the test
-// 	defer os.Chdir(originalWD)
+	// --- Get the expected content directly from the embedded source ---
+	// The path is now relative to the assets package's embed directive.
+	expectedFile, err := assets.WebFS.Open("web/reader.html")
+	if err != nil {
+		t.Fatalf("Could not read embedded reader.html for test comparison: %v", err)
+	}
+	expectedBody, err := io.ReadAll(expectedFile)
+	if err != nil {
+		t.Fatalf("Could not read embedded reader.html content: %v", err)
+	}
 
-// 	// Now that we are in the project root, we can read the actual file.
-// 	expectedBody, err := os.ReadFile("./cmd/mango-server/web/reader.html")
-// 	if err != nil {
-// 		t.Fatalf("Could not read actual reader.html file: %v", err)
-// 	}
+	// --- Perform the request ---
+	req, _ := http.NewRequest("GET", "/reader/series/1/chapters/1", nil)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
 
-// 	// Perform the request
-// 	req, _ := http.NewRequest("GET", "/reader/series/1/chapters/1", nil)
-// 	req.AddCookie(CookieForUser(t, server, "testuser", "password", "user"))
-// 	rr := httptest.NewRecorder()
-// 	router.ServeHTTP(rr, req)
+	// --- Assertions ---
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+	}
 
-// 	// Assertions
-// 	if status := rr.Code; status != http.StatusOK {
-// 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
-// 	}
+	if contentType := rr.Header().Get("Content-Type"); !strings.HasPrefix(contentType, "text/html") {
+		t.Errorf("handler returned wrong content type: got %s want text/html", contentType)
+	}
 
-// 	if contentType := rr.Header().Get("Content-Type"); !strings.HasPrefix(contentType, "text/html") {
-// 		t.Errorf("handler returned wrong content type: got %v want %v", contentType, "text/html")
-// 	}
+	if rr.Body.String() != string(expectedBody) {
+		t.Error("handler returned body that does not match embedded web/reader.html content")
+	}
+}
 
-// 	if rr.Body.String() != string(expectedBody) {
-// 		t.Error("handler returned body that does not match cmd/mango-server/web/reader.html content")
-// 	}
-// }
+// test to ensure the library.html serves series correctly.
+func TestServeLibraryHTML(t *testing.T) {
+	server, _ := testutil.SetupTestServer(t)
+	router := server.Router()
 
-// func TestServeReaderHTML(t *testing.T) {
-// 	server := SetupEmbeddedFSTestServer(t)
-// 	router := server.Router()
+	// The handler's http.ServeFile uses "./web/reader.html", which assumes
+	// the app is run from the project root. We must replicate this condition.
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current working directory: %v", err)
+	}
+	// Change to project root (which is two levels up from internal/api)
+	if err := os.Chdir("../../"); err != nil {
+		t.Fatalf("Failed to change directory to project root: %v", err)
+	}
+	// Ensure we change back to the original directory after the test
+	defer os.Chdir(originalWD)
 
-// 	// --- Get the expected content directly from the embedded source ---
-// 	// This ensures the test is comparing against the exact same data the server uses.
-// 	expectedFile, err := embed.WebFS.Open("web/reader.html")
-// 	if err != nil {
-// 		t.Fatalf("Could not read embedded reader.html for test comparison: %v", err)
-// 	}
-// 	expectedBody, err := io.ReadAll(expectedFile)
-// 	if err != nil {
-// 		t.Fatalf("Could not read embedded reader.html content: %v", err)
-// 	}
+	// Now that we are in the project root, we can read the actual file.
+	expectedBody, err := os.ReadFile("./internal/assets/web/series.html")
+	if err != nil {
+		t.Fatalf("Could not read actual reader.html file: %v", err)
+	}
 
-// 	// --- Perform the request ---
-// 	req, _ := http.NewRequest("GET", "/reader/series/1/chapters/1", nil)
-// 	rr := httptest.NewRecorder()
-// 	router.ServeHTTP(rr, req)
+	// Perform the request
+	req, _ := http.NewRequest("GET", "/library", nil)
+	req.AddCookie(testutil.CookieForUser(t, server, "testuser", "password", "user"))
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
 
-// 	// --- Assertions ---
-// 	if status := rr.Code; status != http.StatusOK {
-// 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
-// 	}
+	// Assertions
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+	}
 
-// 	if contentType := rr.Header().Get("Content-Type"); !strings.HasPrefix(contentType, "text/html") {
-// 		t.Errorf("handler returned wrong content type: got %s want text/html", contentType)
-// 	}
+	if contentType := rr.Header().Get("Content-Type"); !strings.HasPrefix(contentType, "text/html") {
+		t.Errorf("handler returned wrong content type: got %v want %v", contentType, "text/html")
+	}
 
-// 	if rr.Body.String() != string(expectedBody) {
-// 		t.Error("handler returned body that does not match embedded web/reader.html content")
-// 	}
-// }
+	if rr.Body.String() != string(expectedBody) {
+		t.Error("handler returned body that does not match cmd/mango-server/web/reader.html content")
+	}
+}

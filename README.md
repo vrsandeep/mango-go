@@ -62,12 +62,12 @@ The application can be compiled into a single, portable binary file that contain
 1.  **Build the Binary:**
     From the root of the project directory, run the following command:
     ```sh
-    go build -o mango-server ./cmd/mango-server
+    go build -o mango-go .
     ```
-    This will create an executable file named `mango-server` (or `mango-server.exe` on Windows).
+    This will create an executable file named `mango-go` (or `mango-go.exe` on Windows).
 
 2.  **Configure:**
-    Create a `config.yml` file in the same directory as the `mango-server` binary. You can also use environment variables (see `docker-compose.yml`).
+    Create a `config.yml` file in the same directory as the binary. You can also use environment variables (see `docker-compose.yml`).
     ```yml
     # config.yml
     library:
@@ -80,7 +80,7 @@ The application can be compiled into a single, portable binary file that contain
 3.  **Run the Application:**
     Simply execute the binary:
     ```sh
-    ./mango-server
+    ./mango-go
     ```
     The application will start, and you can access it at `http://localhost:8080`. All data, including the database, will be stored in the same directory.
 

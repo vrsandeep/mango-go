@@ -13,6 +13,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/vrsandeep/mango-go/internal/assets"
 	"github.com/vrsandeep/mango-go/internal/core"
 	"github.com/vrsandeep/mango-go/internal/store"
 )
@@ -124,7 +125,7 @@ func (s *Server) Router() http.Handler {
 	})
 
 	// Frontend Routes
-	webSubFS, err := fs.Sub(s.app.WebFS, "web")
+	webSubFS, err := fs.Sub(assets.WebFS, "web")
 	if err != nil {
 		log.Fatalf("Failed to create web sub-filesystem: %v", err)
 	}

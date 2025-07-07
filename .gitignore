@@ -4,3 +4,7 @@ manga/
 .vscode/
 .idea/
 data/
+
+
+#Ignore cursor AI rules
+.cursor/rules/codacy.mdc

@@ -17,7 +17,7 @@ COPY . .
 # -o /mango-server: Specifies the output binary name.
 # -ldflags "-w -s": Strips debugging information, reducing the binary size.
 # CGO_ENABLED=1: Required for the go-sqlite3 driver.
-RUN CGO_ENABLED=1 go build -ldflags="-w -s" -o /mango-server ./cmd/mango-server
+RUN CGO_ENABLED=1 go build -ldflags="-w -s" -o /mango-server .
 
 # Use alpine as the base image. It's lightweight but contains the necessary
 # runtime libraries (like musl libc) that our binary depends on.

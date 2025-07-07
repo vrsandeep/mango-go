@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/vrsandeep/mango-go/internal/assets"
 	"github.com/vrsandeep/mango-go/internal/config"
 	"github.com/vrsandeep/mango-go/internal/db"
 	"github.com/vrsandeep/mango-go/internal/websocket"
@@ -26,7 +27,7 @@ type App struct {
 
 // New sets up and returns a new App instance. It handles loading the
 // configuration, initializing the database connection, and running migrations.
-func New(webFS, migrationsFS embed.FS) (*App, error) {
+func New() (*App, error) {
 	// Load configuration from config.yml
 	cfg, err := config.Load()
 	if err != nil {
@@ -40,7 +41,7 @@ func New(webFS, migrationsFS embed.FS) (*App, error) {
 	}
 
 	// Run database migrations
-	if err := db.RunMigrations(database, migrationsFS); err != nil {
+	if err := db.RunMigrations(database, assets.MigrationsFS); err != nil {
 		// We can't proceed without a valid database schema.
 		// Close the DB connection before failing.
 		database.Close()
@@ -58,8 +59,6 @@ func New(webFS, migrationsFS embed.FS) (*App, error) {
 		DB:      database,
 		WsHub:   hub,
 		Version: Version,
-		WebFS:        webFS,
-		MigrationsFS: migrationsFS,
 	}, nil
 }
 
