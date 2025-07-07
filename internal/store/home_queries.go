@@ -9,18 +9,23 @@ import (
 	"github.com/vrsandeep/mango-go/internal/models"
 )
 
-// GetContinueReading fetches chapters the user has started but not finished.
+// GetContinueReading fetches chapters the user has started but not finished, only one per series.
 func (s *Store) GetContinueReading(userID int64, limit int) ([]*models.HomeSectionItem, error) {
 	query := `
-		SELECT
-			s.id, s.title, c.id, c.path,
-			COALESCE(s.custom_cover_url, s.thumbnail, '') as cover_art,
-			ucp.progress_percent, ucp.read, ucp.updated_at
-		FROM user_chapter_progress ucp
-		JOIN chapters c ON ucp.chapter_id = c.id
-		JOIN series s ON c.series_id = s.id
-		WHERE ucp.user_id = ? AND ucp.read = 0 AND ucp.progress_percent > 0
-		ORDER BY ucp.updated_at DESC
+		SELECT *
+		FROM (
+			SELECT
+				s.id, s.title, c.id, c.path,
+				COALESCE(s.custom_cover_url, s.thumbnail, '') as cover_art,
+				ucp.progress_percent, ucp.read, ucp.updated_at,
+				ROW_NUMBER() OVER (PARTITION BY s.id ORDER BY ucp.updated_at DESC) as rn
+			FROM user_chapter_progress ucp
+			JOIN chapters c ON ucp.chapter_id = c.id
+			JOIN series s ON c.series_id = s.id
+			WHERE ucp.user_id = ? AND ucp.read = 0 AND ucp.progress_percent > 0
+		)
+		WHERE rn = 1
+		ORDER BY updated_at DESC
 		LIMIT ?
 	`
 	rows, err := s.db.Query(query, userID, limit)
@@ -35,7 +40,7 @@ func (s *Store) GetContinueReading(userID int64, limit int) ([]*models.HomeSecti
 		var chapterID sql.NullInt64
 		var progress sql.NullInt64
 		var read sql.NullBool
-		if err := rows.Scan(&item.SeriesID, &item.SeriesTitle, &chapterID, &item.ChapterTitle, &item.CoverArt, &progress, &read, &item.UpdatedAt); err != nil {
+		if err := rows.Scan(&item.SeriesID, &item.SeriesTitle, &chapterID, &item.ChapterTitle, &item.CoverArt, &progress, &read, &item.UpdatedAt, new(int)); err != nil {
 			return nil, err
 		}
 		if chapterID.Valid {
