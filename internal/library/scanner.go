@@ -5,15 +5,25 @@
 package library
 
 import (
+	"crypto/sha1"
 	"database/sql"
+	"encoding/hex"
+	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/vrsandeep/mango-go/internal/config"
+	"github.com/vrsandeep/mango-go/internal/core"
+	"github.com/vrsandeep/mango-go/internal/models"
 	"github.com/vrsandeep/mango-go/internal/store"
 )
+
+type diskItem struct {
+	path  string
+	isDir bool
+}
 
 // Scanner is responsible for scanning the library and updating the database.
 type Scanner struct {
@@ -125,4 +135,152 @@ func (s *Scanner) processFile(path string) error {
 
 	// Commit the transaction if everything was successful.
 	return tx.Commit()
+}
+
+// LibrarySync performs a full synchronization between the filesystem and the database.
+func LibrarySync(app *core.App) {
+	jobName := "Library Sync"
+	st := store.New(app.DB)
+
+	sendProgress(app, jobName, "Starting library sync...", 0, false)
+
+	// 1. Preparation: Get current state from DB
+	sendProgress(app, jobName, "Fetching current library state...", 5, false)
+	dbFolders, _ := st.GetAllFoldersByPath()
+	dbChapters, _ := st.GetAllChaptersByHash()
+
+	// 2. File System Discovery
+	sendProgress(app, jobName, "Discovering files on disk...", 10, false)
+	diskItems := make(map[string]diskItem)
+	rootPath := app.Config.Library.Path
+	filepath.WalkDir(rootPath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		// Skip the root library folder itself
+		if path == rootPath {
+			return nil
+		}
+		diskItems[path] = diskItem{path: path, isDir: d.IsDir()}
+		return nil
+	})
+
+	// 3. Reconcile Folders
+	sendProgress(app, jobName, "Syncing folder structure...", 25, false)
+	syncFolders(st, rootPath, diskItems, dbFolders)
+
+	// Refresh folder map after sync
+	dbFolders, _ = st.GetAllFoldersByPath()
+
+	// 4. Reconcile Chapters
+	sendProgress(app, jobName, "Syncing chapters...", 50, false)
+	syncChapters(st, diskItems, dbChapters, dbFolders)
+
+	// 5. Pruning: Remove DB entries for items no longer on disk
+	sendProgress(app, jobName, "Pruning deleted items...", 75, false)
+	prune(st, diskItems, dbFolders, dbChapters)
+
+	// 6. Thumbnail Generation
+	sendProgress(app, jobName, "Updating thumbnails...", 90, false)
+	st.UpdateAllFolderThumbnails()
+
+	sendProgress(app, jobName, "Library sync completed.", 100, true)
+	log.Println("Job finished:", jobName)
+}
+
+// syncFolders ensures the folder structure in the DB matches the disk.
+func syncFolders(st *store.Store, rootPath string, diskItems map[string]diskItem, dbFolders map[string]*models.Folder) {
+	for path, item := range diskItems {
+		if !item.isDir {
+			continue
+		}
+		if _, exists := dbFolders[path]; !exists {
+			// New folder found, create it
+			parentPath := filepath.Dir(path)
+			var parentID *int64
+			if parent, ok := dbFolders[parentPath]; ok {
+				parentID = &parent.ID
+			}
+
+			newFolder, err := st.CreateFolder(path, filepath.Base(path), parentID)
+			if err != nil {
+				log.Printf("Error creating folder %s: %v", path, err)
+			} else {
+				dbFolders[path] = newFolder // Add to map for subsequent lookups
+			}
+		}
+	}
+}
+
+// syncChapters handles new, moved, and existing chapters.
+func syncChapters(st *store.Store, diskItems map[string]diskItem, dbChapters map[string]store.ChapterInfo, dbFolders map[string]*models.Folder) {
+	for path, item := range diskItems {
+		if item.isDir || !IsImageFile(path) { // Simplified: assume any archive is a chapter file
+			continue
+		}
+
+		pages, firstPageData, err := ParseArchive(path)
+		if err != nil {
+			log.Printf("Could not parse archive %s: %v", path, err)
+			continue
+		}
+
+		hash := generateContentHash(firstPageData, filepath.Base(path))
+
+		if existingChapter, ok := dbChapters[hash]; ok {
+			// Chapter exists, check if it moved
+			if existingChapter.Path != path {
+				log.Printf("Detected moved chapter: %s -> %s", existingChapter.Path, path)
+				parentFolder, ok := dbFolders[filepath.Dir(path)]
+				if ok {
+					st.UpdateChapterPath(existingChapter.ID, path, parentFolder.ID)
+				}
+			}
+		} else {
+			// New chapter
+			parentFolder, ok := dbFolders[filepath.Dir(path)]
+			if ok {
+				var thumb string
+				if firstPageData != nil {
+					thumb, _ = GenerateThumbnail(firstPageData)
+				}
+				st.CreateChapter(parentFolder.ID, path, hash, len(pages), thumb)
+			}
+		}
+	}
+}
+
+// prune removes items from the DB that are no longer on disk.
+func prune(st *store.Store, diskItems map[string]diskItem, dbFolders map[string]*models.Folder, dbChapters map[string]store.ChapterInfo) {
+	// Prune chapters
+	for hash, chapInfo := range dbChapters {
+		if _, exists := diskItems[chapInfo.Path]; !exists {
+			log.Printf("Pruning deleted chapter: %s", chapInfo.Path)
+			st.DeleteChapterByHash(hash)
+		}
+	}
+	// Prune folders
+	for path, folder := range dbFolders {
+		if _, exists := diskItems[path]; !exists {
+			log.Printf("Pruning deleted folder: %s", path)
+			st.DeleteFolder(folder.ID)
+		}
+	}
+}
+
+func generateContentHash(data []byte, filename string) string {
+	hasher := sha1.New()
+	hasher.Write(data)
+	hasher.Write([]byte(filename))
+	return hex.EncodeToString(hasher.Sum(nil))
+}
+
+func sendProgress(app *core.App, jobName string, message string, progress float64, done bool) {
+	update := models.ProgressUpdate{
+		JobName:  jobName,
+		Message:  message,
+		Progress: progress,
+		Done:     done,
+	}
+	app.WsHub.BroadcastJSON(update)
 }

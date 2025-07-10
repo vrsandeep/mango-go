@@ -3,6 +3,7 @@
 package library_test
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -139,4 +140,72 @@ func TestScannerIntegration(t *testing.T) {
 	if chapterPath != expectedPath {
 		t.Errorf("Expected chapter path '%s', got '%s'", expectedPath, chapterPath)
 	}
+}
+
+func TestLibrarySync(t *testing.T) {
+	app := testutil.SetupTestApp(t) // Sets up in-memory DB, config, etc.
+	st := store.New(app.DB)
+	libraryRoot := app.Config.Library.Path
+
+	// --- Test 1: Initial Scan ---
+	t.Run("Initial Scan", func(t *testing.T) {
+		// Create mock file structure
+		os.MkdirAll(filepath.Join(libraryRoot, "Series A", "Volume 1"), 0755)
+		testutil.CreateTestCBZ(t, filepath.Join(libraryRoot, "Series A", "Volume 1"), "ch1.cbz", []string{"p1.jpg"})
+
+		library.LibrarySync(app)
+
+		// Verify folder structure
+		folders, _ := st.GetAllFoldersByPath()
+		if len(folders) != 2 {
+			t.Fatalf("Expected 2 folders, got %d", len(folders))
+		}
+		if _, ok := folders[filepath.Join(libraryRoot, "Series A")]; !ok {
+			t.Error("Series A folder not created")
+		}
+
+		// Verify chapter
+		chapters, _ := st.GetAllChaptersByHash()
+		if len(chapters) != 1 {
+			t.Fatalf("Expected 1 chapter, got %d", len(chapters))
+		}
+	})
+
+	// --- Test 2: Moved File ---
+	t.Run("Moved File Detection", func(t *testing.T) {
+		// Move the file
+		os.MkdirAll(filepath.Join(libraryRoot, "Series B"), 0755)
+		oldPath := filepath.Join(libraryRoot, "Series A", "Volume 1", "ch1.cbz")
+		newPath := filepath.Join(libraryRoot, "Series B", "ch1-moved.cbz")
+		os.Rename(oldPath, newPath)
+
+		library.LibrarySync(app)
+
+		chapters, _ := st.GetAllChaptersByHash()
+		if len(chapters) != 1 {
+			t.Fatalf("Expected 1 chapter after move, got %d", len(chapters))
+		}
+
+		var found bool
+		for _, ch := range chapters {
+			if ch.Path == newPath {
+				found = true
+			}
+		}
+		if !found {
+			t.Error("Chapter path was not updated after move")
+		}
+	})
+
+	// --- Test 3: Pruning ---
+	t.Run("Pruning Deleted File", func(t *testing.T) {
+		os.Remove(filepath.Join(libraryRoot, "Series B", "ch1-moved.cbz"))
+
+		library.LibrarySync(app)
+
+		chapters, _ := st.GetAllChaptersByHash()
+		if len(chapters) != 0 {
+			t.Errorf("Expected 0 chapters after pruning, got %d", len(chapters))
+		}
+	})
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/vrsandeep/mango-go/internal/config"
 	"github.com/vrsandeep/mango-go/internal/core"
 	"github.com/vrsandeep/mango-go/internal/jobs"
+	"github.com/vrsandeep/mango-go/internal/models"
 	"github.com/vrsandeep/mango-go/internal/testutil"
 	"github.com/vrsandeep/mango-go/internal/websocket"
 )
@@ -38,12 +39,12 @@ func TestRunFullScan(t *testing.T) {
 	// Run the full scan job
 	go jobs.RunFullScan(app)
 	// Listen for progress updates with a timeout to prevent the test from hanging
-	var lastUpdate websocket.ProgressUpdate
+	var lastUpdate models.ProgressUpdate
 	timeout := time.After(5 * time.Second)
 	for {
 		select {
 		case msgBytes := <-app.WsHub.Broadcast():
-			var update websocket.ProgressUpdate
+			var update models.ProgressUpdate
 			if err := json.Unmarshal(msgBytes, &update); err != nil {
 				t.Fatalf("Failed to unmarshal progress update: %v", err)
 			}
@@ -98,12 +99,12 @@ func TestRunIncrementalScan(t *testing.T) {
 	// Run the incremental scan job
 	go jobs.RunIncrementalScan(app)
 	// Listen for progress updates with a timeout to prevent the test from hanging
-	var lastUpdate websocket.ProgressUpdate
+	var lastUpdate models.ProgressUpdate
 	timeout := time.After(5 * time.Second)
 	for {
 		select {
 		case msgBytes := <-app.WsHub.Broadcast():
-			var update websocket.ProgressUpdate
+			var update models.ProgressUpdate
 			if err := json.Unmarshal(msgBytes, &update); err != nil {
 				t.Fatalf("Failed to unmarshal progress update: %v", err)
 			}

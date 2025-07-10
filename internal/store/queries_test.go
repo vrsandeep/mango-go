@@ -199,8 +199,8 @@ func TestGetChapterByID(t *testing.T) {
 		if chapter.PageCount != 10 {
 			t.Errorf("Expected page count 10, got %d", chapter.PageCount)
 		}
-		if chapter.SeriesID != 1 {
-			t.Errorf("Expected series ID 1, got %d", chapter.SeriesID)
+		if chapter.FolderID != 1 {
+			t.Errorf("Expected folder ID 1, got %d", chapter.FolderID)
 		}
 		if chapter.Read != false {
 			t.Errorf("Expected chapter 'read' status to be false, got true")

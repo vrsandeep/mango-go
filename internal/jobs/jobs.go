@@ -8,8 +8,8 @@ import (
 
 	"github.com/vrsandeep/mango-go/internal/core"
 	"github.com/vrsandeep/mango-go/internal/library"
+	"github.com/vrsandeep/mango-go/internal/models"
 	"github.com/vrsandeep/mango-go/internal/store"
-	"github.com/vrsandeep/mango-go/internal/websocket"
 )
 
 // type ProgressUpdate struct {
@@ -20,7 +20,7 @@ import (
 // }
 
 func sendProgress(app *core.App, jobName, message string, progress float64, done bool) {
-	update := websocket.ProgressUpdate{
+	update := models.ProgressUpdate{
 		JobName:  jobName,
 		Message:  message,
 		Progress: progress,

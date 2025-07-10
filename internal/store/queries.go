@@ -135,7 +135,7 @@ func (s *Store) GetSeriesByID(id int64, userID int64, page, perPage int, search,
 	return &series, totalChapters, nil
 }
 
-func (s *Store) getChaptersForSeries(seriesId int64, userID int64, page, perPage int, search, sortBy, sortDir string) ([]*models.Chapter, error) {
+func (s *Store) getChaptersForSeries(folderId int64, userID int64, page, perPage int, search, sortBy, sortDir string) ([]*models.Chapter, error) {
 	chapterQuery := `
 		SELECT c.id, c.path, c.page_count,
 		       COALESCE(ucp.read, 0) as read,
@@ -145,10 +145,10 @@ func (s *Store) getChaptersForSeries(seriesId int64, userID int64, page, perPage
 			   c.updated_at
 		FROM chapters c
 		LEFT JOIN user_chapter_progress ucp ON c.id = ucp.chapter_id AND ucp.user_id = ?
-		WHERE c.series_id = ?
+		WHERE c.folder_id = ?
 	`
 	var chapterArgs []interface{}
-	chapterArgs = append(chapterArgs, userID, seriesId)
+	chapterArgs = append(chapterArgs, userID, folderId)
 	if search != "" {
 		chapterQuery += " AND c.path LIKE ?"
 		chapterArgs = append(chapterArgs, "%"+search+"%")
@@ -183,7 +183,7 @@ func (s *Store) getChaptersForSeries(seriesId int64, userID int64, page, perPage
 			return nil, err
 		}
 		chapter.Thumbnail = chapThumb.String
-		chapter.SeriesID = seriesId
+		chapter.FolderID = folderId
 		chapters = append(chapters, &chapter)
 	}
 	if sortBy == "auto" {
@@ -240,7 +240,7 @@ func (s *Store) GetChapterByID(id int64, userID int64) (*models.Chapter, error) 
 	var chapter models.Chapter
 	var thumb sql.NullString
 	query := `
-		SELECT c.id, c.series_id, c.path, c.page_count,
+		SELECT c.id, c.folder_id, c.path, c.page_count,
 		       COALESCE(ucp.read, 0) as read,
 		       COALESCE(ucp.progress_percent, 0) as progress_percent,
 		       c.thumbnail,
@@ -250,7 +250,7 @@ func (s *Store) GetChapterByID(id int64, userID int64) (*models.Chapter, error) 
 		LEFT JOIN user_chapter_progress ucp ON c.id = ucp.chapter_id AND ucp.user_id = ?
 		WHERE c.id = ?
 	`
-	err := s.db.QueryRow(query, userID, id).Scan(&chapter.ID, &chapter.SeriesID, &chapter.Path, &chapter.PageCount, &chapter.Read, &chapter.ProgressPercent, &thumb, &chapter.CreatedAt, &chapter.UpdatedAt)
+	err := s.db.QueryRow(query, userID, id).Scan(&chapter.ID, &chapter.FolderID, &chapter.Path, &chapter.PageCount, &chapter.Read, &chapter.ProgressPercent, &thumb, &chapter.CreatedAt, &chapter.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}

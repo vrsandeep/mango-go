@@ -20,7 +20,6 @@ import (
 	"github.com/vrsandeep/mango-go/internal/jobs"
 	"github.com/vrsandeep/mango-go/internal/models"
 	"github.com/vrsandeep/mango-go/internal/store"
-	"github.com/vrsandeep/mango-go/internal/websocket"
 )
 
 var (
@@ -146,7 +145,7 @@ func processDownload(app *core.App, st *store.Store, job *models.DownloadQueueIt
 		}
 
 		// Broadcast progress update via WebSocket
-		app.WsHub.BroadcastJSON(websocket.ProgressUpdate{
+		app.WsHub.BroadcastJSON(models.ProgressUpdate{
 			JobName:  "downloader",
 			Message:  fmt.Sprintf("Downloaded page %d of %d", i+1, total),
 			Progress: float64(progress),

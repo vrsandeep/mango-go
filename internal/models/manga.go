@@ -14,6 +14,21 @@ type User struct {
 	CreatedAt    time.Time `json:"created_at"`
 }
 
+// Folder represents a directory in the user's library.
+type Folder struct {
+	ID        int64     `json:"id"`
+	Path      string    `json:"path"`
+	Name      string    `json:"name"`
+	ParentID  *int64    `json:"parent_id"`
+	Thumbnail string    `json:"thumbnail,omitempty"`
+	Tags      []*Tag    `json:"tags,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	// For API responses
+	Subfolders []*Folder  `json:"subfolders,omitempty"`
+	Chapters   []*Chapter `json:"chapters,omitempty"`
+}
+
 // Series represents a single manga series.
 type Series struct {
 	ID             int64      `json:"id"`
@@ -34,15 +49,17 @@ type Series struct {
 
 // Chapter represents a single chapter of a manga.
 type Chapter struct {
-	ID              int64     `json:"id"`
-	SeriesID        int64     `json:"series_id"`
-	Path            string    `json:"path"`
-	Thumbnail       string    `json:"thumbnail,omitempty"`
-	PageCount       int       `json:"page_count"`
-	Read            bool      `json:"read"`
-	ProgressPercent int       `json:"progress_percent"`
-	CreatedAt       time.Time `json:"-"` // Hide from JSON responses
-	UpdatedAt       time.Time `json:"-"` // Hide from JSON responses
+	ID          int64     `json:"id"`
+	FolderID    int64     `json:"folder_id"`
+	Path        string    `json:"path"`
+	ContentHash string    `json:"-"` // Internal use, not exposed in API
+	Thumbnail   string    `json:"thumbnail,omitempty"`
+	PageCount   int       `json:"page_count"`
+	CreatedAt   time.Time `json:"created_at"` // `json:"-"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	// Per-user progress
+	Read            bool `json:"read"`
+	ProgressPercent int  `json:"progress_percent"`
 }
 
 // Page represents a single page within a chapter, which is an image
