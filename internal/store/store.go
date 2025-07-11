@@ -165,6 +165,31 @@ func (s *Store) UpdateSeriesThumbnailIfNeeded(tx *sql.Tx, seriesID int64, thumbn
 	return nil
 }
 
+func (s *Store) GetOrCreateTag(tagName string) (*models.Tag, error) {
+	tagName = strings.TrimSpace(strings.ToLower(tagName))
+	if tagName == "" {
+		return nil, fmt.Errorf("tag name cannot be empty")
+	}
+	var tag models.Tag
+	err := s.db.QueryRow("SELECT id, name FROM tags WHERE name = ?", tagName).Scan(&tag.ID, &tag.Name)
+	if err == sql.ErrNoRows {
+		// Tag does not exist, create it
+		res, err := s.db.Exec("INSERT INTO tags (name) VALUES (?)", tagName)
+		if err != nil {
+			return nil, err
+		}
+		tagID, err := res.LastInsertId()
+		if err != nil {
+			return nil, err
+		}
+		tag.ID = tagID
+		tag.Name = tagName
+	} else if err != nil {
+		return nil, err
+	}
+	return &tag, nil
+}
+
 func (s *Store) AddTagToSeries(seriesID int64, tagName string) (*models.Tag, error) {
 	tagName = strings.TrimSpace(strings.ToLower(tagName))
 	if tagName == "" {
@@ -178,19 +203,12 @@ func (s *Store) AddTagToSeries(seriesID int64, tagName string) (*models.Tag, err
 	defer tx.Rollback()
 
 	var tagID int64
-	err = tx.QueryRow("SELECT id FROM tags WHERE name = ?", tagName).Scan(&tagID)
-	if err == sql.ErrNoRows {
-		res, err := tx.Exec("INSERT INTO tags (name) VALUES (?)", tagName)
-		if err != nil {
-			return nil, err
-		}
-		tagID, err = res.LastInsertId()
-		if err != nil {
-			return nil, err
-		}
-	} else if err != nil {
+	var tag *models.Tag
+	tag, err = s.GetOrCreateTag(tagName)
+	if err != nil {
 		return nil, err
 	}
+	tagID = tag.ID
 
 	_, err = tx.Exec("INSERT OR IGNORE INTO series_tags (series_id, tag_id) VALUES (?, ?)", seriesID, tagID)
 	if err != nil {

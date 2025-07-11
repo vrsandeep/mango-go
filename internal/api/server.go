@@ -20,7 +20,7 @@ import (
 
 // Server holds the dependencies for our API.
 type Server struct {
-	app *core.App
+	app   *core.App
 	db    *sql.DB
 	store *store.Store
 }
@@ -33,7 +33,7 @@ func (s *Server) Store() *store.Store {
 // NewServer creates a new Server instance.
 func NewServer(app *core.App) *Server {
 	return &Server{
-		app: app,
+		app:   app,
 		db:    app.DB,
 		store: store.New(app.DB),
 	}
@@ -49,7 +49,6 @@ func (s *Server) Router() http.Handler {
 	r.Use(middleware.Recoverer) // Recovers from panics
 	r.Use(middleware.Timeout(60 * time.Second))
 
-
 	// API routes
 	r.Post("/api/users/login", s.handleLogin)
 	r.Get("/api/version", s.handleGetVersion)
@@ -62,8 +61,8 @@ func (s *Server) Router() http.Handler {
 		r.Route("/api", func(r chi.Router) {
 			r.Get("/home", s.handleGetHomePageData)
 
-			r.Get("/series", s.handleListSeries)
-			r.Get("/series/{seriesID}", s.handleGetSeries)
+			// r.Get("/series", s.handleListSeries)
+			// r.Get("/series/{seriesID}", s.handleGetSeries)
 			r.Post("/series/{seriesID}/cover", s.handleUpdateCover)
 			r.Post("/series/{seriesID}/mark-all-as", s.handleMarkAllAs)
 			r.Post("/series/{seriesID}/settings", s.handleUpdateSettings)
@@ -74,7 +73,15 @@ func (s *Server) Router() http.Handler {
 			r.Get("/series/{seriesID}/chapters/{chapterID}/neighbors", s.handleGetChapterNeighbors)
 			r.Post("/chapters/{chapterID}/progress", s.handleUpdateProgress)
 
-			// New Tag Endpoints
+			// Browse Routes
+			r.Get("/browse", s.handleBrowseFolder)
+			r.Get("/browse/breadcrumb", s.handleGetBreadcrumb)
+
+			// Folder Tagging Routes
+			r.Post("/folders/{folderID}/tags", s.handleAddTagToFolder)
+			r.Delete("/folders/{folderID}/tags/{tagID}", s.handleRemoveTagFromFolder)
+
+			// Tag Endpoints
 			r.Get("/tags", s.handleListTags)
 			r.Get("/tags/{tagID}", s.handleGetTagDetails) // To get a single tag's name
 			r.Get("/tags/{tagID}/series", s.handleListSeriesByTag)
@@ -159,7 +166,8 @@ func (s *Server) Router() http.Handler {
 
 	r.Get("/", serveHTML("home.html"))
 	r.Get("/login", serveHTML("login.html"))
-	r.Get("/library", serveHTML("series.html"))
+	r.Get("/library", serveHTML("library.html"))
+	// r.Get("/library", serveHTML("series.html"))
 	r.Get("/tags", serveHTML("tags.html"))
 	r.Get("/admin", serveHTML("admin.html"))
 	r.Get("/admin/users", serveHTML("admin_users.html"))
@@ -168,7 +176,8 @@ func (s *Server) Router() http.Handler {
 	r.Get("/downloads/subscriptions", serveHTML("subscription_manager.html"))
 
 	// Dynamic routes that serve a specific base HTML file
-	r.Get("/series/{id}", serveHTML("chapters.html"))
+	r.Get("/series/{id}", serveHTML("library.html"))
+	// r.Get("/series/{id}", serveHTML("chapters.html"))
 	r.Get("/tags/{id}", serveHTML("tag_series.html"))
 	r.Get("/reader/series/{seriesID}/chapters/{chapterID}", serveHTML("reader.html"))
 

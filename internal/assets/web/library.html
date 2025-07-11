@@ -3,10 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Series</title>
-    <link rel="stylesheet" href="https://unpkg.com/phosphor-icons@1.4.2/src/css/icons.css">
+    <title>Library - Mango</title>
+    <link rel="stylesheet" href="/static/css/common.css">
     <link rel="stylesheet" href="/static/css/library_grid.css">
-    <link rel="stylesheet" href="/static/css/chapters.css">
+    <style>
+        .breadcrumb { margin-bottom: 1.5rem; font-size: 1.2rem; }
+        .breadcrumb a, .breadcrumb span { color: var(--subtle-text-color); }
+        .breadcrumb a:hover { color: var(--accent-color); }
+        .grid-section-header { width: 100%; grid-column: 1 / -1; margin-top: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; }
+    </style>
 </head>
 <body>
     <header class="main-header">
@@ -38,37 +43,18 @@
             <button id="logout-btn" class="auth-only" style="display: none;">Logout</button>
         </div>
     </header>
-
     <main class="container">
-        <div class="page-header">
-            <div class="page-header-left">
-                <img id="series-thumb" class="header-thumb">
-                <h1 id="series-title"></h1>
-                <button class="edit-btn" id="edit-series-btn"><i class="ph-bold ph-pencil-simple"></i></button>
-            </div>
-        </div>
-        <div class="breadcrumb">
-            <a href="/library">Home</a> / <span id="breadcrumb-series-title"></span>
-        </div>
-        <div class="tags-section">
-            <div class="tags-wrapper" id="tags-wrapper">
-                <i class="ph-bold ph-tag"></i>
-                <div class="tags-container" id="tags-container"></div>
-                <div class="tag-input-container">
-                    <input type="text" id="tag-input" placeholder="Add a tag...">
-                    <div class="autocomplete-suggestions" id="autocomplete-suggestions"></div>
-                </div>
-            </div>
-        </div>
+        <h1 id="page-title">Library</h1>
+        <span id="total-count" class="total-count"></span>
+        <!-- <nav class="breadcrumb" id="breadcrumb"></nav> -->
         <div class="library-controls">
             <div class="search-bar">
-                <input type="search" id="search-input" placeholder="Search chapters...">
+                <input type="search" id="search-input" placeholder="Search series...">
             </div>
             <div class="sort-controls">
                 <span>Sort by:</span>
                 <select id="sort-by">
-                    <option value="auto">Auto</option>
-                    <option value="path">Name</option>
+                    <option value="title">Name</option>
                     <option value="updated_at">Date Modified</option>
                     <option value="progress">Progress</option>
                 </select>
@@ -78,34 +64,9 @@
         <div class="grid" id="cards-grid"></div>
         <div class="pagination-container" id="pagination-container"></div>
     </main>
-
-    <!-- Edit Modal -->
-    <div class="modal-overlay" id="edit-modal">
-        <div class="modal-content">
-            <h2 id="edit-modal-title">Edit Series</h2>
-            <div class="modal-form-group">
-                <label for="cover-url-input">Cover URL</label>
-                <input type="text" id="cover-url-input">
-            </div>
-            <div class="modal-form-group">
-                <label>Progress</label>
-                <div style="display: flex; gap: 1rem;">
-                    <button id="mark-all-read-btn">Mark All as Read</button>
-                    <button id="mark-all-unread-btn">Mark All as Unread</button>
-                </div>
-            </div>
-            <div class="modal-actions">
-                <button id="modal-cancel-btn">Cancel</button>
-                <button id="modal-save-btn">Save</button>
-            </div>
-        </div>
-    </div>
-    <footer class="main-footer">
-        <span id="version-footer"></span>
-    </footer>
+    <footer class="main-footer"><span id="version-footer"></span></footer>
     <script src="/static/js/header.js"></script>
     <script src="/static/js/auth.js"></script>
-    <script src="/static/js/chapters.js"></script>
-    <script src="/static/js/library_grid.js"></script>
+    <script src="/static/js/library.js"></script>
 </body>
 </html>
