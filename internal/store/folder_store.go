@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -24,6 +25,23 @@ func (s *Store) CreateFolder(path, name string, parentID *int64) (*models.Folder
 	return &models.Folder{ID: id, Path: path, Name: name, ParentID: parentID}, nil
 }
 
+func (s *Store) GetFolderByPath(path string) (*models.Folder, error) {
+	query := "SELECT id, path, name, parent_id, thumbnail, created_at, updated_at FROM folders WHERE path = ?"
+	var folder models.Folder
+	var parentID sql.NullInt64
+	var thumbnail sql.NullString
+	err := s.db.QueryRow(query, path).Scan(&folder.ID, &folder.Path, &folder.Name, &parentID, &thumbnail, &folder.CreatedAt, &folder.UpdatedAt)
+
+	if err != nil {
+		return nil, err
+	}
+	if parentID.Valid {
+		folder.ParentID = &parentID.Int64
+	}
+	folder.Thumbnail = thumbnail.String
+	return &folder, nil
+}
+
 // GetFolder retrieves a single folder by its ID.
 func (s *Store) GetFolder(id int64) (*models.Folder, error) {
 	var folder models.Folder
@@ -31,11 +49,31 @@ func (s *Store) GetFolder(id int64) (*models.Folder, error) {
 	var thumbnail sql.NullString
 	query := "SELECT id, path, name, parent_id, thumbnail, created_at, updated_at FROM folders WHERE id = ?"
 	err := s.db.QueryRow(query, id).Scan(&folder.ID, &folder.Path, &folder.Name, &parentID, &thumbnail, &folder.CreatedAt, &folder.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
 	if parentID.Valid {
 		folder.ParentID = &parentID.Int64
 	}
 	folder.Thumbnail = thumbnail.String
-	return &folder, err
+
+	// Fetch associated tags
+	tagQuery := "SELECT t.id, t.name FROM tags t JOIN folder_tags ft ON t.id = ft.tag_id WHERE ft.folder_id = ?"
+	rows, err := s.db.Query(tagQuery, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var tag models.Tag
+		if err := rows.Scan(&tag.ID, &tag.Name); err != nil {
+			continue
+		}
+		folder.Tags = append(folder.Tags, &tag)
+	}
+
+	return &folder, nil
 }
 
 // GetAllFoldersByPath retrieves all folders and maps them by their full path for efficient lookup.
@@ -143,19 +181,249 @@ func (s *Store) updateSingleFolderThumbnail(folderID int64) {
 	}
 }
 
-// GetFolderContents retrieves all subfolders and chapters for a given parent folder.
-func (s *Store) GetFolderContents(userID int64, parentID *int64, page, perPage int, search, sortBy, sortDir string) (*models.Folder, []*models.Folder, []*models.Chapter, int, error) {
-	// ... (complex implementation to fetch current folder details, subfolders, and chapters separately)
-	// ... (it will apply search, sort, and pagination to the combined list)
-	// ... (it will also join with user_chapter_progress to get read status for chapters)
-	return nil, nil, nil, 0, nil // Placeholder for brevity
+// ListItemsOptions provides flexible filtering for listing folders and chapters.
+type ListItemsOptions struct {
+	UserID   int64  `json:"user_id"`
+	ParentID *int64 `json:"parent_id,omitempty"` // Filter by parent folder
+	TagID    *int64 `json:"tag_id,omitempty"`    // Filter by tag
+	Search   string `json:"search,omitempty"`
+	SortBy   string `json:"sort_by,omitempty"`
+	SortDir  string `json:"sort_dir,omitempty"`
+	Page     int    `json:"page"`
+	PerPage  int    `json:"per_page"`
+}
+
+// ListItems is the new generic function for fetching folders and chapters.
+func (s *Store) ListItems(opts ListItemsOptions) (*models.Folder, []*models.Folder, []*models.Chapter, int, error) {
+	var currentFolder *models.Folder
+	if opts.ParentID != nil {
+		f, err := s.GetFolder(*opts.ParentID)
+		if err != nil {
+			return nil, nil, nil, 0, err
+		}
+		currentFolder = f
+	}
+	// --- Build WHERE clauses and arguments dynamically based on options ---
+	var folderWhere, chapterWhere, tagJoin string
+	var folderArgs, chapterArgs []interface{}
+
+	// Filter by parent folder
+	if *opts.ParentID == 0 { // A special case for root
+		folderWhere = "f.parent_id IS NULL"
+		chapterWhere = "c.folder_id IS NULL"
+	} else {
+		folderWhere = "f.parent_id = ?"
+		folderArgs = append(folderArgs, *opts.ParentID)
+		chapterWhere = "c.folder_id = ?"
+		chapterArgs = append(chapterArgs, *opts.ParentID)
+	}
+
+	// Filter by tag
+	if opts.TagID != nil {
+		tagJoin = "JOIN folder_tags ft ON f.id = ft.folder_id"
+		if folderWhere != "" {
+			folderWhere += " AND"
+		}
+		folderWhere += " ft.tag_id = ?"
+		folderArgs = append(folderArgs, *opts.TagID)
+		// Tags apply to folders, which act as series containers, so we don't filter chapters by tag directly.
+		// Instead, we show all folders with that tag.
+		chapterWhere = "1=0" // This effectively returns no chapters at the tag level.
+	}
+
+	if opts.Search != "" {
+		if folderWhere != "" {
+			folderWhere += " AND"
+		}
+		folderWhere += " f.name LIKE ?"
+		folderArgs = append(folderArgs, "%"+opts.Search+"%")
+
+		if chapterWhere != "" {
+			chapterWhere += " AND"
+		}
+		chapterWhere += " c.path LIKE ?"
+		chapterArgs = append(chapterArgs, "%"+filepath.Base(opts.Search)+"%")
+	}
+
+	// Default to an impossible condition if no filter is set, to avoid returning all items.
+	if folderWhere == "" {
+		folderWhere = "1=0"
+	}
+	if chapterWhere == "" {
+		chapterWhere = "1=0"
+	}
+
+	// --- Use the UNION ALL query from the previous step, now with dynamic WHERE clauses ---
+	baseQuery := fmt.Sprintf(`
+		-- Select Folders
+		SELECT
+			1 as item_type, -- 1 for folder
+			f.id,
+			f.path,
+			f.name,
+			f.thumbnail,
+			NULL as chapter_page_count,
+			NULL as chapter_created_at,
+			NULL as chapter_updated_at,
+			NULL as user_read,
+			NULL as user_progress,
+			f.created_at as sort_created_at,
+			f.name as sort_name
+		FROM folders f %s WHERE %s
+		UNION ALL
+		-- Select Chapters
+		SELECT
+			2 as item_type, -- 2 for chapter
+			c.id,
+			c.path,
+			c.path as name, -- Use path for sorting/display name
+			c.thumbnail,
+			c.page_count,
+			c.created_at,
+			c.updated_at,
+			COALESCE(ucp.read, 0),
+			COALESCE(ucp.progress_percent, 0),
+			c.created_at as sort_created_at,
+			c.path as sort_name
+		FROM chapters c
+		LEFT JOIN user_chapter_progress ucp ON c.id = ucp.chapter_id AND ucp.user_id = ?
+		WHERE %s
+	`, tagJoin, folderWhere, chapterWhere)
+
+	// Count total items
+	var totalItems int
+	countQuery := fmt.Sprintf("SELECT (SELECT COUNT(*) FROM folders f WHERE %s) + (SELECT COUNT(*) FROM chapters c WHERE %s);", folderWhere, chapterWhere)
+	s.db.QueryRow(countQuery, append(folderArgs, chapterArgs...)...).Scan(&totalItems)
+
+	// ... (The rest of the complex UNION ALL query, sorting, and pagination logic follows) ...
+
+	// For brevity, the full query implementation is represented by this placeholder.
+	// The key change is the dynamic construction of the WHERE clauses above.
+	// Build final query with sorting and pagination
+	// finalQuery := fmt.Sprintf(baseQuery, folderWhere, chapterWhere)
+	finalQuery := baseQuery
+	sortBy := opts.SortBy
+	if sortBy == "" {
+		sortBy = "auto" // Default to natural sorting
+	}
+	sortDir := "ASC"
+	if opts.SortDir == "desc" {
+		sortDir = "DESC"
+	}
+	sortClause := "ORDER BY item_type ASC, sort_name %s"
+	if sortBy == "created_at" {
+		sortClause = "ORDER BY item_type ASC, sort_created_at %s"
+	}
+	finalQuery += " " + fmt.Sprintf(sortClause, sortDir)
+	finalQuery += " LIMIT ? OFFSET ?"
+
+	allArgs := append(folderArgs, opts.UserID)
+	allArgs = append(allArgs, chapterArgs...)
+	offset := (opts.Page - 1) * opts.PerPage
+	allArgs = append(allArgs, opts.PerPage, offset)
+
+	rows, err := s.db.Query(finalQuery, allArgs...)
+	if err != nil {
+		return currentFolder, nil, nil, 0, err
+	}
+	defer rows.Close()
+
+	var subfolders []*models.Folder
+	var chapters []*models.Chapter
+	for rows.Next() {
+		// Scan results and append to either subfolders or chapters slice based on item_type
+		var itemType int
+		var folder models.Folder
+		var chapter models.Chapter
+		var userRead sql.NullBool
+		var userProgress sql.NullInt64
+		if err := rows.Scan(&itemType, &folder.ID, &folder.Path, &folder.Name, &folder.Thumbnail,
+			&chapter.PageCount, &chapter.CreatedAt, &chapter.UpdatedAt,
+			&userRead, &userProgress, &folder.CreatedAt, &folder.Name); err != nil {
+			return currentFolder, nil, nil, 0, err
+		}
+		switch itemType {
+		case 1:
+			subfolders = append(subfolders, &folder)
+		case 2:
+			chapters = append(chapters, &chapter)
+		}
+	}
+	// Sort subfolders naturally if requested
+	switch sortBy {
+	case "auto":
+		sort.Slice(subfolders, func(i, j int) bool {
+			return util.NaturalSortLess(subfolders[i].Name, subfolders[j].Name)
+		})
+		sort.Slice(chapters, func(i, j int) bool {
+			return util.NaturalSortLess(chapters[i].Path, chapters[j].Path)
+		})
+	case "title":
+		sort.Slice(subfolders, func(i, j int) bool {
+			return util.NaturalSortLess(subfolders[i].Name, subfolders[j].Name)
+		})
+		sort.Slice(chapters, func(i, j int) bool {
+			return util.NaturalSortLess(chapters[i].Path, chapters[j].Path)
+		})
+	case "updated_at":
+		sort.Slice(subfolders, func(i, j int) bool {
+			return subfolders[i].UpdatedAt.Before(subfolders[j].UpdatedAt)
+		})
+		sort.Slice(chapters, func(i, j int) bool {
+			return chapters[i].UpdatedAt.Before(chapters[j].UpdatedAt)
+		})
+	case "progress":
+		sort.Slice(chapters, func(i, j int) bool {
+			return chapters[i].ProgressPercent < chapters[j].ProgressPercent
+		})
+		// Sort subfolders by progress
+		sort.Slice(subfolders, func(i, j int) bool {
+			iChapters := subfolders[i].Chapters
+			iReadChapters := 0
+			iTotalChapters := len(iChapters)
+			for _, c := range iChapters {
+				if c.Read {
+					iReadChapters++
+				}
+			}
+			jChapters := subfolders[j].Chapters
+			jReadChapters := 0
+			jTotalChapters := len(jChapters)
+			for _, c := range jChapters {
+				if c.Read {
+					jReadChapters++
+				}
+			}
+			if iTotalChapters == 0 && jTotalChapters == 0 {
+				return false // Both have no chapters, keep original order
+			}
+			if iTotalChapters == 0 {
+				return false // i has no chapters, j comes first
+			}
+			if jTotalChapters == 0 {
+				return true // j has no chapters, i comes first
+			}
+			iProgress := float64(iReadChapters) / float64(iTotalChapters)
+			jProgress := float64(jReadChapters) / float64(jTotalChapters)
+			return iProgress < jProgress
+		})
+	case "name":
+		sort.Slice(subfolders, func(i, j int) bool {
+			return util.NaturalSortLess(subfolders[i].Name, subfolders[j].Name)
+		})
+		sort.Slice(chapters, func(i, j int) bool {
+			return util.NaturalSortLess(chapters[i].Path, chapters[j].Path)
+		})
+	}
+	// totalItems := totalFolders + 0 // + totalChapters
+	return currentFolder, subfolders, chapters, totalItems, nil
 }
 
 // GetFolderPath retrieves the entire ancestry of a folder for breadcrumbs.
 func (s *Store) GetFolderPath(folderID int64) ([]*models.Folder, error) {
 	var path []*models.Folder
 	currentID := &folderID
-	for currentID != nil {
+	for currentID != nil && *currentID > 0 {
 		folder, err := s.GetFolder(*currentID)
 		if err != nil {
 			return nil, err

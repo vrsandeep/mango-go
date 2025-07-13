@@ -3,17 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Library - Mango</title>
+    <title>Tag:</title>
     <link rel="stylesheet" href="https://unpkg.com/phosphor-icons@1.4.2/src/css/icons.css">
-    <link rel="stylesheet" href="/static/css/common.css">
     <link rel="stylesheet" href="/static/css/library_grid.css">
-    <style>
-        .breadcrumb { margin-bottom: 1.5rem; font-size: 1.2rem; color: var(--subtle-text-color);}
-        .breadcrumb a, .breadcrumb span { color: var(--subtle-text-color); }
-        .breadcrumb a:hover { color: var(--accent-color); }
-        .grid-section-header { width: 100%; grid-column: 1 / -1; margin-top: 1rem; margin-bottom: 0.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; font-size: 1.1rem; color: var(--subtle-text-color);}
-        .item-card.folder .thumbnail-container::after { content: '📁'; position: absolute; bottom: 8px; right: 8px; font-size: 1.5rem; text-shadow: 0 0 4px black;}
-    </style>
 </head>
 <body>
     <header class="main-header">
@@ -22,7 +14,6 @@
             <nav class="nav-links" id="nav-links">
                 <div class="sidebar-logo">
                   <img src="/static/images/logo.svg" alt="Mango Logo" class="header-logo">
-                  <!-- <svg class="header-logo" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM4 4h16v11.17l-3.17-3.17-2 2-3-3-3.17 3.17L4 12.34V4z"/></svg> -->
                 </div>
                 <a href="/">Home</a>
                 <a href="/library">Library</a>
@@ -46,17 +37,13 @@
         </div>
     </header>
     <main class="container">
-        <!-- <nav class="breadcrumb" id="breadcrumb-container"></nav> -->
-        <h1 id="page-title">Library</h1>
-        <span id="total-count" class="total-count"></span>
+        <h1 id="page-title">Tag: </h1>
+        <span class="total-count" id="total-count"></span>
         <div class="library-controls">
-            <div class="search-bar">
-                <input type="search" id="search-input" placeholder="Search this folder...">
-            </div>
+            <div class="search-bar"><input type="search" id="search-input" placeholder="Search series in this tag..."></div>
             <div class="sort-controls">
                 <span>Sort by:</span>
                 <select id="sort-by">
-                    <option value="auto">Auto</option>
                     <option value="title">Name</option>
                     <option value="updated_at">Date Modified</option>
                     <option value="progress">Progress</option>
@@ -67,9 +54,39 @@
         <div class="grid" id="cards-grid"></div>
         <div class="pagination-container" id="pagination-container"></div>
     </main>
-    <footer class="main-footer"><span id="version-footer"></span></footer>
+    <footer class="main-footer"></footer>
     <script src="/static/js/header.js"></script>
     <script src="/static/js/auth.js"></script>
-    <script src="/static/js/library.js"></script>
+    <script>
+        // Simplified JS for this page
+        document.addEventListener('DOMContentLoaded', async () => {
+            await checkAuth();
+            const tagId = window.location.pathname.split('/')[2];
+            const pageTitle = document.getElementById('page-title');
+            const grid = document.getElementById('cards-grid');
+
+            // Fetch and set tag name
+            const tagRes = await fetch(`/api/tags/${tagId}`);
+            const tagData = await tagRes.json();
+            pageTitle.textContent += tagData.name;
+            document.title = `Tag: ${tagData.name} - Mango`;
+
+            // Fetch and render folders
+            const foldersRes = await fetch(`/api/tags/${tagId}/folders`);
+            const folders = await foldersRes.json();
+
+            grid.innerHTML = '';
+            folders.forEach(folder => {
+                const card = document.createElement('a');
+                card.href = `/library/folder/${folder.id}`;
+                card.className = 'item-card folder';
+                card.innerHTML = `
+                    <div class="thumbnail-container"><img class="thumbnail" src="${folder.thumbnail || '/static/images/logo.svg'}"></div>
+                    <div class="item-title">${folder.name}</div>
+                `;
+                grid.appendChild(card);
+            });
+        });
+    </script>
 </body>
 </html>

@@ -317,8 +317,8 @@ func (s *Server) handleUpdateProgress(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var payload struct {
-		ProgressPercent float32  `json:"progress_percent"`
-		Read            bool `json:"read"`
+		ProgressPercent float32 `json:"progress_percent"`
+		Read            bool    `json:"read"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {

@@ -85,6 +85,7 @@ func (s *Server) Router() http.Handler {
 			r.Get("/tags", s.handleListTags)
 			r.Get("/tags/{tagID}", s.handleGetTagDetails) // To get a single tag's name
 			r.Get("/tags/{tagID}/series", s.handleListSeriesByTag)
+			r.Get("/tags/{tagID}/folders", s.handleListFoldersByTag)
 
 			// Admin Job Triggers
 			r.Route("/admin", func(r chi.Router) {
@@ -176,9 +177,10 @@ func (s *Server) Router() http.Handler {
 	r.Get("/downloads/subscriptions", serveHTML("subscription_manager.html"))
 
 	// Dynamic routes that serve a specific base HTML file
-	r.Get("/series/{id}", serveHTML("library.html"))
+	r.Get("/library/folder/{folderID}", serveHTML("library.html"))
 	// r.Get("/series/{id}", serveHTML("chapters.html"))
-	r.Get("/tags/{id}", serveHTML("tag_series.html"))
+	// r.Get("/tags/{id}", serveHTML("tag_series.html"))
+	r.Get("/tags/{id}", serveHTML("tag_folders.html"))
 	r.Get("/reader/series/{seriesID}/chapters/{chapterID}", serveHTML("reader.html"))
 
 	return r
