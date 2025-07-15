@@ -85,6 +85,11 @@ func (s *Server) handleAddTagToFolder(w http.ResponseWriter, r *http.Request) {
 		RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
+	if payload.Name == "" {
+		RespondWithError(w, http.StatusBadRequest, "Tag name cannot be empty")
+		return
+	}
+
 	tag, err := s.store.AddTagToFolder(folderId, payload.Name)
 	if err != nil {
 		log.Printf("Failed to add tag to folder %d: %v", folderId, err)
@@ -96,6 +101,7 @@ func (s *Server) handleAddTagToFolder(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleRemoveTagFromFolder(w http.ResponseWriter, r *http.Request) {
 	folderID, _ := strconv.ParseInt(chi.URLParam(r, "folderID"), 10, 64)
 	tagID, _ := strconv.ParseInt(chi.URLParam(r, "tagID"), 10, 64)
+
 	if err := s.store.RemoveTagFromFolder(folderID, tagID); err != nil {
 		log.Printf("Failed to remove tag %d from folder %d: %v", tagID, folderID, err)
 		RespondWithError(w, http.StatusInternalServerError, "Failed to remove tag from folder")

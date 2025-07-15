@@ -165,31 +165,6 @@ func (s *Store) UpdateSeriesThumbnailIfNeeded(tx *sql.Tx, seriesID int64, thumbn
 	return nil
 }
 
-func (s *Store) GetOrCreateTag(tagName string) (*models.Tag, error) {
-	tagName = strings.TrimSpace(strings.ToLower(tagName))
-	if tagName == "" {
-		return nil, fmt.Errorf("tag name cannot be empty")
-	}
-	var tag models.Tag
-	err := s.db.QueryRow("SELECT id, name FROM tags WHERE name = ?", tagName).Scan(&tag.ID, &tag.Name)
-	if err == sql.ErrNoRows {
-		// Tag does not exist, create it
-		res, err := s.db.Exec("INSERT INTO tags (name) VALUES (?)", tagName)
-		if err != nil {
-			return nil, err
-		}
-		tagID, err := res.LastInsertId()
-		if err != nil {
-			return nil, err
-		}
-		tag.ID = tagID
-		tag.Name = tagName
-	} else if err != nil {
-		return nil, err
-	}
-	return &tag, nil
-}
-
 func (s *Store) AddTagToSeries(seriesID int64, tagName string) (*models.Tag, error) {
 	tagName = strings.TrimSpace(strings.ToLower(tagName))
 	if tagName == "" {

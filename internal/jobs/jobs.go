@@ -12,13 +12,6 @@ import (
 	"github.com/vrsandeep/mango-go/internal/store"
 )
 
-// type ProgressUpdate struct {
-// 	JobName  string  `json:"job_name"`
-// 	Message  string  `json:"message"`
-// 	Progress float64 `json:"progress"`
-// 	Done     bool    `json:"done"`
-// }
-
 func sendProgress(app *core.App, jobName, message string, progress float64, done bool) {
 	update := models.ProgressUpdate{
 		JobName:  jobName,

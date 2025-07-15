@@ -2,11 +2,11 @@ package store
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"path/filepath"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/vrsandeep/mango-go/internal/models"
@@ -203,14 +203,15 @@ func (s *Store) ListItems(opts ListItemsOptions) (*models.Folder, []*models.Fold
 		}
 		currentFolder = f
 	}
-	// --- Build WHERE clauses and arguments dynamically based on options ---
+	// --- Build dynamic query parts ---
 	var folderWhere, chapterWhere, tagJoin string
 	var folderArgs, chapterArgs []interface{}
 
 	// Filter by parent folder
 	if *opts.ParentID == 0 { // A special case for root
 		folderWhere = "f.parent_id IS NULL"
-		chapterWhere = "c.folder_id IS NULL"
+		chapterWhere = "1=0" // No chapters at the root level
+		// chapterWhere = "c.folder_id IS NULL"
 	} else {
 		folderWhere = "f.parent_id = ?"
 		folderArgs = append(folderArgs, *opts.ParentID)
@@ -221,10 +222,7 @@ func (s *Store) ListItems(opts ListItemsOptions) (*models.Folder, []*models.Fold
 	// Filter by tag
 	if opts.TagID != nil {
 		tagJoin = "JOIN folder_tags ft ON f.id = ft.folder_id"
-		if folderWhere != "" {
-			folderWhere += " AND"
-		}
-		folderWhere += " ft.tag_id = ?"
+		folderWhere += " AND ft.tag_id = ?"
 		folderArgs = append(folderArgs, *opts.TagID)
 		// Tags apply to folders, which act as series containers, so we don't filter chapters by tag directly.
 		// Instead, we show all folders with that tag.
@@ -232,29 +230,18 @@ func (s *Store) ListItems(opts ListItemsOptions) (*models.Folder, []*models.Fold
 	}
 
 	if opts.Search != "" {
-		if folderWhere != "" {
-			folderWhere += " AND"
-		}
-		folderWhere += " f.name LIKE ?"
+		folderWhere += " AND f.name LIKE ?"
 		folderArgs = append(folderArgs, "%"+opts.Search+"%")
-
-		if chapterWhere != "" {
-			chapterWhere += " AND"
-		}
-		chapterWhere += " c.path LIKE ?"
+		chapterWhere += " AND c.path LIKE ?"
 		chapterArgs = append(chapterArgs, "%"+filepath.Base(opts.Search)+"%")
 	}
 
-	// Default to an impossible condition if no filter is set, to avoid returning all items.
-	if folderWhere == "" {
-		folderWhere = "1=0"
-	}
-	if chapterWhere == "" {
-		chapterWhere = "1=0"
-	}
+	// Count total items
+	var totalItems int
+	countQuery := fmt.Sprintf("SELECT (SELECT COUNT(*) FROM folders f WHERE %s) + (SELECT COUNT(*) FROM chapters c WHERE %s);", folderWhere, chapterWhere)
+	s.db.QueryRow(countQuery, append(folderArgs, chapterArgs...)...).Scan(&totalItems)
 
-	// --- Use the UNION ALL query from the previous step, now with dynamic WHERE clauses ---
-	baseQuery := fmt.Sprintf(`
+	baseQuery := `
 		-- Select Folders
 		SELECT
 			1 as item_type, -- 1 for folder
@@ -288,20 +275,10 @@ func (s *Store) ListItems(opts ListItemsOptions) (*models.Folder, []*models.Fold
 		FROM chapters c
 		LEFT JOIN user_chapter_progress ucp ON c.id = ucp.chapter_id AND ucp.user_id = ?
 		WHERE %s
-	`, tagJoin, folderWhere, chapterWhere)
+	`
 
-	// Count total items
-	var totalItems int
-	countQuery := fmt.Sprintf("SELECT (SELECT COUNT(*) FROM folders f WHERE %s) + (SELECT COUNT(*) FROM chapters c WHERE %s);", folderWhere, chapterWhere)
-	s.db.QueryRow(countQuery, append(folderArgs, chapterArgs...)...).Scan(&totalItems)
-
-	// ... (The rest of the complex UNION ALL query, sorting, and pagination logic follows) ...
-
-	// For brevity, the full query implementation is represented by this placeholder.
-	// The key change is the dynamic construction of the WHERE clauses above.
 	// Build final query with sorting and pagination
-	// finalQuery := fmt.Sprintf(baseQuery, folderWhere, chapterWhere)
-	finalQuery := baseQuery
+	finalQuery := fmt.Sprintf(baseQuery, tagJoin, folderWhere, chapterWhere)
 	sortBy := opts.SortBy
 	if sortBy == "" {
 		sortBy = "auto" // Default to natural sorting
@@ -311,8 +288,13 @@ func (s *Store) ListItems(opts ListItemsOptions) (*models.Folder, []*models.Fold
 		sortDir = "DESC"
 	}
 	sortClause := "ORDER BY item_type ASC, sort_name %s"
-	if sortBy == "created_at" {
+	switch sortBy {
+	case "created_at":
 		sortClause = "ORDER BY item_type ASC, sort_created_at %s"
+	case "updated_at":
+		sortClause = "ORDER BY item_type ASC, chapter_updated_at %s"
+	case "progress":
+		sortClause = "ORDER BY item_type ASC, user_progress %s, sort_name ASC"
 	}
 	finalQuery += " " + fmt.Sprintf(sortClause, sortDir)
 	finalQuery += " LIMIT ? OFFSET ?"
@@ -335,17 +317,29 @@ func (s *Store) ListItems(opts ListItemsOptions) (*models.Folder, []*models.Fold
 		var itemType int
 		var folder models.Folder
 		var chapter models.Chapter
+		var folderThumb, chapPath, sortName sql.NullString
+		var pageCount, userProgress sql.NullInt64
 		var userRead sql.NullBool
-		var userProgress sql.NullInt64
-		if err := rows.Scan(&itemType, &folder.ID, &folder.Path, &folder.Name, &folder.Thumbnail,
-			&chapter.PageCount, &chapter.CreatedAt, &chapter.UpdatedAt,
-			&userRead, &userProgress, &folder.CreatedAt, &folder.Name); err != nil {
+		var createdAt, updatedAt, sortDate sql.NullTime
+
+		if err := rows.Scan(
+			&itemType, &chapter.ID, &chapPath, &folder.Name, &folderThumb,
+			&pageCount,
+			&createdAt, &updatedAt, &userRead, &userProgress, &sortDate, &sortName); err != nil {
 			return currentFolder, nil, nil, 0, err
 		}
-		switch itemType {
-		case 1:
+		if itemType == 1 { // Folder
+			folder.ID = chapter.ID
+			folder.Path = chapPath.String
+			folder.Thumbnail = folderThumb.String
 			subfolders = append(subfolders, &folder)
-		case 2:
+		} else { // Chapter
+			chapter.FolderID = *opts.ParentID
+			chapter.Path = chapPath.String
+			chapter.Thumbnail = folderThumb.String
+			chapter.PageCount = int(pageCount.Int64)
+			chapter.Read = userRead.Bool
+			chapter.ProgressPercent = int(userProgress.Int64)
 			chapters = append(chapters, &chapter)
 		}
 	}
@@ -357,20 +351,6 @@ func (s *Store) ListItems(opts ListItemsOptions) (*models.Folder, []*models.Fold
 		})
 		sort.Slice(chapters, func(i, j int) bool {
 			return util.NaturalSortLess(chapters[i].Path, chapters[j].Path)
-		})
-	case "title":
-		sort.Slice(subfolders, func(i, j int) bool {
-			return util.NaturalSortLess(subfolders[i].Name, subfolders[j].Name)
-		})
-		sort.Slice(chapters, func(i, j int) bool {
-			return util.NaturalSortLess(chapters[i].Path, chapters[j].Path)
-		})
-	case "updated_at":
-		sort.Slice(subfolders, func(i, j int) bool {
-			return subfolders[i].UpdatedAt.Before(subfolders[j].UpdatedAt)
-		})
-		sort.Slice(chapters, func(i, j int) bool {
-			return chapters[i].UpdatedAt.Before(chapters[j].UpdatedAt)
 		})
 	case "progress":
 		sort.Slice(chapters, func(i, j int) bool {
@@ -434,39 +414,30 @@ func (s *Store) GetFolderPath(folderID int64) ([]*models.Folder, error) {
 	return path, nil
 }
 
-// AddTagToFolder creates the association between a folder and a tag.
-func (s *Store) AddTagToFolder(folderID int64, tagName string) (*models.Tag, error) {
-	tagName = strings.TrimSpace(strings.ToLower(tagName))
-	if tagName == "" {
-		return nil, fmt.Errorf("tag name cannot be empty")
-	}
-	tx, err := s.db.Begin()
+// GetFolderSettings retrieves the sort settings for a folder.
+func (s *Store) GetFolderSettings(folderID int64, userID int64) (*models.SeriesSettings, error) {
+	var settings models.SeriesSettings
+	err := s.db.QueryRow(`
+		SELECT sort_by, sort_dir
+		FROM user_folder_settings
+		WHERE folder_id = ? AND user_id = ?
+	`, folderID, userID).Scan(&settings.SortBy, &settings.SortDir)
 	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-
-	tag, err := s.GetOrCreateTag(tagName)
-	if err != nil {
-		return nil, err
-	}
-	_, err = s.db.Exec("INSERT OR IGNORE INTO folder_tags (folder_id, tag_id) VALUES (?, ?)", folderID, tag.ID)
-	if err != nil {
-		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
-			// If the tag is already associated with the folder, ignore the error
-			return &models.Tag{ID: tag.ID, Name: tag.Name}, nil
+		if errors.Is(err, sql.ErrNoRows) {
+			// Return default settings if not found
+			settings.SortBy = "auto"
+			settings.SortDir = "asc"
+			return &settings, nil
 		}
 		return nil, err
 	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, err
-	}
-	return tag, nil
+	return &settings, nil
 }
 
-// RemoveTagFromFolder removes the association between a folder and a tag.
-func (s *Store) RemoveTagFromFolder(folderID, tagID int64) error {
-	_, err := s.db.Exec("DELETE FROM folder_tags WHERE folder_id = ? AND tag_id = ?", folderID, tagID)
+// UpdateFolderSettings saves the sort settings for a Folder.
+func (s *Store) UpdateFolderSettings(folderID int64, userID int64, sortBy, sortDir string) error {
+	query := `INSERT INTO user_folder_settings (folder_id, user_id, sort_by, sort_dir) VALUES (?, ?, ?, ?)
+              ON CONFLICT(user_id, folder_id) DO UPDATE SET sort_by=excluded.sort_by, sort_dir=excluded.sort_dir;`
+	_, err := s.db.Exec(query, folderID, userID, sortBy, sortDir)
 	return err
 }

@@ -9,6 +9,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   const sortBySelect = document.getElementById('sort-by');
   const sortDirBtn = document.getElementById('sort-dir-btn');
   const paginationContainer = document.getElementById('pagination-container');
+  const editFolderBtn = document.getElementById('edit-folder-btn');
+  const editFolderModal = document.getElementById('edit-folder-modal');
+  const modalCloseBtn = document.getElementById('modal-close-btn');
+  const tagsContainer = document.getElementById('tags-container');
+  const tagInput = document.getElementById('tag-input');
+  const autocompleteSuggestions = document.getElementById('autocomplete-suggestions');
 
   // --- State Management ---
   let state = {
@@ -21,6 +27,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     totalItems: 0,
     perPage: 100
   };
+  // let allTags = [];
+  let currentFolderTags = [];
 
   // --- Core Functions ---
 
@@ -40,7 +48,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const response = await fetch(url);
     const path = await response.json();
 
-    breadcrumbEl.innerHTML = '<a href="/library">Home</a>';
+    breadcrumbEl.innerHTML = '<a href="/library">Library</a>';
     path.forEach(folder => {
       breadcrumbEl.innerHTML += ` / <a href="/library/folder/${folder.id}">${folder.name}</a>`;
     });
@@ -55,17 +63,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (data.subfolders && data.subfolders.length > 0) {
-      const header = document.createElement('h3');
-      header.className = 'grid-section-header';
-      header.textContent = 'Folders';
-      cardsGrid.appendChild(header);
+      cardsGrid.insertAdjacentHTML('beforeend', '<h3 class="grid-section-header">Folders</h3>');
       data.subfolders.forEach(folder => cardsGrid.appendChild(createFolderCard(folder)));
     }
     if (data.chapters && data.chapters.length > 0) {
-      const header = document.createElement('h3');
-      header.className = 'grid-section-header';
-      header.textContent = 'Chapters';
-      cardsGrid.appendChild(header);
+      cardsGrid.insertAdjacentHTML('beforeend', '<h3 class="grid-section-header">Chapters</h3>');
       data.chapters.forEach(chapter => cardsGrid.appendChild(createChapterCard(chapter)));
     }
   };
@@ -77,7 +79,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     card.className = 'item-card folder';
     card.innerHTML = `
             <div class="thumbnail-container">
-                <img class="thumbnail" src="${folder.thumbnail || '/static/images/logo.svg'}"></div>
+                <img class="thumbnail" src="${folder.thumbnail || '/static/images/logo.svg'}" loading="lazy" alt="Cover for ${folder.name}">
+            </div>
             <div class="item-title" title="${folder.name}">${folder.name}</div>
         `;
     return card;
@@ -89,11 +92,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const progressPercent = chapter.progress_percent || 0;
     card.href = `/reader/series/${chapter.folder_id}/chapters/${chapter.id}`; // Note: Reader URL might need adjustment
     card.className = 'item-card';
+    const title = chapter.path.split(/[\\\\/]/).pop();
     card.innerHTML = `
             <div class="thumbnail-container">
-                <img class="thumbnail" src="${chapter.thumbnail || ''}" loading="lazy">
+                <img class="thumbnail" src="${chapter.thumbnail || ''}" loading="lazy" alt="Cover for ${title}">
             </div>
-            <div class="item-title" title="${chapter.path.split(/[\\\\/]/).pop()}">${chapter.path.split(/[\\\\/]/).pop()}</div>
+            <div class="item-title" title="${title}">${title}</div>
             <div class="progress-bar-container">
                 <div class="progress-bar" style="width: ${progressPercent}%;"></div>
             </div>
@@ -126,6 +130,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     pageTitleEl.textContent = data.current_folder ? data.current_folder.name : 'Library';
     document.title = `${pageTitleEl.textContent} - Mango`;
 
+    // Show the Edit button only when viewing a specific folder
+    editFolderBtn.style.display = data.current_folder ? 'block' : 'none';
+    renderTags(data.current_folder ? data.current_folder.tags : []);
+
     renderGrid(data);
 
     state.totalItems = parseInt(response.headers.get('X-Total-Count') || '0', 10);
@@ -147,7 +155,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (isActive) btn.classList.add('active');
       btn.addEventListener('click', () => {
         state.currentPage = page;
-        loadCards(true);
+        loadFolderContents();
         btn.classList.add('active');
         const siblings = Array.from(paginationContainer.children);
         siblings.forEach(sibling => {
@@ -197,6 +205,49 @@ document.addEventListener('DOMContentLoaded', async () => {
     paginationContainer.appendChild(createButton('&raquo;', totalPages, state.currentPage === totalPages));
   };
 
+  // --- Tagging Logic ---
+  const loadAllTags = async () => {
+    const response = await fetch('/api/tags');
+    allTags = await response.json() || [];
+  };
+
+  const renderTags = (tags) => {
+    currentFolderTags = tags || [];
+    tagsContainer.innerHTML = '';
+    currentFolderTags.forEach(tag => {
+      const tagEl = document.createElement('div');
+      tagEl.className = 'tag';
+      tagEl.innerHTML = `<span>${tag.name}</span><span class="tag-remove-btn" data-tag-id="${tag.id}">&times;</span>`;
+      tagsContainer.appendChild(tagEl);
+    });
+  };
+
+  const addTag = async (tagName) => {
+    const normalizedTagName = tagName.trim().toLowerCase();
+    if (normalizedTagName === '' || currentFolderTags.some(t => t.name === normalizedTagName)) {
+      tagInput.value = '';
+      return;
+    }
+    const response = await fetch(`/api/folders/${state.currentFolderId}/tags`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: normalizedTagName })
+    });
+    if (response.ok) {
+      tagInput.value = '';
+      autocompleteSuggestions.style.display = 'none';
+      const newTag = await response.json();
+      currentFolderTags.push(newTag);
+      renderTags(currentFolderTags);
+    }
+  };
+
+  const removeTag = async (tagId) => {
+    await fetch(`/api/folders/${state.currentFolderId}/tags/${tagId}`, { method: 'DELETE' });
+    currentFolderTags = currentFolderTags.filter(t => t.id != tagId);
+    renderTags(currentFolderTags);
+  };
+
   const handleSearch = () => {
     state.search = searchInput.value.trim();
     state.currentPage = 1;
@@ -204,6 +255,42 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   // --- Event Listeners ---
+  editFolderBtn.addEventListener('click', () => {
+    if (state.currentFolderId) editFolderModal.style.display = 'flex';
+  });
+  modalCloseBtn.addEventListener('click', () => editFolderModal.style.display = 'none');
+  tagsContainer.addEventListener('click', (e) => {
+    if (e.target.classList.contains('tag-remove-btn')) {
+      removeTag(e.target.dataset.tagId);
+    }
+  });
+  tagInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addTag(tagInput.value);
+    }
+  });
+  tagInput.addEventListener('input', () => {
+    const query = tagInput.value.trim().toLowerCase();
+    if (query === '') {
+      autocompleteSuggestions.style.display = 'none';
+      return;
+    }
+    const suggestions = allTags.filter(tag => tag.name.toLowerCase().includes(query));
+    autocompleteSuggestions.innerHTML = '';
+    suggestions.forEach(tag => {
+      const suggestionEl = document.createElement('div');
+      suggestionEl.className = 'autocomplete-suggestion';
+      suggestionEl.textContent = tag.name;
+      suggestionEl.addEventListener('click', () => {
+        addTag(tag.name);
+        autocompleteSuggestions.style.display = 'none';
+      });
+      autocompleteSuggestions.appendChild(suggestionEl);
+    });
+    autocompleteSuggestions.style.display = suggestions.length > 0 ? 'block' : 'none';
+  });
+
   let searchTimeout;
   searchInput.addEventListener('input', () => {
     clearTimeout(searchTimeout);
@@ -220,9 +307,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     sortDirBtn.textContent = state.sortDir === 'asc' ? '▲' : '▼';
     loadFolderContents();
   });
-  const init = () => {
+  const init = async () => {
     state.currentFolderId = getFolderIdFromUrl();
-    loadFolderContents();
+    await loadAllTags(); // Load tags for autocomplete
+    await loadFolderContents();
   };
 
   init();

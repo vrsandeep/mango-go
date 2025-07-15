@@ -24,6 +24,33 @@ func (s *Store) CreateChapter(folderID int64, path, hash string, pageCount int, 
 	return &models.Chapter{ID: id, FolderID: folderID, Path: path, ContentHash: hash, PageCount: pageCount}, nil
 }
 
+// GetChapterByID fetches a single chapter by its ID.
+func (s *Store) GetChapterByID(id int64, userID int64) (*models.Chapter, error) {
+	var chapter models.Chapter
+	var thumb sql.NullString
+	query := `
+		SELECT c.id, c.folder_id, c.path, c.content_hash, c.page_count,
+		       COALESCE(ucp.read, 0) as read,
+		       COALESCE(ucp.progress_percent, 0) as progress_percent,
+		       c.thumbnail,
+			   c.created_at,
+			   c.updated_at
+		FROM chapters c
+		LEFT JOIN user_chapter_progress ucp ON c.id = ucp.chapter_id AND ucp.user_id = ?
+		WHERE c.id = ?
+	`
+	err := s.db.QueryRow(query, userID, id).Scan(
+		&chapter.ID, &chapter.FolderID, &chapter.Path, &chapter.ContentHash, &chapter.PageCount,
+		&chapter.Read, &chapter.ProgressPercent,
+		&thumb, &chapter.CreatedAt, &chapter.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	chapter.Thumbnail = thumb.String
+	return &chapter, nil
+}
+
 // GetAllChaptersByHash retrieves all chapters and maps them by their content hash for efficient lookup.
 func (s *Store) GetAllChaptersByHash() (map[string]ChapterInfo, error) {
 	rows, err := s.db.Query("SELECT id, path, content_hash FROM chapters")

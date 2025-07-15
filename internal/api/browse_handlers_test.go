@@ -32,8 +32,11 @@ func TestBrowseHandlers(t *testing.T) {
 	folderA, _ := server.Store().CreateFolder("/Folder A", "Folder A", nil)
 	folderB, _ := server.Store().CreateFolder("/Folder A/Subfolder B", "Subfolder B", &folderA.ID)
 	server.Store().CreateFolder("/Folder C", "Folder C", nil)
-	server.Store().CreateChapter(folderA.ID, "/Folder A/chapter-a1.cbz", "hashA1", 10, "")
+	chapterA1, _ := server.Store().CreateChapter(folderA.ID, "/Folder A/chapter-a1.cbz", "hashA1", 10, "")
 	server.Store().CreateChapter(folderB.ID, "/Folder A/Subfolder B/chapter-b1.cbz", "hashB1", 10, "")
+	// Assuming user id is 1 for testing
+	server.Store().UpdateChapterProgress(chapterA1.ID, 1, 50, false)
+
 	t.Run("Add and Remove Tag from Folder", func(t *testing.T) {
 		// 1. Add Tag
 		tagPayload := `{"name": "shonen"}`
