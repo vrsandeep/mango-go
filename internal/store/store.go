@@ -179,7 +179,7 @@ func (s *Store) AddTagToSeries(seriesID int64, tagName string) (*models.Tag, err
 
 	var tagID int64
 	var tag *models.Tag
-	tag, err = s.GetOrCreateTag(tagName)
+	tag, err = s.GetOrCreateTag(tagName, true)
 	if err != nil {
 		return nil, err
 	}

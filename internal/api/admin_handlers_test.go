@@ -1,52 +1,76 @@
 package api_test
 
 import (
+	"bytes"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
+	"github.com/vrsandeep/mango-go/internal/jobs"
 	"github.com/vrsandeep/mango-go/internal/testutil"
 )
 
 func TestAdminHandlers(t *testing.T) {
-	server, _ := testutil.SetupTestServer(t) // This helper sets up a test server and DB
+	server, _, jobManager := testutil.SetupTestServer(t) // This helper sets up a test server and DB
 	router := server.Router()
+	jobManager.Register("Test Job", func(ctx jobs.JobContext) {
+		time.Sleep(1 * time.Second)
+	})
 
 	adminCookie := testutil.GetAuthCookie(t, server, "testadmin", "password", "admin")
 	userCookie := testutil.GetAuthCookie(t, server, "testuser", "password", "user")
 
-	testCases := []struct {
-		name     string
-		endpoint string
-		method   string
-		cookie   *http.Cookie
-	}{
-		{"Scan Library", "/api/admin/scan-library", "POST", adminCookie},
-		{"Scan Incremental", "/api/admin/scan-incremental", "POST", adminCookie},
-		{"Prune Database", "/api/admin/prune-database", "POST", adminCookie},
-		{"Regenerate Thumbnails", "/api/admin/generate-thumbnails", "POST", adminCookie},
-	}
+	t.Run("Library Sync", func(t *testing.T) {
+		type body struct {
+			JobName string `json:"job_name"`
+		}
+		payload, _ := json.Marshal(body{JobName: "Test Job"})
+		req, _ := http.NewRequest("POST", "/api/admin/jobs/run", bytes.NewBuffer(payload))
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(adminCookie)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			req, _ := http.NewRequest(tc.method, tc.endpoint, nil)
-			req.AddCookie(tc.cookie)
-			rr := httptest.NewRecorder()
-			router.ServeHTTP(rr, req)
+		if status := rr.Code; status != http.StatusAccepted {
+			t.Fatalf("handler returned wrong status code: got %v want %v", status, http.StatusAccepted)
+		}
 
-			if status := rr.Code; status != http.StatusAccepted {
-				t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusAccepted)
-			}
-		})
-	}
+		req, _ = http.NewRequest("GET", "/api/admin/jobs/status", nil)
+		req.AddCookie(adminCookie)
+		rr = httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+		if status := rr.Code; status != http.StatusOK {
+			t.Fatalf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		}
+		var statuses []jobs.JobStatus
+		if err := json.NewDecoder(rr.Body).Decode(&statuses); err != nil {
+			t.Fatalf("failed to decode response body: %v", err)
+		}
+		if len(statuses) == 0 {
+			t.Fatalf("no jobs found in statuses")
+		}
+
+		// Submitting again should return a 409 Conflict
+		rr = httptest.NewRecorder()
+		req, _ = http.NewRequest("POST", "/api/admin/jobs/run", bytes.NewBuffer(payload))
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(adminCookie)
+		router.ServeHTTP(rr, req)
+		if status := rr.Code; status != http.StatusConflict {
+			t.Fatalf("handler returned wrong status code: got %v want %v", status, http.StatusConflict)
+		}
+	})
+
 
 	t.Run("Unauthorized Access", func(t *testing.T) {
-		req, _ := http.NewRequest("POST", "/api/admin/scan-library", nil)
+		req, _ := http.NewRequest("POST", "/api/admin/jobs/run", nil)
 		req.AddCookie(userCookie) // Use a regular user cookie
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 		if status := rr.Code; status != http.StatusForbidden {
-			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusForbidden)
+			t.Fatalf("handler returned wrong status code: got %v want %v", status, http.StatusForbidden)
 		}
 	})
 
@@ -55,7 +79,7 @@ func TestAdminHandlers(t *testing.T) {
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 		if status := rr.Code; status != http.StatusOK {
-			t.Errorf("handler returned wrong status code: got %v want %v %s", status, http.StatusOK, rr.Body.String())
+			t.Fatalf("handler returned wrong status code: got %v want %v %s", status, http.StatusOK, rr.Body.String())
 		}
 	})
 }

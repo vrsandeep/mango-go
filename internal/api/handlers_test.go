@@ -18,7 +18,7 @@ import (
 )
 
 func TestHandleListSeries(t *testing.T) {
-	server, db := testutil.SetupTestServer(t)
+	server, db, _ := testutil.SetupTestServer(t)
 	router := server.Router()
 	testutil.PersistOneSeriesAndChapter(t, db)
 
@@ -44,7 +44,7 @@ func TestHandleListSeries(t *testing.T) {
 }
 
 func TestHandleGetSeries(t *testing.T) {
-	server, db := testutil.SetupTestServer(t)
+	server, db, _ := testutil.SetupTestServer(t)
 	router := server.Router()
 	testutil.PersistOneSeriesAndChapter(t, db)
 
@@ -79,7 +79,7 @@ func TestHandleGetSeries(t *testing.T) {
 }
 
 func TestHandleGetPage(t *testing.T) {
-	server, db := testutil.SetupTestServer(t)
+	server, db, _ := testutil.SetupTestServer(t)
 	router := server.Router()
 	testutil.PersistOneSeriesAndChapter(t, db)
 
@@ -119,7 +119,7 @@ func TestHandleGetPage(t *testing.T) {
 }
 
 func TestServeReaderHTML(t *testing.T) {
-	server, _ := testutil.SetupTestServer(t)
+	server, _, _ := testutil.SetupTestServer(t)
 	router := server.Router()
 
 	// --- Get the expected content directly from the embedded source ---
@@ -154,7 +154,7 @@ func TestServeReaderHTML(t *testing.T) {
 
 // test to ensure the library.html serves series correctly.
 func TestServeLibraryHTML(t *testing.T) {
-	server, _ := testutil.SetupTestServer(t)
+	server, _, _ := testutil.SetupTestServer(t)
 	router := server.Router()
 
 	// The handler's http.ServeFile uses "./web/reader.html", which assumes

@@ -11,7 +11,7 @@ import (
 )
 
 func TestHandleUpdateCover(t *testing.T) {
-	server, db := testutil.SetupTestServer(t) // This helper is in handlers_test.go
+	server, db, _ := testutil.SetupTestServer(t) // This helper is in handlers_test.go
 	router := server.Router()
 	s := store.New(db)
 	testutil.PersistOneSeriesAndChapter(t, db)

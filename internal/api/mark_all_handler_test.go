@@ -11,7 +11,7 @@ import (
 )
 
 func TestHandleMarkAllAs(t *testing.T) {
-	server, db := testutil.SetupTestServer(t)
+	server, db, _ := testutil.SetupTestServer(t)
 	router := server.Router()
 	s := store.New(db)
 	testutil.PersistOneSeriesAndChapter(t, db)

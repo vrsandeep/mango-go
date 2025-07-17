@@ -77,7 +77,7 @@ func (s *Server) handleGetBreadcrumb(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleAddTagToFolder(w http.ResponseWriter, r *http.Request) {
-	folderId, _ := strconv.ParseInt(chi.URLParam(r, "folderId"), 10, 64)
+	folderId, _ := strconv.ParseInt(chi.URLParam(r, "folderID"), 10, 64)
 	var payload struct {
 		Name string `json:"name"`
 	}
@@ -98,6 +98,7 @@ func (s *Server) handleAddTagToFolder(w http.ResponseWriter, r *http.Request) {
 	}
 	RespondWithJSON(w, http.StatusCreated, tag)
 }
+
 func (s *Server) handleRemoveTagFromFolder(w http.ResponseWriter, r *http.Request) {
 	folderID, _ := strconv.ParseInt(chi.URLParam(r, "folderID"), 10, 64)
 	tagID, _ := strconv.ParseInt(chi.URLParam(r, "tagID"), 10, 64)

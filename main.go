@@ -18,7 +18,6 @@ import (
 	"github.com/vrsandeep/mango-go/internal/downloader/providers"
 	"github.com/vrsandeep/mango-go/internal/downloader/providers/mangadex"
 	"github.com/vrsandeep/mango-go/internal/downloader/providers/weebcentral"
-	"github.com/vrsandeep/mango-go/internal/jobs"
 	"github.com/vrsandeep/mango-go/internal/library"
 	"github.com/vrsandeep/mango-go/internal/store"
 	"github.com/vrsandeep/mango-go/internal/subscription"
@@ -38,7 +37,7 @@ func main() {
 
 
 	// --- First User Provisioning ---
-	st := store.New(app.DB)
+	st := store.New(app.DB())
 	userCount, err := st.CountUsers()
 	if err != nil {
 		log.Fatalf("Could not check user count: %v", err)
@@ -60,10 +59,10 @@ func main() {
 	}
 
 	// Start periodic scanning in the background
-	scanner := library.NewScanner(app.Config, app.DB)
-	go jobs.RunIncrementalScan(app)
+	scanner := library.NewScanner(app.Config(), app.DB())
+	// go jobs.RunIncrementalScan(app)
 	go func() {
-		ticker := time.NewTicker(time.Duration(app.Config.ScanInterval) * time.Minute)
+		ticker := time.NewTicker(time.Duration(app.Config().ScanInterval) * time.Minute)
 		for range ticker.C {
 			log.Println("Performing periodic library scan...")
 			if err := scanner.Scan(nil, nil); err != nil {
@@ -87,7 +86,7 @@ func main() {
 
 	// Setup the API server
 	server := api.NewServer(app)
-	addr := fmt.Sprintf(":%d", app.Config.Port)
+	addr := fmt.Sprintf(":%d", app.Config().Port)
 	httpServer := &http.Server{
 		Addr:    addr,
 		Handler: server.Router(),

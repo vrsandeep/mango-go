@@ -20,7 +20,7 @@ type Service struct {
 func NewService(app *core.App) *Service {
 	return &Service{
 		app: app,
-		st:  store.New(app.DB),
+		st:  store.New(app.DB()),
 	}
 }
 

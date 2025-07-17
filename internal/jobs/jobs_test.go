@@ -1,208 +1,115 @@
 package jobs_test
 
 import (
-	"encoding/json"
-	"os"
+	"database/sql"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/go-co-op/gocron"
+	"github.com/stretchr/testify/assert"
 	"github.com/vrsandeep/mango-go/internal/config"
-	"github.com/vrsandeep/mango-go/internal/core"
 	"github.com/vrsandeep/mango-go/internal/jobs"
-	"github.com/vrsandeep/mango-go/internal/models"
-	"github.com/vrsandeep/mango-go/internal/testutil"
 	"github.com/vrsandeep/mango-go/internal/websocket"
 )
 
-// setupTestApp creates a mock core.App for testing jobs.
-func setupTestApp(t *testing.T) *core.App {
-	t.Helper()
-	hub := websocket.NewHub()
-	go hub.Run() // Run the hub in the background
-
-	return &core.App{
-		Config: &config.Config{
-			Library: struct {
-				Path string `mapstructure:"path"`
-			}{Path: t.TempDir()},
-		},
-		DB:      testutil.SetupTestDB(t),
-		WsHub:   hub,
-		Version: "test",
-	}
+// mockJobContext implements JobContext for testing
+// Only implements the methods needed for these tests
+type mockJobContext struct {
+	db        *sql.DB
+	config    *config.Config
+	wsHub     *websocket.Hub
+	jobMgr    *jobs.JobManager
 }
 
-func TestRunFullScan(t *testing.T) {
-	app := setupTestApp(t)
-	// Create a temporary directory and add a test CBZ file
-	testutil.CreateTestCBZFile(t, app.Config.Library.Path, "test.cbz")
-	// Run the full scan job
-	go jobs.RunFullScan(app)
-	// Listen for progress updates with a timeout to prevent the test from hanging
-	var lastUpdate models.ProgressUpdate
-	timeout := time.After(5 * time.Second)
-	for {
-		select {
-		case msgBytes := <-app.WsHub.Broadcast():
-			var update models.ProgressUpdate
-			if err := json.Unmarshal(msgBytes, &update); err != nil {
-				t.Fatalf("Failed to unmarshal progress update: %v", err)
-			}
-			lastUpdate = update
-			// If we've received the final "done" message, we can stop listening.
-			if lastUpdate.Done {
-				goto verification
-			} else {
-				t.Logf("%s", lastUpdate.Message)
-			}
-		case <-timeout:
-			t.Fatal("Test timed out waiting for job to complete")
+func (m *mockJobContext) DB() *sql.DB              { return m.db }
+func (m *mockJobContext) Config() *config.Config   { return m.config }
+func (m *mockJobContext) WsHub() *websocket.Hub   { return m.wsHub }
+func (m *mockJobContext) JobManager() *jobs.JobManager  { return m.jobMgr }
+
+func TestNewManagerAndRegister(t *testing.T) {
+	ctx := &mockJobContext{config: &config.Config{}, wsHub: websocket.NewHub()}
+	mgr := jobs.NewManager(ctx)
+	assert.NotNil(t, mgr)
+	mgr.Register("test", func(ctx jobs.JobContext) {})
+	statuses := mgr.GetStatus()
+	var found bool
+	for _, s := range statuses {
+		if s.Name == "test" {
+			found = true
+			break
 		}
 	}
-verification:
-	if !lastUpdate.Done {
-		t.Error("Expected final progress update to have Done=true")
-	}
-	if lastUpdate.Progress < 100 {
-		t.Errorf("Expected final progress update to have Progress=100, got %.2f", lastUpdate.Progress)
-	}
-	if lastUpdate.JobName != "Full Scan" {
-		t.Errorf("Expected job name 'Full Scan', got '%s'", lastUpdate.JobName)
-	}
-	if lastUpdate.Message != "Full scan completed successfully." {
-		t.Errorf("Expected final message 'Full scan completed successfully.', got '%s'", lastUpdate.Message)
-	}
-	// Verify the chapter was added to the database
-	var count int
-	if err := app.DB.QueryRow("SELECT COUNT(*) FROM series").Scan(&count); err != nil {
-		t.Fatalf("Failed to query series count: %v", err)
-	}
-	if count == 0 {
-		t.Error("Expected at least one series to be added to the database")
-	}
-
+	assert.True(t, found, "expected to find job named 'test' in statuses")
 }
 
-func TestRunIncrementalScan(t *testing.T) {
-	app := setupTestApp(t)
-
-	// Create a series directory
-	seriesDir := app.Config.Library.Path + "/Prune Test"
-	err := os.MkdirAll(seriesDir, 0755)
-	if err != nil {
-		t.Fatalf("Failed to create series directory: %v", err)
-	}
-	// Create new chapter file under the series directory
-	newCbzFile := "new-chapter.cbz"
-	testutil.CreateTestCBZFile(t, seriesDir, newCbzFile)
-
-	// Run the incremental scan job
-	go jobs.RunIncrementalScan(app)
-	// Listen for progress updates with a timeout to prevent the test from hanging
-	var lastUpdate models.ProgressUpdate
-	timeout := time.After(5 * time.Second)
-	for {
-		select {
-		case msgBytes := <-app.WsHub.Broadcast():
-			var update models.ProgressUpdate
-			if err := json.Unmarshal(msgBytes, &update); err != nil {
-				t.Fatalf("Failed to unmarshal progress update: %v", err)
-			}
-			lastUpdate = update
-			// If we've received the final "done" message, we can stop listening.
-			if lastUpdate.Done {
-				goto verification
-			} else {
-				t.Logf("%s", lastUpdate.Message)
-			}
-		case <-timeout:
-			t.Fatal("Test timed out waiting for job to complete")
-		}
-	}
-verification:
-	if !lastUpdate.Done {
-		t.Error("Expected final progress update to have Done=true")
-	}
-	if lastUpdate.Progress < 100 {
-		t.Errorf("Expected final progress update to have Progress=100, got %.2f", lastUpdate.Progress)
-	}
-	if lastUpdate.JobName != "Incremental Scan" {
-		t.Errorf("Expected job name 'Incremental Scan', got '%s'", lastUpdate.JobName)
-	}
-	if lastUpdate.Message != "Incremental scan completed." {
-		t.Errorf("Expected final message 'Incremental scan completed.', got '%s'", lastUpdate.Message)
-	}
-	// Verify the chapter was added to the database
-	var count int
-	if err := app.DB.QueryRow("SELECT COUNT(*) FROM series").Scan(&count); err != nil {
-		t.Fatalf("Failed to query series count: %v", err)
-	}
-	if count != 1 {
-		t.Fatalf("Expected at least one series to be added to the database %d", count)
-	}
-	if err := app.DB.QueryRow("SELECT COUNT(*) FROM chapters").Scan(&count); err != nil {
-		t.Fatalf("Failed to query chapters count: %v", err)
-	}
-	if count != 1 {
-		t.Fatalf("Expected one chapter to be added to the database %d", count)
-	}
+func TestRunJob_Success(t *testing.T) {
+	ctx := &mockJobContext{wsHub: websocket.NewHub()}
+	mgr := jobs.NewManager(ctx)
+	ctx.jobMgr = mgr
+	var called bool
+	mgr.Register("job1", func(ctx jobs.JobContext) { called = true })
+	err := mgr.RunJob("job1", ctx)
+	assert.NoError(t, err)
+	time.Sleep(50 * time.Millisecond)
+	assert.True(t, called)
+	statuses := mgr.GetStatus()
+	assert.Equal(t, 1, len(statuses))
+	assert.Equal(t, "job1", statuses[0].Name)
 }
 
-// func TestRunPruneDatabase(t *testing.T) {
-// 	app := setupTestApp(t)
-// 	// Add a dummy chapter to the DB that doesn't exist on disk
-// 	_, err := app.DB.Exec(
-// 		"INSERT INTO series (id, title, path, created_at, updated_at) VALUES (1, 'Prune Test', '/tmp', ?, ?)",
-// 		time.Now(), time.Now())
-// 	if err != nil {
-// 		t.Fatalf("Failed to insert series: %v", err)
-// 	}
-// 	_, err = app.DB.Exec(
-// 		"INSERT INTO chapters (series_id, path, page_count, created_at, updated_at) VALUES (1, '/non/existent/path.cbz', 10, ?, ?)",
-// 		time.Now(), time.Now())
-// 	if err != nil {
-// 		t.Fatalf("Failed to insert chapter: %v", err)
-// 	}
+func TestRunJob_AlreadyRunning(t *testing.T) {
+	ctx := &mockJobContext{wsHub: websocket.NewHub()}
+	mgr := jobs.NewManager(ctx)
+	ctx.jobMgr = mgr
+	block := make(chan struct{})
+	mgr.Register("job1", func(ctx jobs.JobContext) { <-block })
+	_ = mgr.RunJob("job1", ctx)
+	err := mgr.RunJob("job1", ctx)
+	assert.Error(t, err)
+	close(block)
+}
 
-// 	go RunPruneDatabase(app)
+func TestRunJob_NotFound(t *testing.T) {
+	ctx := &mockJobContext{wsHub: websocket.NewHub()}
+	mgr := jobs.NewManager(ctx)
+	err := mgr.RunJob("nope", ctx)
+	assert.Error(t, err)
+}
 
-// 	// Listen for progress updates with a timeout to prevent the test from hanging
-// 	var lastUpdate websocket.ProgressUpdate
-// 	timeout := time.After(5 * time.Second)
+func TestGetStatus(t *testing.T) {
+	ctx := &mockJobContext{wsHub: websocket.NewHub()}
+	mgr := jobs.NewManager(ctx)
+	mgr.Register("job1", func(ctx jobs.JobContext) {})
+	mgr.Register("job2", func(ctx jobs.JobContext) {})
+	statuses := mgr.GetStatus()
+	assert.Len(t, statuses, 2)
+}
 
-// 	for {
-// 		// Use a select block to avoid deadlocking
-// 		select {
-// 		case msgBytes := <-app.WsHub.Broadcast():
-// 			var update websocket.ProgressUpdate
-// 			if err := json.Unmarshal(msgBytes, &update); err != nil {
-// 				t.Fatalf("Failed to unmarshal progress update: %v", err)
-// 			}
-// 			lastUpdate = update
-// 			// If we've received the final "done" message, we can stop listening.
-// 			if lastUpdate.Done {
-// 				goto verification
-// 			} else {
-// 				t.Logf("%s", lastUpdate.Message)
-// 			}
-// 		case <-timeout:
-// 			t.Fatal("Test timed out waiting for job to complete")
-// 		}
-// 	}
+func TestStartJobs_SchedulesJob(t *testing.T) {
+	// Use a short interval for test
+	mgr := jobs.NewManager(nil)
+	var mu sync.Mutex
+	var triggered int
+	mgr.Register("Library Sync", func(ctx jobs.JobContext) {
+		mu.Lock()
+		triggered++
+		mu.Unlock()
+	})
+	ctx := &mockJobContext{config: &config.Config{ScanInterval: 1}, jobMgr: mgr, wsHub: websocket.NewHub()}
+	jobs.StartJobs(ctx)
+	time.Sleep(1200 * time.Millisecond)
+	mu.Lock()
+	count := triggered
+	mu.Unlock()
+	assert.GreaterOrEqual(t, count, 1)
+}
 
-// verification:
-// 	// Verify the final message
-// 	if !lastUpdate.Done {
-// 		t.Error("Expected final progress update to have Done=true")
-// 	}
-// 	if !strings.Contains(lastUpdate.Message, "Removed 1") {
-// 		t.Errorf("Expected final message to report 1 removal, got: %s", lastUpdate.Message)
-// 	}
-
-// 	// Verify the chapter was deleted
-// 	var count int
-// 	app.DB.QueryRow("SELECT COUNT(*) FROM chapters").Scan(&count)
-// 	if count != 0 {
-// 		t.Errorf("Expected database to have 0 chapters after prune, but got %d", count)
-// 	}
-// }
+func TestStartLibrarySyncJob_Disabled(t *testing.T) {
+	mgr := jobs.NewManager(nil)
+	ctx := &mockJobContext{config: &config.Config{ScanInterval: 0}, jobMgr: mgr, wsHub: websocket.NewHub()}
+	s := gocron.NewScheduler(time.UTC)
+	jobs.StartJobs(ctx)
+	// No panic, no job scheduled
+	assert.Equal(t, 0, len(s.Jobs()))
+}

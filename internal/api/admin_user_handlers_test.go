@@ -13,7 +13,7 @@ import (
 )
 
 func TestAdminUserHandlers(t *testing.T) {
-	server, db := testutil.SetupTestServer(t)
+	server, db, _ := testutil.SetupTestServer(t)
 	router := server.Router()
 
 	// Create admin and regular user for testing roles

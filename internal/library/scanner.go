@@ -15,7 +15,7 @@ import (
 	"strings"
 
 	"github.com/vrsandeep/mango-go/internal/config"
-	"github.com/vrsandeep/mango-go/internal/core"
+	"github.com/vrsandeep/mango-go/internal/jobs"
 	"github.com/vrsandeep/mango-go/internal/models"
 	"github.com/vrsandeep/mango-go/internal/store"
 )
@@ -138,21 +138,22 @@ func (s *Scanner) processFile(path string) error {
 }
 
 // LibrarySync performs a full synchronization between the filesystem and the database.
-func LibrarySync(app *core.App) {
+// func LibrarySync(app *core.App) {
+func LibrarySync(ctx jobs.JobContext) {
 	jobName := "Library Sync"
-	st := store.New(app.DB)
+	st := store.New(ctx.DB())
 
-	sendProgress(app, jobName, "Starting library sync...", 0, false)
+	sendProgress(ctx, jobName, "Starting library sync...", 0, false)
 
 	// 1. Preparation: Get current state from DB
-	sendProgress(app, jobName, "Fetching current library state...", 5, false)
+	sendProgress(ctx, jobName, "Fetching current library state...", 5, false)
 	dbFolders, _ := st.GetAllFoldersByPath()
 	dbChapters, _ := st.GetAllChaptersByHash()
 
 	// 2. File System Discovery
-	sendProgress(app, jobName, "Discovering files on disk...", 10, false)
+	sendProgress(ctx, jobName, "Discovering files on disk...", 10, false)
 	diskItems := make(map[string]diskItem)
-	rootPath := app.Config.Library.Path
+	rootPath := ctx.Config().Library.Path
 	filepath.WalkDir(rootPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -166,25 +167,25 @@ func LibrarySync(app *core.App) {
 	})
 
 	// 3. Reconcile Folders
-	sendProgress(app, jobName, "Syncing folder structure...", 25, false)
+	sendProgress(ctx, jobName, "Syncing folder structure...", 25, false)
 	syncFolders(st, rootPath, diskItems, dbFolders)
 
 	// Refresh folder map after sync
 	dbFolders, _ = st.GetAllFoldersByPath()
 
 	// 4. Reconcile Chapters
-	sendProgress(app, jobName, "Syncing chapters...", 50, false)
+	sendProgress(ctx, jobName, "Syncing chapters...", 50, false)
 	syncChapters(st, diskItems, dbChapters, dbFolders)
 
 	// 5. Pruning: Remove DB entries for items no longer on disk
-	sendProgress(app, jobName, "Pruning deleted items...", 75, false)
+	sendProgress(ctx, jobName, "Pruning deleted items...", 75, false)
 	prune(st, diskItems, dbFolders, dbChapters)
 
 	// 6. Thumbnail Generation
-	sendProgress(app, jobName, "Updating thumbnails...", 90, false)
+	sendProgress(ctx, jobName, "Updating thumbnails...", 90, false)
 	st.UpdateAllFolderThumbnails()
 
-	sendProgress(app, jobName, "Library sync completed.", 100, true)
+	sendProgress(ctx, jobName, "Library sync completed.", 100, true)
 	log.Println("Job finished:", jobName)
 }
 
@@ -275,12 +276,12 @@ func generateContentHash(data []byte, filename string) string {
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
-func sendProgress(app *core.App, jobName string, message string, progress float64, done bool) {
+func sendProgress(ctx jobs.JobContext, jobName string, message string, progress float64, done bool) {
 	update := models.ProgressUpdate{
 		JobName:  jobName,
 		Message:  message,
 		Progress: progress,
 		Done:     done,
 	}
-	app.WsHub.BroadcastJSON(update)
+	ctx.WsHub().BroadcastJSON(update)
 }

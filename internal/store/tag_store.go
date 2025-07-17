@@ -8,17 +8,22 @@ import (
 	"github.com/vrsandeep/mango-go/internal/models"
 )
 
-func (s *Store) GetOrCreateTag(name string) (*models.Tag, error) {
+// Deprecated: Use AddTagToFolder instead
+func (s *Store) GetOrCreateTag(name string, withTransaction bool) (*models.Tag, error) {
 	name = strings.TrimSpace(strings.ToLower(name))
 	if name == "" {
 		return nil, fmt.Errorf("tag name cannot be empty")
 	}
 
-	tx, err := s.db.Begin()
-	if err != nil {
-		return nil, err
+	var tx *sql.Tx
+	var err error
+	if withTransaction {
+		tx, err = s.db.Begin()
+		if err != nil {
+			return nil, err
+		}
+		defer tx.Rollback()
 	}
-	defer tx.Rollback()
 
 	var tag models.Tag
 	err = s.db.QueryRow("SELECT id, name FROM tags WHERE name = ?", name).Scan(&tag.ID, &tag.Name)
@@ -37,24 +42,59 @@ func (s *Store) GetOrCreateTag(name string) (*models.Tag, error) {
 	} else if err != nil {
 		return nil, err
 	}
-	return &tag, tx.Commit()
+
+	if withTransaction {
+		return &tag, tx.Commit()
+	}
+
+	return &tag, nil
 }
 
 // AddTagToFolder creates the association between a folder and a tag.
 func (s *Store) AddTagToFolder(folderID int64, tagName string) (*models.Tag, error) {
-	tag, err := s.GetOrCreateTag(tagName)
+	// Use a single transaction for the entire operation
+	tx, err := s.db.Begin()
 	if err != nil {
 		return nil, err
 	}
-	_, err = s.db.Exec("INSERT OR IGNORE INTO folder_tags (folder_id, tag_id) VALUES (?, ?)", folderID, tag.ID)
+	defer tx.Rollback()
+
+	// Get or create tag within the transaction
+	tagName = strings.TrimSpace(strings.ToLower(tagName))
+	if tagName == "" {
+		return nil, fmt.Errorf("tag name cannot be empty")
+	}
+
+	var tag models.Tag
+	err = tx.QueryRow("SELECT id, name FROM tags WHERE name = ?", tagName).Scan(&tag.ID, &tag.Name)
+	if err == sql.ErrNoRows {
+		// Tag does not exist, create it
+		res, err := tx.Exec("INSERT INTO tags (name) VALUES (?)", tagName)
+		if err != nil {
+			return nil, err
+		}
+		tagID, err := res.LastInsertId()
+		if err != nil {
+			return nil, err
+		}
+		tag.ID = tagID
+		tag.Name = tagName
+	} else if err != nil {
+		return nil, err
+	}
+
+	// Insert folder-tag association within the same transaction
+	_, err = tx.Exec("INSERT OR IGNORE INTO folder_tags (folder_id, tag_id) VALUES (?, ?)", folderID, tag.ID)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
 			// If the tag is already associated with the folder, ignore the error
-			return &models.Tag{ID: tag.ID, Name: tag.Name}, nil
+			return &models.Tag{ID: tag.ID, Name: tag.Name}, tx.Commit()
 		}
 		return nil, err
 	}
-	return tag, nil
+
+	return &models.Tag{ID: tag.ID, Name: tag.Name}, tx.Commit()
+
 }
 
 // RemoveTagFromFolder removes the association between a folder and a tag.

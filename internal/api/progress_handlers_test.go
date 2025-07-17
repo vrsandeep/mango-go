@@ -14,7 +14,7 @@ import (
 
 // test file dedicated to the new progress-related API endpoints.
 func TestHandleGetChapterDetails(t *testing.T) {
-	server, db := testutil.SetupTestServer(t)
+	server, db, _ := testutil.SetupTestServer(t)
 	router := server.Router()
 	testutil.PersistOneSeriesAndChapter(t, db)
 
@@ -53,7 +53,7 @@ func TestHandleGetChapterDetails(t *testing.T) {
 }
 
 func TestHandleUpdateProgress(t *testing.T) {
-	server, db := testutil.SetupTestServer(t)
+	server, db, _ := testutil.SetupTestServer(t)
 	router := server.Router()
 	s := store.New(db)
 	testutil.PersistOneSeriesAndChapter(t, db)

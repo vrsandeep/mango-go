@@ -28,15 +28,14 @@ func SetupTestServerWithProviders(t *testing.T) (*api.Server, *sql.DB) {
 
 	db := testutil.SetupTestDB(t)
 
-	app := &core.App{
-		Config: &config.Config{
+	app := &core.App{Version: "test"}
+	app.SetConfig(&config.Config{
 			Library: struct {
 				Path string `mapstructure:"path"`
 			}{Path: t.TempDir()},
-		},
-		DB:    db,
-		WsHub: hub,
-	}
+	})
+	app.SetDB(db)
+	app.SetWsHub(hub)
 
 	// Register providers for the test environment
 	providers.Register(mockadex.New())

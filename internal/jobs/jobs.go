@@ -1,200 +1,220 @@
 package jobs
 
 import (
-	"fmt"
 	"log"
-	"os"
-	"sync"
+	"time"
 
-	"github.com/vrsandeep/mango-go/internal/core"
-	"github.com/vrsandeep/mango-go/internal/library"
-	"github.com/vrsandeep/mango-go/internal/models"
-	"github.com/vrsandeep/mango-go/internal/store"
+	"github.com/go-co-op/gocron"
 )
 
-func sendProgress(app *core.App, jobName, message string, progress float64, done bool) {
-	update := models.ProgressUpdate{
-		JobName:  jobName,
-		Message:  message,
-		Progress: progress,
-		Done:     done,
-	}
-	app.WsHub.BroadcastJSON(update)
+// StartJobs starts the background job scheduler.
+func StartJobs(app JobContext) {
+	s := gocron.NewScheduler(time.UTC)
+	s.SingletonModeAll()
+
+	startLibrarySyncJob(s, app)
+
+	log.Println("Starting background job scheduler...")
+	s.StartAsync()
 }
 
-func RunFullScan(app *core.App) {
-	jobName := "Full Scan"
-	sendProgress(app, jobName, "Starting full library scan...", 0, false)
-	log.Println("Job started:", jobName)
+func startLibrarySyncJob(s *gocron.Scheduler, app JobContext) {
+	interval := app.Config().ScanInterval
+	if interval == 0 {
+		log.Println("Library sync interval is 0, scheduled sync is disabled.")
+		return
+	}
 
-	scanner := library.NewScanner(app.Config, app.DB)
+	jobName := "Library Sync"
+	log.Printf("Scheduling job: '%s' to run every %d minutes.", jobName, interval)
 
-	// Create a channel to receive progress updates from the scanner
-	progressChan := make(chan float64)
-	go func() {
-		for p := range progressChan {
-			sendProgress(app, jobName, fmt.Sprintf("Scanning... %.0f%%", p), p*0.9, false) // Scale progress from 0 to 90
+	_, err := s.Every(interval).Minutes().Do(func() {
+		log.Println("Scheduler is triggering job:", jobName)
+		// Submit the job to the manager instead of running it directly.
+		// This prevents conflicts with manually triggered jobs.
+		err := app.JobManager().RunJob(jobName, app)
+		if err != nil {
+			log.Printf("Scheduled job '%s' could not start: %v", jobName, err)
 		}
-	}()
-
-	if err := scanner.Scan(nil, progressChan); err != nil {
-		errMsg := fmt.Sprintf("Error during scan: %v", err)
-		sendProgress(app, jobName, errMsg, 100, true)
-		log.Println(errMsg)
-		return
+	})
+	if err != nil {
+		log.Printf("Error scheduling '%s' job: %v", jobName, err)
 	}
-
-	sendProgress(app, jobName, "Full scan completed successfully.", 100, true)
-	log.Println("Job finished:", jobName)
 }
 
-func RunIncrementalScan(app *core.App) {
-	jobName := "Incremental Scan"
-	sendProgress(app, jobName, "Finding existing chapters...", 0, false)
-	log.Println("Job started:", jobName)
+// func RunFullScan(app *core.App) {
+// 	jobName := "Full Scan"
+// 	sendProgress(app, jobName, "Starting full library scan...", 0, false)
+// 	log.Println("Job started:", jobName)
 
-	st := store.New(app.DB)
-	existingPaths, err := st.GetAllChapterPaths()
-	if err != nil {
-		errMsg := fmt.Sprintf("Error getting existing paths: %v", err)
-		sendProgress(app, jobName, errMsg, 100, true)
-		log.Println(errMsg)
-		return
-	}
-	pathSet := make(map[string]bool)
-	for _, path := range existingPaths {
-		pathSet[path] = true
-	}
+// 	scanner := library.NewScanner(app.Config, app.DB)
 
-	sendProgress(app, jobName, "Scanning library for new chapters...", 10, false)
-	scanner := library.NewScanner(app.Config, app.DB)
+// 	// Create a channel to receive progress updates from the scanner
+// 	progressChan := make(chan float64)
+// 	go func() {
+// 		for p := range progressChan {
+// 			sendProgress(app, jobName, fmt.Sprintf("Scanning... %.0f%%", p), p*0.9, false) // Scale progress from 0 to 90
+// 		}
+// 	}()
 
-	// Create a channel to receive progress updates from the scanner
-	progressChan := make(chan float64)
-	go func() {
-		for p := range progressChan {
-			sendProgress(app, jobName, fmt.Sprintf("Scanning... %.0f%%", p), 10+p*0.9, false) // Scale progress from 10 to 100
-		}
-	}()
+// 	if err := scanner.Scan(nil, progressChan); err != nil {
+// 		errMsg := fmt.Sprintf("Error during scan: %v", err)
+// 		sendProgress(app, jobName, errMsg, 100, true)
+// 		log.Println(errMsg)
+// 		return
+// 	}
 
-	err = scanner.Scan(pathSet, progressChan)
-	if err != nil {
-		sendProgress(app, jobName, fmt.Sprintf("Error during incremental scan: %v", err), 100, true)
-		log.Println("Error during incremental scan:", err)
-		return
-	}
+// 	sendProgress(app, jobName, "Full scan completed successfully.", 100, true)
+// 	log.Println("Job finished:", jobName)
+// }
 
-	sendProgress(app, jobName, "Incremental scan completed.", 100, true)
-	log.Println("Job finished:", jobName)
-}
+// func RunIncrementalScan(app *core.App) {
+// 	jobName := "Incremental Scan"
+// 	sendProgress(app, jobName, "Finding existing chapters...", 0, false)
+// 	log.Println("Job started:", jobName)
 
-func RunPruneDatabase(app *core.App) {
-	jobName := "Prune Database"
-	sendProgress(app, jobName, "Getting all database entries...", 0, false)
-	log.Println("Job started:", jobName)
+// 	st := store.New(app.DB)
+// 	existingPaths, err := st.GetAllChapterPaths()
+// 	if err != nil {
+// 		errMsg := fmt.Sprintf("Error getting existing paths: %v", err)
+// 		sendProgress(app, jobName, errMsg, 100, true)
+// 		log.Println(errMsg)
+// 		return
+// 	}
+// 	pathSet := make(map[string]bool)
+// 	for _, path := range existingPaths {
+// 		pathSet[path] = true
+// 	}
 
-	st := store.New(app.DB)
-	allPaths, err := st.GetAllChapterPaths()
-	if err != nil {
-		errMsg := fmt.Sprintf("Error getting chapter paths: %v", err)
-		sendProgress(app, jobName, errMsg, 100, true)
-		log.Println(errMsg)
-		return
-	}
-	total := len(allPaths)
-	if total == 0 {
-		sendProgress(app, jobName, "Pruning complete. No chapters to check.", 100, true)
-		log.Println("Job finished:", jobName)
-		return
-	}
+// 	sendProgress(app, jobName, "Scanning library for new chapters...", 10, false)
+// 	scanner := library.NewScanner(app.Config, app.DB)
 
-	var wg sync.WaitGroup
-	var mu sync.Mutex
-	var deletedCount int
-	var processedCount int
-	for i, path := range allPaths {
-		wg.Add(1)
-		go func(p string, idx int) {
-			defer wg.Done()
-			if _, err := os.Stat(p); os.IsNotExist(err) {
-				mu.Lock()
-				deletedCount++
-				mu.Unlock()
-				if err := st.DeleteChapterByPath(p); err != nil {
-					log.Printf("Failed to prune chapter %s: %v", p, err)
-				}
-			}
-			mu.Lock()
-			processedCount++
-			mu.Unlock()
-			progress := (float64(processedCount) / float64(total)) * 100
-			// Update progress periodically or on the last item
-			if processedCount%20 == 0 || processedCount == total {
-				mu.Lock()
-				currentDeleted := deletedCount
-				mu.Unlock()
-				msg := fmt.Sprintf("Checking... (%d/%d) | Deleted: %d", idx+1, total, currentDeleted)
+// 	// Create a channel to receive progress updates from the scanner
+// 	progressChan := make(chan float64)
+// 	go func() {
+// 		for p := range progressChan {
+// 			sendProgress(app, jobName, fmt.Sprintf("Scanning... %.0f%%", p), 10+p*0.9, false) // Scale progress from 10 to 100
+// 		}
+// 	}()
 
-				if progress > 98 {
-					progress = 98
-				}
-				sendProgress(app, jobName, msg, progress, false)
-			}
-		}(path, i)
-	}
-	wg.Wait()
+// 	err = scanner.Scan(pathSet, progressChan)
+// 	if err != nil {
+// 		sendProgress(app, jobName, fmt.Sprintf("Error during incremental scan: %v", err), 100, true)
+// 		log.Println("Error during incremental scan:", err)
+// 		return
+// 	}
 
-	sendProgress(app, jobName, "Deleting empty series.", 99, false)
-	err = st.DeleteEmptySeries()
-	if err != nil {
-		log.Printf("Failed to delete empty series: %v", err)
-	}
-	if deletedCount == 0 {
-		sendProgress(app, jobName, "Pruning complete. No non-existent chapters found.", 100, true)
-	} else {
-		finalMsg := fmt.Sprintf("Pruning complete. Removed %d non-existent chapter(s).", deletedCount)
-		sendProgress(app, jobName, finalMsg, 100, true)
-	}
-	log.Println("Job finished:", jobName)
-}
+// 	sendProgress(app, jobName, "Incremental scan completed.", 100, true)
+// 	log.Println("Job finished:", jobName)
+// }
 
-func RunThumbnailGeneration(app *core.App) {
-	jobName := "Regenerate Thumbnails"
-	sendProgress(app, jobName, "Getting all chapters...", 0, false)
-	log.Println("Job started:", jobName)
+// func RunPruneDatabase(app *core.App) {
+// 	jobName := "Prune Database"
+// 	sendProgress(app, jobName, "Getting all database entries...", 0, false)
+// 	log.Println("Job started:", jobName)
 
-	st := store.New(app.DB)
-	allChapters, err := st.GetAllChaptersForThumbnailing()
-	if err != nil {
-		errMsg := fmt.Sprintf("Error getting chapters: %v", err)
-		sendProgress(app, jobName, errMsg, 100, true)
-		log.Println(errMsg)
-		return
-	}
-	total := len(allChapters)
-	if total == 0 {
-		sendProgress(app, jobName, "Thumbnail generation complete. No chapters found.", 100, true)
-		log.Println("Job finished:", jobName)
-		return
-	}
+// 	st := store.New(app.DB)
+// 	allPaths, err := st.GetAllChapterPaths()
+// 	if err != nil {
+// 		errMsg := fmt.Sprintf("Error getting chapter paths: %v", err)
+// 		sendProgress(app, jobName, errMsg, 100, true)
+// 		log.Println(errMsg)
+// 		return
+// 	}
+// 	total := len(allPaths)
+// 	if total == 0 {
+// 		sendProgress(app, jobName, "Pruning complete. No chapters to check.", 100, true)
+// 		log.Println("Job finished:", jobName)
+// 		return
+// 	}
 
-	for i, ch := range allChapters {
-		_, firstPageData, err := library.ParseArchive(ch.Path)
-		if err == nil && firstPageData != nil {
-			thumbnail, thumbErr := library.GenerateThumbnail(firstPageData)
-			if thumbErr == nil {
-				st.UpdateChapterThumbnail(ch.ID, thumbnail)
-			}
-		}
-		progress := (float64(i+1) / float64(total)) * 100
-		if i%20 == 0 || i == total-1 {
-			sendProgress(app, jobName, fmt.Sprintf("Generating... (%d/%d)", i+1, total), progress, false)
-		}
-	}
+// 	var wg sync.WaitGroup
+// 	var mu sync.Mutex
+// 	var deletedCount int
+// 	var processedCount int
+// 	for i, path := range allPaths {
+// 		wg.Add(1)
+// 		go func(p string, idx int) {
+// 			defer wg.Done()
+// 			if _, err := os.Stat(p); os.IsNotExist(err) {
+// 				mu.Lock()
+// 				deletedCount++
+// 				mu.Unlock()
+// 				if err := st.DeleteChapterByPath(p); err != nil {
+// 					log.Printf("Failed to prune chapter %s: %v", p, err)
+// 				}
+// 			}
+// 			mu.Lock()
+// 			processedCount++
+// 			mu.Unlock()
+// 			progress := (float64(processedCount) / float64(total)) * 100
+// 			// Update progress periodically or on the last item
+// 			if processedCount%20 == 0 || processedCount == total {
+// 				mu.Lock()
+// 				currentDeleted := deletedCount
+// 				mu.Unlock()
+// 				msg := fmt.Sprintf("Checking... (%d/%d) | Deleted: %d", idx+1, total, currentDeleted)
 
-	sendProgress(app, jobName, "Updating series covers...", 99, false)
-	st.UpdateAllSeriesThumbnails()
+// 				if progress > 98 {
+// 					progress = 98
+// 				}
+// 				sendProgress(app, jobName, msg, progress, false)
+// 			}
+// 		}(path, i)
+// 	}
+// 	wg.Wait()
 
-	sendProgress(app, jobName, "Thumbnail regeneration complete.", 100, true)
-	log.Println("Job finished:", jobName)
-}
+// 	sendProgress(app, jobName, "Deleting empty series.", 99, false)
+// 	err = st.DeleteEmptySeries()
+// 	if err != nil {
+// 		log.Printf("Failed to delete empty series: %v", err)
+// 	}
+// 	if deletedCount == 0 {
+// 		sendProgress(app, jobName, "Pruning complete. No non-existent chapters found.", 100, true)
+// 	} else {
+// 		finalMsg := fmt.Sprintf("Pruning complete. Removed %d non-existent chapter(s).", deletedCount)
+// 		sendProgress(app, jobName, finalMsg, 100, true)
+// 	}
+// 	log.Println("Job finished:", jobName)
+// }
+
+// func RunThumbnailGeneration(app *core.App) {
+// 	jobName := "Regenerate Thumbnails"
+// 	sendProgress(app, jobName, "Getting all chapters...", 0, false)
+// 	log.Println("Job started:", jobName)
+
+// 	st := store.New(app.DB)
+// 	allChapters, err := st.GetAllChaptersForThumbnailing()
+// 	if err != nil {
+// 		errMsg := fmt.Sprintf("Error getting chapters: %v", err)
+// 		sendProgress(app, jobName, errMsg, 100, true)
+// 		log.Println(errMsg)
+// 		return
+// 	}
+// 	total := len(allChapters)
+// 	if total == 0 {
+// 		sendProgress(app, jobName, "Thumbnail generation complete. No chapters found.", 100, true)
+// 		log.Println("Job finished:", jobName)
+// 		return
+// 	}
+
+// 	for i, ch := range allChapters {
+// 		_, firstPageData, err := library.ParseArchive(ch.Path)
+// 		if err == nil && firstPageData != nil {
+// 			thumbnail, thumbErr := library.GenerateThumbnail(firstPageData)
+// 			if thumbErr == nil {
+// 				st.UpdateChapterThumbnail(ch.ID, thumbnail)
+// 			}
+// 		}
+// 		progress := (float64(i+1) / float64(total)) * 100
+// 		if i%20 == 0 || i == total-1 {
+// 			sendProgress(app, jobName, fmt.Sprintf("Generating... (%d/%d)", i+1, total), progress, false)
+// 		}
+// 	}
+
+// 	sendProgress(app, jobName, "Updating series covers...", 99, false)
+// 	st.UpdateAllSeriesThumbnails()
+
+// 	sendProgress(app, jobName, "Thumbnail regeneration complete.", 100, true)
+// 	log.Println("Job finished:", jobName)
+// }

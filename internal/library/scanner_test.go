@@ -144,8 +144,8 @@ func TestScannerIntegration(t *testing.T) {
 
 func TestLibrarySync(t *testing.T) {
 	app := testutil.SetupTestApp(t) // Sets up in-memory DB, config, etc.
-	st := store.New(app.DB)
-	libraryRoot := app.Config.Library.Path
+	st := store.New(app.DB())
+	libraryRoot := app.Config().Library.Path
 
 	// --- Test 1: Initial Scan ---
 	t.Run("Initial Scan", func(t *testing.T) {

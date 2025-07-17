@@ -12,7 +12,7 @@ import (
 )
 
 func TestAuthHandlers(t *testing.T) {
-	server, _ := testutil.SetupTestServer(t)
+	server, _, _ := testutil.SetupTestServer(t)
 	router := server.Router()
 
 	// Pre-create a user for login tests

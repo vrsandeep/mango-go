@@ -47,6 +47,9 @@ func (s *Store) GetFolder(id int64) (*models.Folder, error) {
 	var folder models.Folder
 	var parentID sql.NullInt64
 	var thumbnail sql.NullString
+	if id == 0 {
+		return nil, fmt.Errorf("folder ID cannot be 0")
+	}
 	query := "SELECT id, path, name, parent_id, thumbnail, created_at, updated_at FROM folders WHERE id = ?"
 	err := s.db.QueryRow(query, id).Scan(&folder.ID, &folder.Path, &folder.Name, &parentID, &thumbnail, &folder.CreatedAt, &folder.UpdatedAt)
 	if err != nil {
@@ -196,7 +199,7 @@ type ListItemsOptions struct {
 // ListItems is the new generic function for fetching folders and chapters.
 func (s *Store) ListItems(opts ListItemsOptions) (*models.Folder, []*models.Folder, []*models.Chapter, int, error) {
 	var currentFolder *models.Folder
-	if opts.ParentID != nil {
+	if opts.ParentID != nil && *opts.ParentID != 0 {
 		f, err := s.GetFolder(*opts.ParentID)
 		if err != nil {
 			return nil, nil, nil, 0, err
@@ -320,13 +323,23 @@ func (s *Store) ListItems(opts ListItemsOptions) (*models.Folder, []*models.Fold
 		var folderThumb, chapPath, sortName sql.NullString
 		var pageCount, userProgress sql.NullInt64
 		var userRead sql.NullBool
-		var createdAt, updatedAt, sortDate sql.NullTime
+		var createdAtStr, updatedAtStr sql.NullString
+		var createdAt, updatedAt sql.NullTime
+		var sortDate sql.NullTime
 
 		if err := rows.Scan(
 			&itemType, &chapter.ID, &chapPath, &folder.Name, &folderThumb,
 			&pageCount,
-			&createdAt, &updatedAt, &userRead, &userProgress, &sortDate, &sortName); err != nil {
+			&createdAtStr, &updatedAtStr, &userRead, &userProgress, &sortDate, &sortName); err != nil {
 			return currentFolder, nil, nil, 0, err
+		}
+		if createdAtStr.Valid {
+			createdAt.Time, _ = time.Parse("2006-01-02 15:04:05", createdAtStr.String)
+			createdAt.Valid = true
+		}
+		if updatedAtStr.Valid {
+			updatedAt.Time, _ = time.Parse("2006-01-02 15:04:05", updatedAtStr.String)
+			updatedAt.Valid = true
 		}
 		if itemType == 1 { // Folder
 			folder.ID = chapter.ID
@@ -340,6 +353,12 @@ func (s *Store) ListItems(opts ListItemsOptions) (*models.Folder, []*models.Fold
 			chapter.PageCount = int(pageCount.Int64)
 			chapter.Read = userRead.Bool
 			chapter.ProgressPercent = int(userProgress.Int64)
+			if createdAt.Valid {
+				chapter.CreatedAt = createdAt.Time
+			}
+			if updatedAt.Valid {
+				chapter.UpdatedAt = updatedAt.Time
+			}
 			chapters = append(chapters, &chapter)
 		}
 	}

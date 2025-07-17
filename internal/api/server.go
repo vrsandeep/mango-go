@@ -34,8 +34,8 @@ func (s *Server) Store() *store.Store {
 func NewServer(app *core.App) *Server {
 	return &Server{
 		app:   app,
-		db:    app.DB,
-		store: store.New(app.DB),
+		db:    app.DB(),
+		store: store.New(app.DB()),
 	}
 }
 
@@ -91,10 +91,8 @@ func (s *Server) Router() http.Handler {
 			r.Route("/admin", func(r chi.Router) {
 				r.Use(s.AdminOnlyMiddleware)
 
-				r.Post("/scan-library", s.handleScanLibrary)
-				r.Post("/scan-incremental", s.handleScanIncremental)
-				r.Post("/prune-database", s.handlePruneDatabase)
-				r.Post("/generate-thumbnails", s.handleGenerateThumbnails)
+				r.Get("/jobs/status", s.handleGetAdminJobsStatus)
+				r.Post("/jobs/run", s.handleRunAdminJob)
 
 				// New User Management Routes
 				r.Get("/users", s.handleAdminListUsers)
@@ -121,7 +119,7 @@ func (s *Server) Router() http.Handler {
 
 	// WebSocket route
 	r.Get("/ws/admin/progress", func(w http.ResponseWriter, r *http.Request) {
-		s.app.WsHub.ServeWs(w, r)
+		s.app.WsHub().ServeWs(w, r)
 	})
 
 	r.Get("/api/health", func(w http.ResponseWriter, r *http.Request) {
