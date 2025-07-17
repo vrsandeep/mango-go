@@ -57,56 +57,56 @@ func (s *Store) UpdateSeriesCoverURL(seriesID int64, url string) (int64, error) 
 	return affected, err
 }
 
-// MarkAllChaptersAs updates the 'read' status for all chapters of a series.
-func (s *Store) MarkAllChaptersAs(seriesID int64, read bool, userID int64) error {
-	// get chapter ids from series by joining chapters and series tables
-	query := `
-		SELECT c.id
-		FROM chapters c
-		JOIN series s ON c.series_id = s.id
-		WHERE s.id = ?
-	`
-	rows, err := s.db.Query(query, seriesID)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
+// // MarkAllChaptersAs updates the 'read' status for all chapters of a series.
+// func (s *Store) MarkAllChaptersAs(seriesID int64, read bool, userID int64) error {
+// 	// get chapter ids from series by joining chapters and series tables
+// 	query := `
+// 		SELECT c.id
+// 		FROM chapters c
+// 		JOIN series s ON c.series_id = s.id
+// 		WHERE s.id = ?
+// 	`
+// 	rows, err := s.db.Query(query, seriesID)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	defer rows.Close()
 
-	var chapterIDs []int64
-	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
-			return err
-		}
-		chapterIDs = append(chapterIDs, id)
-	}
+// 	var chapterIDs []int64
+// 	for rows.Next() {
+// 		var id int64
+// 		if err := rows.Scan(&id); err != nil {
+// 			return err
+// 		}
+// 		chapterIDs = append(chapterIDs, id)
+// 	}
 
-	// Update user_chapter_progress for each chapter individually
-	query = `
-		INSERT INTO user_chapter_progress (user_id, chapter_id, progress_percent, read, updated_at)
-		VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-		ON CONFLICT(user_id, chapter_id) DO UPDATE SET
-			progress_percent = excluded.progress_percent,
-			read = excluded.read,
-			updated_at = CURRENT_TIMESTAMP;
-	`
-	stmt, err := s.db.Prepare(query)
-	if err != nil {
-		return err
-	}
-	defer stmt.Close()
+// 	// Update user_chapter_progress for each chapter individually
+// 	query = `
+// 		INSERT INTO user_chapter_progress (user_id, chapter_id, progress_percent, read, updated_at)
+// 		VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+// 		ON CONFLICT(user_id, chapter_id) DO UPDATE SET
+// 			progress_percent = excluded.progress_percent,
+// 			read = excluded.read,
+// 			updated_at = CURRENT_TIMESTAMP;
+// 	`
+// 	stmt, err := s.db.Prepare(query)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	defer stmt.Close()
 
-	progressPercent := map[bool]int{true: 100, false: 0}[read] // Set progress to 100 if read, 0 if unread
+// 	progressPercent := map[bool]int{true: 100, false: 0}[read] // Set progress to 100 if read, 0 if unread
 
-	for _, chapterID := range chapterIDs {
-		_, err := stmt.Exec(userID, chapterID, progressPercent, read)
-		if err != nil {
-			return err
-		}
-	}
+// 	for _, chapterID := range chapterIDs {
+// 		_, err := stmt.Exec(userID, chapterID, progressPercent, read)
+// 		if err != nil {
+// 			return err
+// 		}
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 // UpdateChapterProgress updates the reading progress for a given chapter.
 func (s *Store) UpdateChapterProgress(chapterID int64, userID int64, progressPercent int, read bool) error {
@@ -343,12 +343,12 @@ func (s *Store) GetSeriesSettings(seriesID int64, userID int64) (*models.SeriesS
 }
 
 // UpdateSeriesSettings saves the sort settings for a series.
-func (s *Store) UpdateSeriesSettings(seriesID int64, userID int64, sortBy, sortDir string) error {
-	query := `INSERT INTO user_series_settings (series_id, user_id, sort_by, sort_dir) VALUES (?, ?, ?, ?)
-              ON CONFLICT(user_id, series_id) DO UPDATE SET sort_by=excluded.sort_by, sort_dir=excluded.sort_dir;`
-	_, err := s.db.Exec(query, seriesID, userID, sortBy, sortDir)
-	return err
-}
+// func (s *Store) UpdateSeriesSettings(seriesID int64, userID int64, sortBy, sortDir string) error {
+// 	query := `INSERT INTO user_series_settings (series_id, user_id, sort_by, sort_dir) VALUES (?, ?, ?, ?)
+//               ON CONFLICT(user_id, series_id) DO UPDATE SET sort_by=excluded.sort_by, sort_dir=excluded.sort_dir;`
+// 	_, err := s.db.Exec(query, seriesID, userID, sortBy, sortDir)
+// 	return err
+// }
 
 // AddChaptersToQueue adds multiple chapters to the download queue in a single transaction.
 func (s *Store) AddChaptersToQueue(seriesTitle, providerID string, chapters []models.ChapterResult) error {

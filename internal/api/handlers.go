@@ -12,7 +12,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/vrsandeep/mango-go/internal/library"
-	"github.com/vrsandeep/mango-go/internal/models"
 )
 
 // getListParams extracts all query params for list endpoints.
@@ -51,48 +50,48 @@ func (s *Server) handleListSeries(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleGetSeries retrieves and returns details for a single manga series.
-func (s *Server) handleGetSeries(w http.ResponseWriter, r *http.Request) {
-	seriesIDStr := chi.URLParam(r, "seriesID")
-	seriesID, err := strconv.ParseInt(seriesIDStr, 10, 64)
-	if err != nil {
-		RespondWithError(w, http.StatusBadRequest, "Invalid series ID")
-		return
-	}
+// func (s *Server) handleGetSeries(w http.ResponseWriter, r *http.Request) {
+// 	seriesIDStr := chi.URLParam(r, "seriesID")
+// 	seriesID, err := strconv.ParseInt(seriesIDStr, 10, 64)
+// 	if err != nil {
+// 		RespondWithError(w, http.StatusBadRequest, "Invalid series ID")
+// 		return
+// 	}
 
-	user := getUserFromContext(r)
-	if user == nil {
-		RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
-		return
-	}
+// 	user := getUserFromContext(r)
+// 	if user == nil {
+// 		RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
+// 		return
+// 	}
 
-	settings, err := s.store.GetSeriesSettings(seriesID, user.ID)
-	if err != nil {
-		log.Printf("Failed to retrieve settings for series %d: %v", seriesID, err)
-	}
-	page, perPage, search, sortBy, sortDir := getListParams(r)
+// 	// settings, err := s.store.GetSeriesSettings(seriesID, user.ID)
+// 	// if err != nil {
+// 	// 	log.Printf("Failed to retrieve settings for series %d: %v", seriesID, err)
+// 	// }
+// 	page, perPage, search, sortBy, sortDir := getListParams(r)
 
-	// save settings to series if they exist
-	if sortBy != "" || sortDir != "" {
-		s.store.UpdateSeriesSettings(seriesID, user.ID, sortBy, sortDir)
-	} else {
-		sortBy = settings.SortBy   // Use default sort from settings if not specified
-		sortDir = settings.SortDir // Use default direction from settings if not specified
-	}
+// 	// save settings to series if they exist
+// 	// if sortBy != "" || sortDir != "" {
+// 	// 	s.store.UpdateSeriesSettings(seriesID, user.ID, sortBy, sortDir)
+// 	// } else {
+// 	// 	sortBy = settings.SortBy   // Use default sort from settings if not specified
+// 	// 	sortDir = settings.SortDir // Use default direction from settings if not specified
+// 	// }
 
-	series, total, err := s.store.GetSeriesByID(seriesID, user.ID, page, perPage, search, sortBy, sortDir)
-	if err != nil {
-		RespondWithError(w, http.StatusNotFound, "Series not found")
-		return
-	}
+// 	series, total, err := s.store.GetSeriesByID(seriesID, user.ID, page, perPage, search, sortBy, sortDir)
+// 	if err != nil {
+// 		RespondWithError(w, http.StatusNotFound, "Series not found")
+// 		return
+// 	}
 
-	series.Settings = &models.SeriesSettings{
-		SortBy:  sortBy,
-		SortDir: sortDir,
-	}
+// 	series.Settings = &models.SeriesSettings{
+// 		SortBy:  sortBy,
+// 		SortDir: sortDir,
+// 	}
 
-	w.Header().Set("X-Total-Count", strconv.Itoa(total))
-	RespondWithJSON(w, http.StatusOK, series)
-}
+// 	w.Header().Set("X-Total-Count", strconv.Itoa(total))
+// 	RespondWithJSON(w, http.StatusOK, series)
+// }
 
 // handleUpdateCover handles requests to update the custom cover URL for a series.
 func (s *Server) handleUpdateCover(w http.ResponseWriter, r *http.Request) {
@@ -129,31 +128,31 @@ func (s *Server) handleUpdateCover(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleMarkAllAs marks all chapters in a series as read or unread.
-func (s *Server) handleMarkAllAs(w http.ResponseWriter, r *http.Request) {
-	seriesIDStr := chi.URLParam(r, "seriesID")
-	seriesID, err := strconv.ParseInt(seriesIDStr, 10, 64)
-	if err != nil {
-		RespondWithError(w, http.StatusBadRequest, "Invalid series ID")
-		return
-	}
-	user := getUserFromContext(r)
+// func (s *Server) handleMarkAllAs(w http.ResponseWriter, r *http.Request) {
+// 	seriesIDStr := chi.URLParam(r, "seriesID")
+// 	seriesID, err := strconv.ParseInt(seriesIDStr, 10, 64)
+// 	if err != nil {
+// 		RespondWithError(w, http.StatusBadRequest, "Invalid series ID")
+// 		return
+// 	}
+// 	user := getUserFromContext(r)
 
-	var payload struct {
-		Read bool `json:"read"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
-		return
-	}
+// 	var payload struct {
+// 		Read bool `json:"read"`
+// 	}
+// 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+// 		RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
+// 		return
+// 	}
 
-	if err := s.store.MarkAllChaptersAs(seriesID, payload.Read, user.ID); err != nil {
-		log.Printf("Failed to mark all chapters for series %d: %v", seriesID, err)
-		RespondWithError(w, http.StatusInternalServerError, "Failed to update chapters")
-		return
-	}
+// 	if err := s.store.MarkAllChaptersAs(seriesID, payload.Read, user.ID); err != nil {
+// 		log.Printf("Failed to mark all chapters for series %d: %v", seriesID, err)
+// 		RespondWithError(w, http.StatusInternalServerError, "Failed to update chapters")
+// 		return
+// 	}
 
-	RespondWithJSON(w, http.StatusOK, map[string]string{"status": "success"})
-}
+// 	RespondWithJSON(w, http.StatusOK, map[string]string{"status": "success"})
+// }
 
 func (s *Server) handleAddTag(w http.ResponseWriter, r *http.Request) {
 	seriesID, _ := strconv.ParseInt(chi.URLParam(r, "seriesID"), 10, 64)
@@ -337,29 +336,29 @@ func (s *Server) handleUpdateProgress(w http.ResponseWriter, r *http.Request) {
 	RespondWithJSON(w, http.StatusOK, map[string]string{"status": "success"})
 }
 
-func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
-	seriesID, _ := strconv.ParseInt(chi.URLParam(r, "seriesID"), 10, 64)
+// func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
+// 	seriesID, _ := strconv.ParseInt(chi.URLParam(r, "seriesID"), 10, 64)
 
-	user := getUserFromContext(r)
-	if user == nil {
-		RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
-		return
-	}
+// 	user := getUserFromContext(r)
+// 	if user == nil {
+// 		RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
+// 		return
+// 	}
 
-	var payload struct {
-		SortBy  string `json:"sort_by"`
-		SortDir string `json:"sort_dir"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
-		return
-	}
-	if err := s.store.UpdateSeriesSettings(seriesID, user.ID, payload.SortBy, payload.SortDir); err != nil {
-		RespondWithError(w, http.StatusInternalServerError, "Failed to update settings")
-		return
-	}
-	RespondWithJSON(w, http.StatusOK, map[string]string{"status": "success"})
-}
+// 	var payload struct {
+// 		SortBy  string `json:"sort_by"`
+// 		SortDir string `json:"sort_dir"`
+// 	}
+// 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+// 		RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
+// 		return
+// 	}
+// 	if err := s.store.UpdateSeriesSettings(seriesID, user.ID, payload.SortBy, payload.SortDir); err != nil {
+// 		RespondWithError(w, http.StatusInternalServerError, "Failed to update settings")
+// 		return
+// 	}
+// 	RespondWithJSON(w, http.StatusOK, map[string]string{"status": "success"})
+// }
 
 func (s *Server) handleGetChapterNeighbors(w http.ResponseWriter, r *http.Request) {
 	seriesID, _ := strconv.ParseInt(chi.URLParam(r, "seriesID"), 10, 64)

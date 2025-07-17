@@ -434,8 +434,8 @@ func (s *Store) GetFolderPath(folderID int64) ([]*models.Folder, error) {
 }
 
 // GetFolderSettings retrieves the sort settings for a folder.
-func (s *Store) GetFolderSettings(folderID int64, userID int64) (*models.SeriesSettings, error) {
-	var settings models.SeriesSettings
+func (s *Store) GetFolderSettings(folderID int64, userID int64) (*models.FolderSettings, error) {
+	var settings models.FolderSettings
 	err := s.db.QueryRow(`
 		SELECT sort_by, sort_dir
 		FROM user_folder_settings
@@ -459,4 +459,56 @@ func (s *Store) UpdateFolderSettings(folderID int64, userID int64, sortBy, sortD
               ON CONFLICT(user_id, folder_id) DO UPDATE SET sort_by=excluded.sort_by, sort_dir=excluded.sort_dir;`
 	_, err := s.db.Exec(query, folderID, userID, sortBy, sortDir)
 	return err
+}
+
+
+// MarkAllChaptersAs updates the 'read' status for all chapters of a folder.
+func (s *Store) MarkFolderChaptersAs(folderID int64, read bool, userID int64) error {
+	// get chapter ids from series by joining chapters and series tables
+	query := `
+		SELECT c.id
+		FROM chapters c
+		JOIN series s ON c.series_id = s.id
+		WHERE s.id = ?
+	`
+	rows, err := s.db.Query(query, folderID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	var chapterIDs []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return err
+		}
+		chapterIDs = append(chapterIDs, id)
+	}
+
+	// Update user_chapter_progress for each chapter individually
+	query = `
+		INSERT INTO user_chapter_progress (user_id, chapter_id, progress_percent, read, updated_at)
+		VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+		ON CONFLICT(user_id, chapter_id) DO UPDATE SET
+			progress_percent = excluded.progress_percent,
+			read = excluded.read,
+			updated_at = CURRENT_TIMESTAMP;
+	`
+	stmt, err := s.db.Prepare(query)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	progressPercent := map[bool]int{true: 100, false: 0}[read] // Set progress to 100 if read, 0 if unread
+
+	for _, chapterID := range chapterIDs {
+		_, err := stmt.Exec(userID, chapterID, progressPercent, read)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

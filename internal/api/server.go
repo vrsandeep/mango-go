@@ -64,10 +64,10 @@ func (s *Server) Router() http.Handler {
 			// r.Get("/series", s.handleListSeries)
 			// r.Get("/series/{seriesID}", s.handleGetSeries)
 			r.Post("/series/{seriesID}/cover", s.handleUpdateCover)
-			r.Post("/series/{seriesID}/mark-all-as", s.handleMarkAllAs)
-			r.Post("/series/{seriesID}/settings", s.handleUpdateSettings)
-			r.Post("/series/{seriesID}/tags", s.handleAddTag)
-			r.Delete("/series/{seriesID}/tags/{tagID}", s.handleRemoveTag)
+			// r.Post("/series/{seriesID}/mark-all-as", s.handleMarkAllAs)
+			// r.Post("/series/{seriesID}/settings", s.handleUpdateSettings)
+			// r.Post("/series/{seriesID}/tags", s.handleAddTag)
+			// r.Delete("/series/{seriesID}/tags/{tagID}", s.handleRemoveTag)
 			r.Get("/series/{seriesID}/chapters/{chapterID}", s.handleGetChapterDetails)
 			r.Get("/series/{seriesID}/chapters/{chapterID}/pages/{pageNumber}", s.handleGetPage)
 			r.Get("/series/{seriesID}/chapters/{chapterID}/neighbors", s.handleGetChapterNeighbors)
@@ -76,6 +76,8 @@ func (s *Server) Router() http.Handler {
 			// Browse Routes
 			r.Get("/browse", s.handleBrowseFolder)
 			r.Get("/browse/breadcrumb", s.handleGetBreadcrumb)
+			r.Post("/browse/{folderID}/settings", s.handleUpdateFolderSettings)
+			r.Post("/browse/{folderID}/mark-all-as", s.handleMarkFolderAs)
 
 			// Folder Tagging Routes
 			r.Post("/folders/{folderID}/tags", s.handleAddTagToFolder)
@@ -84,7 +86,7 @@ func (s *Server) Router() http.Handler {
 			// Tag Endpoints
 			r.Get("/tags", s.handleListTags)
 			r.Get("/tags/{tagID}", s.handleGetTagDetails) // To get a single tag's name
-			r.Get("/tags/{tagID}/series", s.handleListSeriesByTag)
+			// r.Get("/tags/{tagID}/series", s.handleListSeriesByTag)
 			r.Get("/tags/{tagID}/folders", s.handleListFoldersByTag)
 
 			// Admin Job Triggers

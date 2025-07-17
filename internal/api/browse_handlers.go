@@ -32,6 +32,11 @@ func (s *Server) handleBrowseFolder(w http.ResponseWriter, r *http.Request) {
 		tagID = &id
 	}
 
+	// save settings to folder if they exist
+	if sortBy != "" || sortDir != "" {
+		s.store.UpdateFolderSettings(folderID, user.ID, sortBy, sortDir)
+	}
+
 	opts := store.ListItemsOptions{
 		UserID:   user.ID,
 		ParentID: &folderID,
@@ -109,4 +114,58 @@ func (s *Server) handleRemoveTagFromFolder(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+
+func (s *Server) handleUpdateFolderSettings(w http.ResponseWriter, r *http.Request) {
+	folderID, _ := strconv.ParseInt(chi.URLParam(r, "folderID"), 10, 64)
+
+	user := getUserFromContext(r)
+	if user == nil {
+		RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	var payload struct {
+		SortBy  string `json:"sort_by"`
+		SortDir string `json:"sort_dir"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+	if err := s.store.UpdateFolderSettings(folderID, user.ID, payload.SortBy, payload.SortDir); err != nil {
+		RespondWithError(w, http.StatusInternalServerError, "Failed to update settings")
+		return
+	}
+	RespondWithJSON(w, http.StatusOK, map[string]string{"status": "success"})
+}
+
+
+
+// handleMarkFolderAs marks all chapters in a series as read or unread.
+func (s *Server) handleMarkFolderAs(w http.ResponseWriter, r *http.Request) {
+	folderIDStr := chi.URLParam(r, "folderID")
+	folderID, err := strconv.ParseInt(folderIDStr, 10, 64)
+	if err != nil {
+		RespondWithError(w, http.StatusBadRequest, "Invalid folder ID")
+		return
+	}
+	user := getUserFromContext(r)
+
+	var payload struct {
+		Read bool `json:"read"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+
+	if err := s.store.MarkFolderChaptersAs(folderID, payload.Read, user.ID); err != nil {
+		log.Printf("Failed to mark all chapters for folder %d: %v", folderID, err)
+		RespondWithError(w, http.StatusInternalServerError, "Failed to update chapters")
+		return
+	}
+
+	RespondWithJSON(w, http.StatusOK, map[string]string{"status": "success"})
 }

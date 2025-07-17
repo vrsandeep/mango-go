@@ -27,25 +27,25 @@ func (s *Server) handleGetTagDetails(w http.ResponseWriter, r *http.Request) {
 	RespondWithJSON(w, http.StatusOK, tag)
 }
 
-func (s *Server) handleListSeriesByTag(w http.ResponseWriter, r *http.Request) {
-	tagID, _ := strconv.ParseInt(chi.URLParam(r, "tagID"), 10, 64)
-	page, perPage, search, sortBy, sortDir := getListParams(r)
+// func (s *Server) handleListSeriesByTag(w http.ResponseWriter, r *http.Request) {
+// 	tagID, _ := strconv.ParseInt(chi.URLParam(r, "tagID"), 10, 64)
+// 	page, perPage, search, sortBy, sortDir := getListParams(r)
 
-	user := getUserFromContext(r)
-	if user == nil {
-		RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
-		return
-	}
+// 	user := getUserFromContext(r)
+// 	if user == nil {
+// 		RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
+// 		return
+// 	}
 
-	series, total, err := s.store.ListSeriesByTagID(tagID, user.ID, page, perPage, search, sortBy, sortDir)
-	if err != nil {
-		RespondWithError(w, http.StatusInternalServerError, "Failed to retrieve series for this tag")
-		return
-	}
+// 	series, total, err := s.store.ListSeriesByTagID(tagID, user.ID, page, perPage, search, sortBy, sortDir)
+// 	if err != nil {
+// 		RespondWithError(w, http.StatusInternalServerError, "Failed to retrieve series for this tag")
+// 		return
+// 	}
 
-	w.Header().Set("X-Total-Count", strconv.Itoa(total))
-	RespondWithJSON(w, http.StatusOK, series)
-}
+// 	w.Header().Set("X-Total-Count", strconv.Itoa(total))
+// 	RespondWithJSON(w, http.StatusOK, series)
+// }
 
 // handleListFoldersByTag serves a list of folders (series) that have a specific tag.
 func (s *Server) handleListFoldersByTag(w http.ResponseWriter, r *http.Request) {

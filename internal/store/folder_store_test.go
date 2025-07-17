@@ -297,7 +297,7 @@ func TestListItems(t *testing.T) {
 	if currentFolder != nil {
 		t.Error("Current folder should be nil for root level")
 	}
-	if len(subfolders) == 0 {
+	if len(subfolders) != 1 {
 		t.Error("Expected subfolders at root level")
 	}
 	if len(chapters) != 0 {
@@ -309,7 +309,7 @@ func TestListItems(t *testing.T) {
 
 	// Test listing series level (should show volumes and chapters)
 	opts.ParentID = &series.ID
-	currentFolder, subfolders, chapters, _, err = s.ListItems(opts)
+	currentFolder, subfolders, chapters, total, err = s.ListItems(opts)
 	if err != nil {
 		t.Fatalf("ListItems failed: %v", err)
 	}
@@ -325,10 +325,13 @@ func TestListItems(t *testing.T) {
 	if len(chapters) != 0 {
 		t.Error("Expected no chapters at series level")
 	}
+	if total != 2 {
+		t.Errorf("Expected 2 total items, got %d", total)
+	}
 
 	// Test listing volume level (should show chapters)
 	opts.ParentID = &vol1.ID
-	_, subfolders, chapters, _, err = s.ListItems(opts)
+	_, subfolders, chapters, total, err = s.ListItems(opts)
 	if err != nil {
 		t.Fatalf("ListItems failed: %v", err)
 	}
@@ -344,11 +347,14 @@ func TestListItems(t *testing.T) {
 	if chapters[1].Path != "/library/List Test Series/Volume 1/chapter-2.cbz" {
 		t.Errorf("Expected chapter path '/library/List Test Series/Volume 1/chapter-2.cbz', got '%s'", chapters[1].Path)
 	}
+	if total != 2 {
+		t.Errorf("Expected 2 total items, got %d", total)
+	}
 
 	// Test search functionality
 	opts.ParentID = &series.ID
 	opts.Search = "Volume 1"
-	_, subfolders, chapters, _, err = s.ListItems(opts)
+	_, subfolders, chapters, total, err = s.ListItems(opts)
 	if err != nil {
 		t.Fatalf("ListItems with search failed: %v", err)
 	}
@@ -360,6 +366,9 @@ func TestListItems(t *testing.T) {
 	}
 	if chapters != nil {
 		t.Errorf("Expected chapters to be nil, got %v", chapters)
+	}
+	if total != 1 {
+		t.Errorf("Expected 1 total item, got %d", total)
 	}
 }
 

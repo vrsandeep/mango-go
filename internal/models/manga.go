@@ -82,3 +82,9 @@ type SeriesSettings struct {
 	SeriesID int64  `json:"-"`        // Hide from JSON responses
 	// UserID   int64  `json:"-"`        // Hide from JSON responses
 }
+
+type FolderSettings struct {
+	SortBy   string `json:"sort_by"`  // e.g. "auto", "path"
+	SortDir  string `json:"sort_dir"` // e.g. "asc", "desc"
+	FolderID int64  `json:"-"`        // Hide from JSON responses
+}
