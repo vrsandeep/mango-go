@@ -68,8 +68,8 @@ func (s *Server) Router() http.Handler {
 			// r.Post("/series/{seriesID}/settings", s.handleUpdateSettings)
 			// r.Post("/series/{seriesID}/tags", s.handleAddTag)
 			// r.Delete("/series/{seriesID}/tags/{tagID}", s.handleRemoveTag)
-			r.Get("/series/{seriesID}/chapters/{chapterID}", s.handleGetChapterDetails)
-			r.Get("/series/{seriesID}/chapters/{chapterID}/pages/{pageNumber}", s.handleGetPage)
+			// r.Get("/series/{seriesID}/chapters/{chapterID}", s.handleGetChapterDetails)
+			// r.Get("/series/{seriesID}/chapters/{chapterID}/pages/{pageNumber}", s.handleGetPage)
 			r.Get("/series/{seriesID}/chapters/{chapterID}/neighbors", s.handleGetChapterNeighbors)
 			r.Post("/chapters/{chapterID}/progress", s.handleUpdateProgress)
 
@@ -78,6 +78,8 @@ func (s *Server) Router() http.Handler {
 			r.Get("/browse/breadcrumb", s.handleGetBreadcrumb)
 			r.Post("/browse/{folderID}/settings", s.handleUpdateFolderSettings)
 			r.Post("/browse/{folderID}/mark-all-as", s.handleMarkFolderAs)
+			r.Get("/chapters/{chapterID}/pages/{pageNumber}", s.handleGetPage)
+			r.Get("/chapters/{chapterID}", s.handleGetChapterDetails)
 
 			// Folder Tagging Routes
 			r.Post("/folders/{folderID}/tags", s.handleAddTagToFolder)

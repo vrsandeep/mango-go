@@ -341,31 +341,31 @@ func (s *Store) GetChapterNeighbors(seriesID, currentChapterID, userID int64) (m
 	return neighbors, nil
 }
 
-// ListTagsWithCounts returns all tags along with the count of series they are associated with.
-func (s *Store) ListTagsWithCounts() ([]*models.Tag, error) {
-	query := `
-		SELECT t.id, t.name, COUNT(st.series_id) as series_count
-		FROM tags t
-		LEFT JOIN series_tags st ON t.id = st.tag_id
-		GROUP BY t.id
-		ORDER BY t.name ASC
-	`
-	rows, err := s.db.Query(query)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
+// // ListTagsWithCounts returns all tags along with the count of series they are associated with.
+// func (s *Store) ListTagsWithCounts() ([]*models.Tag, error) {
+// 	query := `
+// 		SELECT t.id, t.name, COUNT(st.series_id) as series_count
+// 		FROM tags t
+// 		LEFT JOIN series_tags st ON t.id = st.tag_id
+// 		GROUP BY t.id
+// 		ORDER BY t.name ASC
+// 	`
+// 	rows, err := s.db.Query(query)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	defer rows.Close()
 
-	var tags []*models.Tag
-	for rows.Next() {
-		var tag models.Tag
-		if err := rows.Scan(&tag.ID, &tag.Name, &tag.SeriesCount); err != nil {
-			return nil, err
-		}
-		tags = append(tags, &tag)
-	}
-	return tags, nil
-}
+// 	var tags []*models.Tag
+// 	for rows.Next() {
+// 		var tag models.Tag
+// 		if err := rows.Scan(&tag.ID, &tag.Name, &tag.SeriesCount); err != nil {
+// 			return nil, err
+// 		}
+// 		tags = append(tags, &tag)
+// 	}
+// 	return tags, nil
+// }
 
 // GetTagByID retrieves a single tag by its ID.
 func (s *Store) GetTagByID(id int64) (*models.Tag, error) {

@@ -72,7 +72,7 @@ type Page struct {
 type Tag struct {
 	ID          int64  `json:"id"`
 	Name        string `json:"name"`
-	SeriesCount int    `json:"series_count,omitempty"`
+	FolderCount int    `json:"folder_count,omitempty"`
 }
 
 // SeriesSettings holds per-user sort preferences for a series.

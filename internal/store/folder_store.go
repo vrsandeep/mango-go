@@ -211,25 +211,22 @@ func (s *Store) ListItems(opts ListItemsOptions) (*models.Folder, []*models.Fold
 	var folderArgs, chapterArgs []interface{}
 
 	// Filter by parent folder
-	if *opts.ParentID == 0 { // A special case for root
+	if opts.TagID == nil && *opts.ParentID == 0 { // A special case for root
 		folderWhere = "f.parent_id IS NULL"
 		chapterWhere = "1=0" // No chapters at the root level
 		// chapterWhere = "c.folder_id IS NULL"
+	} else if opts.TagID != nil {
+		// Tag filtering - show folders with the specified tag
+		tagJoin = "JOIN folder_tags ft ON f.id = ft.folder_id"
+		folderWhere = "ft.tag_id = ?"
+		folderArgs = append(folderArgs, *opts.TagID)
+		chapterWhere = "1=0" // No chapters when filtering by tag
 	} else {
+		// Regular parent folder filtering
 		folderWhere = "f.parent_id = ?"
 		folderArgs = append(folderArgs, *opts.ParentID)
 		chapterWhere = "c.folder_id = ?"
 		chapterArgs = append(chapterArgs, *opts.ParentID)
-	}
-
-	// Filter by tag
-	if opts.TagID != nil {
-		tagJoin = "JOIN folder_tags ft ON f.id = ft.folder_id"
-		folderWhere += " AND ft.tag_id = ?"
-		folderArgs = append(folderArgs, *opts.TagID)
-		// Tags apply to folders, which act as series containers, so we don't filter chapters by tag directly.
-		// Instead, we show all folders with that tag.
-		chapterWhere = "1=0" // This effectively returns no chapters at the tag level.
 	}
 
 	if opts.Search != "" {
@@ -241,7 +238,7 @@ func (s *Store) ListItems(opts ListItemsOptions) (*models.Folder, []*models.Fold
 
 	// Count total items
 	var totalItems int
-	countQuery := fmt.Sprintf("SELECT (SELECT COUNT(*) FROM folders f WHERE %s) + (SELECT COUNT(*) FROM chapters c WHERE %s);", folderWhere, chapterWhere)
+	countQuery := fmt.Sprintf("SELECT (SELECT COUNT(*) FROM folders f %s WHERE %s) + (SELECT COUNT(*) FROM chapters c WHERE %s);", tagJoin, folderWhere, chapterWhere)
 	s.db.QueryRow(countQuery, append(folderArgs, chapterArgs...)...).Scan(&totalItems)
 
 	baseQuery := `
@@ -464,12 +461,11 @@ func (s *Store) UpdateFolderSettings(folderID int64, userID int64, sortBy, sortD
 
 // MarkAllChaptersAs updates the 'read' status for all chapters of a folder.
 func (s *Store) MarkFolderChaptersAs(folderID int64, read bool, userID int64) error {
-	// get chapter ids from series by joining chapters and series tables
+	// get chapter ids from the folder
 	query := `
 		SELECT c.id
 		FROM chapters c
-		JOIN series s ON c.series_id = s.id
-		WHERE s.id = ?
+		WHERE c.folder_id = ?
 	`
 	rows, err := s.db.Query(query, folderID)
 	if err != nil {

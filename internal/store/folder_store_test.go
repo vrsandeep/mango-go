@@ -267,6 +267,12 @@ func TestListItems(t *testing.T) {
 		t.Fatalf("Failed to create volume 2 folder: %v", err)
 	}
 
+	// Add tag to folder
+	tag, err := s.AddTagToFolder(vol1.ID, "action")
+	if err != nil {
+		t.Fatalf("Failed to add tag to folder: %v", err)
+	}
+
 	// Create chapters
 	_, err = s.CreateChapter(vol1.ID, "/library/List Test Series/Volume 1/chapter-1.cbz", "hash1", 20, "thumb1.jpg")
 	if err != nil {
@@ -331,7 +337,7 @@ func TestListItems(t *testing.T) {
 
 	// Test listing volume level (should show chapters)
 	opts.ParentID = &vol1.ID
-	_, subfolders, chapters, total, err = s.ListItems(opts)
+	currentFolder, subfolders, chapters, total, err = s.ListItems(opts)
 	if err != nil {
 		t.Fatalf("ListItems failed: %v", err)
 	}
@@ -349,6 +355,9 @@ func TestListItems(t *testing.T) {
 	}
 	if total != 2 {
 		t.Errorf("Expected 2 total items, got %d", total)
+	}
+	if currentFolder.Tags[0].ID != tag.ID {
+		t.Errorf("Expected tag ID %d, got %d", tag.ID, currentFolder.Tags[0].ID)
 	}
 
 	// Test search functionality
@@ -369,6 +378,106 @@ func TestListItems(t *testing.T) {
 	}
 	if total != 1 {
 		t.Errorf("Expected 1 total item, got %d", total)
+	}
+
+	// Test filter by tag
+	opts.ParentID = &[]int64{0}[0] // Root level
+	opts.TagID = &tag.ID
+	opts.Search = ""
+	_, subfolders, chapters, total, err = s.ListItems(opts)
+	if err != nil {
+		t.Fatalf("ListItems with tag failed: %v", err)
+	}
+	if len(subfolders) != 1 {
+		t.Errorf("Expected 1 subfolder matching tag, got %d", len(subfolders))
+	}
+	if subfolders[0].Name != "Volume 1" {
+		t.Errorf("Expected subfolder name 'Volume 1', got '%s'", subfolders[0].Name)
+	}
+	if chapters != nil {
+		t.Errorf("Expected chapters when filtering by tag, got %v", chapters)
+	}
+	if total != 1 {
+		t.Errorf("Expected 1 total item, got %d", total)
+	}
+}
+
+func TestMarkFolderChaptersAs(t *testing.T) {
+	db := testutil.SetupTestDB(t)
+	s := store.New(db)
+
+	// Create a folder
+	folder, err := s.CreateFolder("/library/Mark Test", "Mark Test", nil)
+	if err != nil {
+		t.Fatalf("Failed to create folder: %v", err)
+	}
+
+	// Create chapters
+	_, err = s.CreateChapter(folder.ID, "/library/Mark Test/chapter-1.cbz", "hash1", 20, "thumb1.jpg")
+	if err != nil {
+		t.Fatalf("Failed to create chapter 1: %v", err)
+	}
+
+	_, err = s.CreateChapter(folder.ID, "/library/Mark Test/chapter-2.cbz", "hash2", 22, "thumb2.jpg")
+	if err != nil {
+		t.Fatalf("Failed to create chapter 2: %v", err)
+	}
+
+	userID := int64(1)
+
+	// Test marking all chapters as read
+	err = s.MarkFolderChaptersAs(folder.ID, true, userID)
+	if err != nil {
+		t.Fatalf("MarkFolderChaptersAs failed: %v", err)
+	}
+
+	// Verify chapters are marked as read
+	opts := store.ListItemsOptions{
+		UserID:   userID,
+		ParentID: &folder.ID,
+		Page:     1,
+		PerPage:  10,
+	}
+	_, _, chapters, _, err := s.ListItems(opts)
+	if err != nil {
+		t.Fatalf("ListItems failed: %v", err)
+	}
+	if len(chapters) != 2 {
+		t.Errorf("Expected 2 chapters, got %d", len(chapters))
+	}
+	for _, chapter := range chapters {
+		if !chapter.Read {
+			t.Errorf("Expected chapter %d to be marked as read", chapter.ID)
+		}
+		if chapter.ProgressPercent != 100 {
+			t.Errorf("Expected chapter %d to have 100%% progress, got %d%%", chapter.ID, chapter.ProgressPercent)
+		}
+	}
+
+	// Test marking all chapters as unread
+	err = s.MarkFolderChaptersAs(folder.ID, false, userID)
+	if err != nil {
+		t.Fatalf("MarkFolderChaptersAs (unread) failed: %v", err)
+	}
+
+	// Verify chapters are marked as unread
+	_, _, chapters, _, err = s.ListItems(opts)
+	if err != nil {
+		t.Fatalf("ListItems failed: %v", err)
+	}
+	for _, chapter := range chapters {
+		if chapter.Read {
+			t.Errorf("Expected chapter %d to be marked as unread", chapter.ID)
+		}
+		if chapter.ProgressPercent != 0 {
+			t.Errorf("Expected chapter %d to have 0%% progress, got %d%%", chapter.ID, chapter.ProgressPercent)
+		}
+	}
+
+	// Test with non-existent folder (should not error)
+	err = s.MarkFolderChaptersAs(99999, true, userID)
+	if err != nil {
+		t.Fatalf("MarkFolderChaptersAs with non-existent folder should not error: %v", err)
 	}
 }
 

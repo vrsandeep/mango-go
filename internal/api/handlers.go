@@ -154,34 +154,34 @@ func (s *Server) handleUpdateCover(w http.ResponseWriter, r *http.Request) {
 // 	RespondWithJSON(w, http.StatusOK, map[string]string{"status": "success"})
 // }
 
-func (s *Server) handleAddTag(w http.ResponseWriter, r *http.Request) {
-	seriesID, _ := strconv.ParseInt(chi.URLParam(r, "seriesID"), 10, 64)
-	var payload struct {
-		Name string `json:"name"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
-		return
-	}
-	tag, err := s.store.AddTagToSeries(seriesID, payload.Name)
-	if err != nil {
-		log.Printf("Failed to add tag to series %d: %v", seriesID, err)
-		RespondWithError(w, http.StatusInternalServerError, "Failed to add tag")
-		return
-	}
-	RespondWithJSON(w, http.StatusCreated, tag)
-}
+// func (s *Server) handleAddTag(w http.ResponseWriter, r *http.Request) {
+// 	seriesID, _ := strconv.ParseInt(chi.URLParam(r, "seriesID"), 10, 64)
+// 	var payload struct {
+// 		Name string `json:"name"`
+// 	}
+// 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+// 		RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
+// 		return
+// 	}
+// 	tag, err := s.store.AddTagToSeries(seriesID, payload.Name)
+// 	if err != nil {
+// 		log.Printf("Failed to add tag to series %d: %v", seriesID, err)
+// 		RespondWithError(w, http.StatusInternalServerError, "Failed to add tag")
+// 		return
+// 	}
+// 	RespondWithJSON(w, http.StatusCreated, tag)
+// }
 
-func (s *Server) handleRemoveTag(w http.ResponseWriter, r *http.Request) {
-	seriesID, _ := strconv.ParseInt(chi.URLParam(r, "seriesID"), 10, 64)
-	tagID, _ := strconv.ParseInt(chi.URLParam(r, "tagID"), 10, 64)
-	if err := s.store.RemoveTagFromSeries(seriesID, tagID); err != nil {
-		log.Printf("Failed to remove tag %d from series %d: %v", tagID, seriesID, err)
-		RespondWithError(w, http.StatusInternalServerError, "Failed to remove tag")
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
-}
+// func (s *Server) handleRemoveTag(w http.ResponseWriter, r *http.Request) {
+// 	seriesID, _ := strconv.ParseInt(chi.URLParam(r, "seriesID"), 10, 64)
+// 	tagID, _ := strconv.ParseInt(chi.URLParam(r, "tagID"), 10, 64)
+// 	if err := s.store.RemoveTagFromSeries(seriesID, tagID); err != nil {
+// 		log.Printf("Failed to remove tag %d from series %d: %v", tagID, seriesID, err)
+// 		RespondWithError(w, http.StatusInternalServerError, "Failed to remove tag")
+// 		return
+// 	}
+// 	w.WriteHeader(http.StatusNoContent)
+// }
 
 // handleGetPage finds a specific page within an archive and serves it as an image.
 func (s *Server) handleGetPage(w http.ResponseWriter, r *http.Request) {

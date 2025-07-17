@@ -7,28 +7,6 @@ import (
 	"github.com/vrsandeep/mango-go/internal/testutil"
 )
 
-func TestGetOrCreateTag(t *testing.T) {
-	db := testutil.SetupTestDB(t)
-	s := store.New(db)
-
-	// Create a new tag
-	tag, err := s.GetOrCreateTag("shonen", false)
-	if err != nil {
-		t.Fatalf("Failed to create tag: %v", err)
-	}
-	if tag.Name != "shonen" {
-		t.Errorf("Expected tag name 'shonen', got '%s'", tag.Name)
-	}
-
-	// Get the same tag again (should not create a duplicate)
-	tag2, err := s.GetOrCreateTag("shonen", false)
-	if err != nil {
-		t.Fatalf("Failed to get existing tag: %v", err)
-	}
-	if tag2.ID != tag.ID {
-		t.Errorf("Expected same tag ID, got %d and %d", tag.ID, tag2.ID)
-	}
-}
 
 func TestAddTagToFolder(t *testing.T) {
 	db := testutil.SetupTestDB(t)

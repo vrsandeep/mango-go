@@ -8,47 +8,32 @@ import (
 	"github.com/vrsandeep/mango-go/internal/models"
 )
 
-// Deprecated: Use AddTagToFolder instead
-func (s *Store) GetOrCreateTag(name string, withTransaction bool) (*models.Tag, error) {
-	name = strings.TrimSpace(strings.ToLower(name))
-	if name == "" {
-		return nil, fmt.Errorf("tag name cannot be empty")
-	}
-
-	var tx *sql.Tx
-	var err error
-	if withTransaction {
-		tx, err = s.db.Begin()
-		if err != nil {
-			return nil, err
-		}
-		defer tx.Rollback()
-	}
-
-	var tag models.Tag
-	err = s.db.QueryRow("SELECT id, name FROM tags WHERE name = ?", name).Scan(&tag.ID, &tag.Name)
-	if err == sql.ErrNoRows {
-		// Tag does not exist, create it
-		res, err := s.db.Exec("INSERT INTO tags (name) VALUES (?)", name)
-		if err != nil {
-			return nil, err
-		}
-		tagID, err := res.LastInsertId()
-		if err != nil {
-			return nil, err
-		}
-		tag.ID = tagID
-		tag.Name = name
-	} else if err != nil {
+// ListTagsWithCounts returns all tags along with the count of series they are associated with.
+func (s *Store) ListTagsWithCounts() ([]*models.Tag, error) {
+	query := `
+		SELECT t.id, t.name, COUNT(st.folder_id) as folder_count
+		FROM tags t
+		LEFT JOIN folder_tags st ON t.id = st.tag_id
+		GROUP BY t.id
+		ORDER BY t.name ASC
+	`
+	rows, err := s.db.Query(query)
+	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
-	if withTransaction {
-		return &tag, tx.Commit()
+	var tags []*models.Tag
+	for rows.Next() {
+		var tag models.Tag
+		if err := rows.Scan(&tag.ID, &tag.Name, &tag.FolderCount); err != nil {
+			return nil, err
+		}
+		tags = append(tags, &tag)
 	}
-
-	return &tag, nil
+	return tags, nil
 }
+
 
 // AddTagToFolder creates the association between a folder and a tag.
 func (s *Store) AddTagToFolder(folderID int64, tagName string) (*models.Tag, error) {

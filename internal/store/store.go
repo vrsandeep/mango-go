@@ -6,10 +6,8 @@ package store
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 	"log"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/vrsandeep/mango-go/internal/models"
@@ -165,62 +163,62 @@ func (s *Store) UpdateSeriesThumbnailIfNeeded(tx *sql.Tx, seriesID int64, thumbn
 	return nil
 }
 
-func (s *Store) AddTagToSeries(seriesID int64, tagName string) (*models.Tag, error) {
-	tagName = strings.TrimSpace(strings.ToLower(tagName))
-	if tagName == "" {
-		return nil, fmt.Errorf("tag name cannot be empty")
-	}
+// func (s *Store) AddTagToSeries(seriesID int64, tagName string) (*models.Tag, error) {
+// 	tagName = strings.TrimSpace(strings.ToLower(tagName))
+// 	if tagName == "" {
+// 		return nil, fmt.Errorf("tag name cannot be empty")
+// 	}
 
-	tx, err := s.db.Begin()
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
+// 	tx, err := s.db.Begin()
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	defer tx.Rollback()
 
-	var tagID int64
-	var tag *models.Tag
-	tag, err = s.GetOrCreateTag(tagName, true)
-	if err != nil {
-		return nil, err
-	}
-	tagID = tag.ID
+// 	var tagID int64
+// 	var tag *models.Tag
+// 	tag, err = s.GetOrCreateTag(tagName, true)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	tagID = tag.ID
 
-	_, err = tx.Exec("INSERT OR IGNORE INTO series_tags (series_id, tag_id) VALUES (?, ?)", seriesID, tagID)
-	if err != nil {
-		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
-			// If the tag is already associated with the series, ignore the error
-			return &models.Tag{ID: tagID, Name: tagName}, nil
-		}
-		return nil, err
-	}
+// 	_, err = tx.Exec("INSERT OR IGNORE INTO series_tags (series_id, tag_id) VALUES (?, ?)", seriesID, tagID)
+// 	if err != nil {
+// 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+// 			// If the tag is already associated with the series, ignore the error
+// 			return &models.Tag{ID: tagID, Name: tagName}, nil
+// 		}
+// 		return nil, err
+// 	}
 
-	if err := tx.Commit(); err != nil {
-		return nil, err
-	}
+// 	if err := tx.Commit(); err != nil {
+// 		return nil, err
+// 	}
 
-	return &models.Tag{ID: tagID, Name: tagName}, nil
-}
+// 	return &models.Tag{ID: tagID, Name: tagName}, nil
+// }
 
-func (s *Store) RemoveTagFromSeries(seriesID, tagID int64) error {
-	_, err := s.db.Exec("DELETE FROM series_tags WHERE series_id = ? AND tag_id = ?", seriesID, tagID)
-	if err != nil {
-		return fmt.Errorf("failed to remove tag from series: %w", err)
-	}
-	// Check if the tag is no longer associated with any series
-	var count int
-	err = s.db.QueryRow("SELECT COUNT(*) FROM series_tags WHERE tag_id = ?", tagID).Scan(&count)
-	if err != nil {
-		return fmt.Errorf("failed to check tag associations: %w", err)
-	}
-	if count == 0 {
-		// If no series are left with this tag, delete the tag
-		_, err = s.db.Exec("DELETE FROM tags WHERE id = ?", tagID)
-		if err != nil {
-			return fmt.Errorf("failed to delete tag: %w", err)
-		}
-	}
-	return nil
-}
+// func (s *Store) RemoveTagFromSeries(seriesID, tagID int64) error {
+// 	_, err := s.db.Exec("DELETE FROM series_tags WHERE series_id = ? AND tag_id = ?", seriesID, tagID)
+// 	if err != nil {
+// 		return fmt.Errorf("failed to remove tag from series: %w", err)
+// 	}
+// 	// Check if the tag is no longer associated with any series
+// 	var count int
+// 	err = s.db.QueryRow("SELECT COUNT(*) FROM series_tags WHERE tag_id = ?", tagID).Scan(&count)
+// 	if err != nil {
+// 		return fmt.Errorf("failed to check tag associations: %w", err)
+// 	}
+// 	if count == 0 {
+// 		// If no series are left with this tag, delete the tag
+// 		_, err = s.db.Exec("DELETE FROM tags WHERE id = ?", tagID)
+// 		if err != nil {
+// 			return fmt.Errorf("failed to delete tag: %w", err)
+// 		}
+// 	}
+// 	return nil
+// }
 
 // DeleteChapterByPath removes a chapter from the database using its file path.
 func (s *Store) DeleteChapterByPath(path string) error {
