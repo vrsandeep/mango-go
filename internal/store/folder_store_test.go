@@ -406,6 +406,8 @@ func TestMarkFolderChaptersAs(t *testing.T) {
 	db := testutil.SetupTestDB(t)
 	s := store.New(db)
 
+	user, _ := s.CreateUser("testuser", "password", "user")
+	userID := user.ID
 	// Create a folder
 	folder, err := s.CreateFolder("/library/Mark Test", "Mark Test", nil)
 	if err != nil {
@@ -422,8 +424,6 @@ func TestMarkFolderChaptersAs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create chapter 2: %v", err)
 	}
-
-	userID := int64(1)
 
 	// Test marking all chapters as read
 	err = s.MarkFolderChaptersAs(folder.ID, true, userID)
@@ -547,13 +547,14 @@ func TestGetAndUpdateFolderSettings(t *testing.T) {
 	db := testutil.SetupTestDB(t)
 	s := store.New(db)
 
+	user, _ := s.CreateUser("testuser", "password", "user")
+	userID := user.ID
+
 	// Create a folder for testing
 	folder, err := s.CreateFolder("/library/Settings Test", "Settings Test", nil)
 	if err != nil {
 		t.Fatalf("Failed to create folder: %v", err)
 	}
-
-	userID := int64(1)
 
 	// Test getting default settings (should return defaults when no settings exist)
 	settings, err := s.GetFolderSettings(folder.ID, userID)
@@ -668,7 +669,7 @@ func TestGetFolderWithInvalidID(t *testing.T) {
 
 	// Test with non-existent ID
 	_, err = s.GetFolder(99999)
-	if err == nil {
+	if err != store.ErrFolderNotFound {
 		t.Error("Expected error for non-existent folder ID")
 	}
 }
@@ -687,20 +688,20 @@ func TestUpdateFolderThumbnail(t *testing.T) {
 
 	// test with non existing series ID
 	err = s.UpdateFolderThumbnail(999, newURL)
-	if err != nil {
-		t.Error("Expected no error when updating cover URL for non-existent series")
+	if err != store.ErrFolderNotFound {
+		t.Errorf("Expected no error when updating cover URL for non-existent series, got %v", err)
 	}
 
 	// populateDB(t, db)
 	err = s.UpdateFolderThumbnail(folder.ID, newURL)
 	if err != nil {
-		t.Fatalf("UpdateSeriesCoverURL failed: %v", err)
+		t.Fatalf("UpdateFolderThumbnail failed: %v", err)
 	}
 
 	// Verify the update
 	folder, err = s.GetFolder(folder.ID)
 	if err != nil {
-		t.Fatalf("GetSeriesByID failed after update: %v", err)
+		t.Fatalf("GetFolder failed after update: %v", err)
 	}
 	if folder.Thumbnail != newURL {
 		t.Errorf("Expected Thumbnail to be '%s', got '%s'", newURL, folder.Thumbnail)

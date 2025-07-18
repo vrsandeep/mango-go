@@ -7,12 +7,12 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
-	"time"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/sqlite3"
 	_ "github.com/golang-migrate/migrate/v4/source/file" // Blank import for migration driver
 	_ "github.com/mattn/go-sqlite3"                      // Blank import for sql driver
+	"github.com/vrsandeep/mango-go/internal/store"
 )
 
 // https://gist.github.com/ondrek/7413434
@@ -102,24 +102,25 @@ func SetupTestLibraryAndDB(t *testing.T) (string, *sql.DB) {
 	return rootDir, db
 }
 
-func PersistOneSeriesAndChapter(t *testing.T, db *sql.DB){
+func PersistOneFolderAndChapter(t *testing.T, db *sql.DB){
 	t.Helper()
 
 	// Create a temporary directory for test archives
 	tempDir := t.TempDir()
 
 	// Populate database with test data
-	series1Path := filepath.Join(tempDir, "Series 1")
-	os.Mkdir(series1Path, 0755)
-	chapter1Path := CreateTestCBZ(t, series1Path, "ch1.cbz", []string{"page1.jpg", "page2.jpg"})
+	folder1Path := filepath.Join(tempDir, "Folder 1")
+	os.Mkdir(folder1Path, 0755)
+	chapter1Path := CreateTestCBZ(t, folder1Path, "ch1.cbz", []string{"page1.jpg", "page2.jpg"})
 
-	_, err := db.Exec(`INSERT INTO series (id, title, path, created_at, updated_at) VALUES (1, 'Series 1', ?, ?, ?)`, series1Path, time.Now(), time.Now())
+	store := store.New(db)
+	folder, err := store.CreateFolder(folder1Path, "Folder 1", nil)
 	if err != nil {
-		t.Fatalf("Failed to insert test series: %v", err)
+		t.Fatalf("Failed to create test folder: %v", err)
 	}
-	_, err = db.Exec(`INSERT INTO chapters (id, series_id, path, page_count, created_at, updated_at) VALUES (1, 1, ?, 2, ?, ?)`, chapter1Path, time.Now(), time.Now())
+	_, err = store.CreateChapter(folder.ID, chapter1Path, "hash1", 2, "thumb1")
 	if err != nil {
-		t.Fatalf("Failed to insert test chapter: %v", err)
+		t.Fatalf("Failed to create test chapter: %v", err)
 	}
 
 }

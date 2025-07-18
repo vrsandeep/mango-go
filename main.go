@@ -18,7 +18,6 @@ import (
 	"github.com/vrsandeep/mango-go/internal/downloader/providers"
 	"github.com/vrsandeep/mango-go/internal/downloader/providers/mangadex"
 	"github.com/vrsandeep/mango-go/internal/downloader/providers/weebcentral"
-	"github.com/vrsandeep/mango-go/internal/library"
 	"github.com/vrsandeep/mango-go/internal/store"
 	"github.com/vrsandeep/mango-go/internal/subscription"
 )
@@ -59,13 +58,12 @@ func main() {
 	}
 
 	// Start periodic scanning in the background
-	scanner := library.NewScanner(app.Config(), app.DB())
-	// go jobs.RunIncrementalScan(app)
+	go app.JobManager().RunJob("Library Sync", app)
 	go func() {
 		ticker := time.NewTicker(time.Duration(app.Config().ScanInterval) * time.Minute)
 		for range ticker.C {
 			log.Println("Performing periodic library scan...")
-			if err := scanner.Scan(nil, nil); err != nil {
+			if err := app.JobManager().RunJob("Library Sync", app); err != nil {
 				log.Printf("Warning: periodic library scan failed: %v", err)
 			}
 			log.Println("Periodic scan complete.")

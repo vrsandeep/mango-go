@@ -45,7 +45,6 @@ func NewManager(appCtx JobContext) *JobManager {
 		status: make(map[string]*JobStatus),
 		appCtx: appCtx,
 	}
-	// Registration is now done in a separate method.
 	return jm
 }
 

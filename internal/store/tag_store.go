@@ -34,6 +34,12 @@ func (s *Store) ListTagsWithCounts() ([]*models.Tag, error) {
 	return tags, nil
 }
 
+// GetTagByID retrieves a single tag by its ID.
+func (s *Store) GetTagByID(id int64) (*models.Tag, error) {
+	var tag models.Tag
+	err := s.db.QueryRow("SELECT id, name FROM tags WHERE id = ?", id).Scan(&tag.ID, &tag.Name)
+	return &tag, err
+}
 
 // AddTagToFolder creates the association between a folder and a tag.
 func (s *Store) AddTagToFolder(folderID int64, tagName string) (*models.Tag, error) {

@@ -17,7 +17,7 @@ func (s *Store) GetContinueReading(userID int64, limit int) ([]*models.HomeSecti
 		FROM (
 			SELECT
 				f.id as series_id,
-				f.title as series_title,
+				f.name as series_title,
 				c.id as chapter_id,
 				c.path as chapter_title,
 				COALESCE(c.thumbnail, f.thumbnail, '') as cover_art,
@@ -202,7 +202,7 @@ func (s *Store) findNextItemInParent(userID int64, parentID *int64, previousChil
 	}
 
 	// Get all items (subfolders and chapters) in the parent, sorted naturally.
-	_, subfolders, _, _, _ := s.ListItems(ListItemsOptions{UserID: userID, ParentID: parentID, PerPage: 9999, SortBy: "auto", SortDir: "asc"})
+	_, subfolders, _, _, _ := s.ListItems(ListItemsOptions{UserID: userID, ParentID: parentID, Page: 1, PerPage: 9999, SortBy: "auto", SortDir: "asc"})
 
 	// Combine and find the index of the folder we just came from.
 	type item struct {
@@ -237,7 +237,14 @@ func (s *Store) findNextItemInParent(userID int64, parentID *int64, previousChil
 // findFirstChapterInSubtree performs a recursive, depth-first search for the
 // first unread chapter within a given folder ID.
 func (s *Store) findFirstChapterInSubtree(userID int64, folderID int64) (*models.HomeSectionItem, error) {
-	_, subfolders, chapters, _, _ := s.ListItems(ListItemsOptions{UserID: userID, ParentID: &folderID, PerPage: 9999, SortBy: "auto", SortDir: "asc"})
+	_, subfolders, chapters, _, _ := s.ListItems(ListItemsOptions{
+		UserID:   userID,
+		ParentID: &folderID,
+		Page:     1,
+		PerPage:  9999,
+		SortBy:   "auto",
+		SortDir:  "asc",
+	})
 
 	// First, check for chapters directly in this folder.
 	for _, ch := range chapters {
@@ -292,7 +299,8 @@ func (s *Store) GetRecentlyAdded(limit int) ([]*models.HomeSectionItem, error) {
 		var item models.HomeSectionItem
 		var chapterID int64
 		var thumbnail sql.NullString
-		if err := rows.Scan(&item.SeriesID, &item.SeriesTitle, &thumbnail, &chapterID, &item.ChapterTitle, &item.UpdatedAt); err != nil {
+		var chapterTitle string
+		if err := rows.Scan(&item.SeriesID, &item.SeriesTitle, &thumbnail, &chapterID, &chapterTitle, &item.UpdatedAt); err != nil {
 			return nil, err
 		}
 		item.CoverArt = thumbnail.String
@@ -307,6 +315,7 @@ func (s *Store) GetRecentlyAdded(limit int) ([]*models.HomeSectionItem, error) {
 			// This is the first time we've seen this series in the results.
 			item.NewChapterCount = 1
 			item.ChapterID = &chapterID // Keep the chapter details for now
+			item.ChapterTitle = GetChapterTitle(&models.Chapter{Path: chapterTitle})
 			folderMap[item.SeriesID] = &item
 			orderedFolderIDs = append(orderedFolderIDs, item.SeriesID)
 		}

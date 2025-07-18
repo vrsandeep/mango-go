@@ -2,10 +2,13 @@ package store
 
 import (
 	"database/sql"
+	"errors"
 	"time"
 
 	"github.com/vrsandeep/mango-go/internal/models"
 )
+
+var ErrChapterNotFound = errors.New("chapter not found")
 
 type ChapterInfo struct {
 	ID   int64
@@ -84,4 +87,44 @@ func (s *Store) UpdateChapterPath(id int64, newPath string, newFolderID int64) e
 func (s *Store) DeleteChapterByHash(hash string) error {
 	_, err := s.db.Exec("DELETE FROM chapters WHERE content_hash = ?", hash)
 	return err
+}
+
+// UpdateChapterThumbnail updates the thumbnail for a single chapter.
+func (s *Store) UpdateChapterThumbnail(chapterID int64, thumbnail string) error {
+	result, err := s.db.Exec("UPDATE chapters SET thumbnail = ? WHERE id = ?", thumbnail, chapterID)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return ErrChapterNotFound
+	}
+	return nil
+}
+
+// UpdateChapterProgress updates the reading progress for a given chapter.
+func (s *Store) UpdateChapterProgress(chapterID int64, userID int64, progressPercent int, read bool) error {
+	query := `
+		INSERT INTO user_chapter_progress (user_id, chapter_id, progress_percent, read, updated_at)
+		VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+		ON CONFLICT(user_id, chapter_id) DO UPDATE SET
+			progress_percent = excluded.progress_percent,
+			read = excluded.read,
+			updated_at = CURRENT_TIMESTAMP;
+	`
+	result, err := s.db.Exec(query, userID, chapterID, progressPercent, read)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return ErrChapterNotFound
+	}
+	return nil
 }

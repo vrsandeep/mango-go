@@ -18,12 +18,6 @@ func setupHomePageTestDB(t *testing.T, db *sql.DB) (s *store.Store, user1, user2
 	u1, _ := s.CreateUser("user1", "hash", "user")
 	u2, _ := s.CreateUser("user2", "hash", "user")
 
-	// Create series
-	// db.Exec(`INSERT INTO series (id, title, path, created_at, updated_at) VALUES (1, 'Series A', '/a', ?, ?)`, time.Now().Add(-5*time.Hour), time.Now().Add(-5*time.Hour))
-	// db.Exec(`INSERT INTO series (id, title, path, created_at, updated_at) VALUES (2, 'Series B', '/b', ?, ?)`, time.Now().Add(-4*time.Hour), time.Now().Add(-4*time.Hour))
-	// db.Exec(`INSERT INTO series (id, title, path, created_at, updated_at) VALUES (3, 'Series C', '/c', ?, ?)`, time.Now().Add(-3*time.Hour), time.Now().Add(-3*time.Hour))
-	// db.Exec(`INSERT INTO series (id, title, path, created_at, updated_at) VALUES (4, 'Series D', '/d', ?, ?)`, time.Now().Add(-2*time.Hour), time.Now().Add(-2*time.Hour))
-
 	// FOLDERS: /Series A/Vol 1, /Series A/Vol 2, /Series B (untouched), /Series C (recent)
 	fA, _ := s.CreateFolder("/A", "Series A", nil)
 	fAV1, _ := s.CreateFolder("/A/V1", "Vol 1", &fA.ID)
@@ -32,13 +26,6 @@ func setupHomePageTestDB(t *testing.T, db *sql.DB) (s *store.Store, user1, user2
 	fC, _ := s.CreateFolder("/C", "Series C", nil)
 
 	// Create chapters
-	// db.Exec(`INSERT INTO chapters (id, series_id, path, page_count, created_at, updated_at) VALUES (1, 1, 'A-1', 2, ?, ?)`, time.Now().Add(-5*time.Hour), time.Now().Add(-5*time.Hour)) // Continue Reading
-	// db.Exec(`INSERT INTO chapters (id, series_id, path, page_count, created_at, updated_at) VALUES (2, 2, 'B-1', 2, ?, ?)`, time.Now().Add(-4*time.Hour), time.Now().Add(-4*time.Hour)) // Next Up (read)
-	// db.Exec(`INSERT INTO chapters (id, series_id, path, page_count, created_at, updated_at) VALUES (3, 2, 'B-2', 2, ?, ?)`, time.Now().Add(-4*time.Hour), time.Now().Add(-4*time.Hour)) // Next Up (next)
-	// db.Exec(`INSERT INTO chapters (id, series_id, path, page_count, created_at, updated_at) VALUES (4, 3, 'C-1', 2, ?, ?)`, time.Now().Add(-1*time.Hour), time.Now().Add(-1*time.Hour)) // Recently Added
-	// db.Exec(`INSERT INTO chapters (id, series_id, path, page_count, created_at, updated_at) VALUES (5, 3, 'C-2', 2, ?, ?)`, time.Now(), time.Now())                                     // Recently Added
-	// // Series 4 has no chapters read by user1 -> Start Reading
-
 	chV1_1, _ := s.CreateChapter(fAV1.ID, "/A/V1/ch1.cbz", "h_av1_1", 10, "") // Continue Reading
 	s.CreateChapter(fAV1.ID, "/A/V1/ch2.cbz", "h_av1_2", 10, "")              // Next up after ch1
 	s.CreateChapter(fAV2.ID, "/A/V2/ch1.cbz", "h_av2_1", 10, "")              // Next up after Vol 1
@@ -77,6 +64,34 @@ func TestHomePageQueries(t *testing.T) {
 		}
 	})
 
+	t.Run("Recently Added", func(t *testing.T) {
+		items, err := s.GetRecentlyAdded(10)
+		if err != nil {
+			t.Fatalf("GetRecentlyAdded failed: %v", err)
+		}
+		if len(items) != 4 {
+			t.Fatalf("Expected 4 grouped items in Recently Added, got %d", len(items))
+		}
+		expectedSeriesIDs := []int64{5, 4, 3, 2}
+		expectedNewChapterCounts := []int{1, 1, 1, 2}
+
+		// c/ch1.cbz -> ch1
+		// b/ch1.cbz -> ch1
+		// a/v2/ch1.cbz -> ch1
+		// a/v1/ -> "", since there are two chapters in this folder, the chapter title is empty.
+		expectedChapterTitles := []string{"ch1", "ch1", "ch1", ""}
+		for index, item := range items {
+			if item.SeriesID != expectedSeriesIDs[index] {
+				t.Errorf("Expected index: %d, series ID %d, got %d", index, expectedSeriesIDs[index], item.SeriesID)
+			}
+			if item.NewChapterCount != expectedNewChapterCounts[index] {
+				t.Errorf("Expected index: %d, new chapter count to be %d, got %d", index, expectedNewChapterCounts[index], item.NewChapterCount)
+			}
+			if item.ChapterTitle != expectedChapterTitles[index] {
+				t.Errorf("Expected index: %d, chapter title to be %s, got %s", index, expectedChapterTitles[index], item.ChapterTitle)
+			}
+		}
+	})
 	// t.Run("Next Up", func(t *testing.T) {
 	// 	items, err := s.GetNextUp(user1.ID, 10)
 	// 	if err != nil {
@@ -85,38 +100,14 @@ func TestHomePageQueries(t *testing.T) {
 	// 	if len(items) != 1 {
 	// 		t.Fatalf("Expected 1 item in Next Up, got %d", len(items))
 	// 	}
-	// 	if *items[0].ChapterID != 3 {
+	// 	if *items[0].ChapterID != 2 {
 	// 		t.Errorf("Expected next up chapter to be ID 3, got %d", *items[0].ChapterID)
 	// 	}
-	// 	if items[0].ChapterTitle != "B-2" {
-	// 		t.Errorf("Expected next up chapter title to be B-2, got %s", items[0].ChapterTitle)
+	// 	if items[0].ChapterTitle != "ch2.cbz" {
+	// 		t.Errorf("Expected next up chapter title to be ch2.cbz, got %s", items[0].ChapterTitle)
 	// 	}
 	// })
 
-	t.Run("Recently Added", func(t *testing.T) {
-		items, err := s.GetRecentlyAdded(10)
-		if err != nil {
-			t.Fatalf("GetRecentlyAdded failed: %v", err)
-		}
-		// Series D has no chapters at all. Hence, it is not included in the results.
-		if len(items) != 3 {
-			t.Fatalf("Expected 3 grouped items in Recently Added, got %d", len(items))
-		}
-		expectedSeriesIDs := []int64{3, 2, 1}
-		expectedNewChapterCounts := []int{2, 2, 1}
-		expectedChapterTitles := []string{"", "", "A-1"} // The first two series id have two chapters, so the chapter title is empty.
-		for index, item := range items {
-			if item.SeriesID != expectedSeriesIDs[index] {
-				t.Errorf("Expected series ID %d, got %d", expectedSeriesIDs[index], item.SeriesID)
-			}
-			if item.NewChapterCount != expectedNewChapterCounts[index] {
-				t.Errorf("Expected new chapter count to be %d, got %d", expectedNewChapterCounts[index], item.NewChapterCount)
-			}
-			if item.ChapterTitle != expectedChapterTitles[index] {
-				t.Errorf("Expected chapter title to be %s, got %s", expectedChapterTitles[index], item.ChapterTitle)
-			}
-		}
-	})
 
 	t.Run("Start Reading", func(t *testing.T) {
 		items, err := s.GetStartReading(user1.ID, 10)
@@ -127,9 +118,9 @@ func TestHomePageQueries(t *testing.T) {
 		if len(items) != 2 {
 			t.Fatalf("Expected 2 items in Start Reading, got %d", len(items))
 		}
-		// if items[0].SeriesID != 4 { // Ordered by recency
-		// 	t.Errorf("Expected first Start Reading series to be ID 4, got %d", items[0].SeriesID)
-		// }
+		if items[0].SeriesID != 5 { // Ordered by recency
+			t.Errorf("Expected first Start Reading series to be ID 5, got %d", items[0].SeriesID)
+		}
 
 		var foundB, foundC bool
 		for _, item := range items {

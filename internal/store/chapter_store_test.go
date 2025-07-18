@@ -24,6 +24,43 @@ func TestChapterStore(t *testing.T) {
 		}
 	})
 
+	t.Run("Get Chapter By ID", func(t *testing.T) {
+		chap, err := s.GetChapterByID(1, 1)
+		if err != nil {
+			t.Fatalf("GetChapterByID failed: %v", err)
+		}
+		if chap.ID != 1 {
+			t.Errorf("Expected chapter ID 1, got %d", chap.ID)
+		}
+		if chap.FolderID != folder.ID {
+			t.Errorf("Expected folder ID %d, got %d", folder.ID, chap.FolderID)
+		}
+		if chap.Path != "/library/Series A/ch1.cbz" {
+			t.Errorf("Expected path '/library/Series A/ch1.cbz', got '%s'", chap.Path)
+		}
+		if chap.ContentHash != "hash1" {
+			t.Errorf("Expected content hash 'hash1', got '%s'", chap.ContentHash)
+		}
+		if chap.PageCount != 20 {
+			t.Errorf("Expected page count 20, got %d", chap.PageCount)
+		}
+		if chap.Thumbnail != "thumb1" {
+			t.Errorf("Expected thumbnail 'thumb1', got '%s'", chap.Thumbnail)
+		}
+		if chap.Read != false {
+			t.Errorf("Expected chapter 'read' status to be false, got true")
+		}
+		if chap.ProgressPercent != 0 {
+			t.Errorf("Expected chapter 'progress_percent' to be 0, got %d", chap.ProgressPercent)
+		}
+		if chap.CreatedAt.IsZero() {
+			t.Errorf("Expected created_at to be set")
+		}
+		if chap.UpdatedAt.IsZero() {
+			t.Errorf("Expected updated_at to be set")
+		}
+	})
+
 	t.Run("Get All Chapters By Hash", func(t *testing.T) {
 		chapMap, err := s.GetAllChaptersByHash()
 		if err != nil {
@@ -54,6 +91,45 @@ func TestChapterStore(t *testing.T) {
 		}
 	})
 
+	t.Run("Update Chapter Thumbnail", func(t *testing.T) {
+		chapMap, _ := s.GetAllChaptersByHash()
+		chapID := chapMap["hash1"].ID
+		newThumbnail := "data:image/jpeg;base64,newthumb"
+		err := s.UpdateChapterThumbnail(chapID, newThumbnail)
+		if err != nil {
+			t.Fatalf("UpdateChapterThumbnail failed: %v", err)
+		}
+		updatedChap, _ := s.GetChapterByID(chapID, 1)
+		if updatedChap.Thumbnail != newThumbnail {
+			t.Errorf("Chapter thumbnail was not updated")
+		}
+	})
+
+	t.Run("Update Chapter Progress", func(t *testing.T) {
+		chapMap, _ := s.GetAllChaptersByHash()
+		chapID := chapMap["hash1"].ID
+		newProgress := 50
+		newReadStatus := true
+
+		// Create a user
+		user, _ := s.CreateUser("testuser", "testuser@example.com", "user")
+
+		err := s.UpdateChapterProgress(chapID, user.ID, newProgress, newReadStatus)
+		if err != nil {
+			t.Fatalf("UpdateChapterProgress failed: %v", err)
+		}
+		updatedChap, err := s.GetChapterByID(chapID, 1)
+		if err != nil {
+			t.Fatalf("Failed to get chapter after update: %v", err)
+		}
+		if updatedChap.ProgressPercent != newProgress {
+			t.Errorf("Chapter progress was not updated")
+		}
+		if updatedChap.Read != newReadStatus {
+			t.Errorf("Chapter read status was not updated")
+		}
+	})
+
 	t.Run("Delete Chapter By Hash", func(t *testing.T) {
 		err := s.DeleteChapterByHash("hash1")
 		if err != nil {
@@ -64,4 +140,5 @@ func TestChapterStore(t *testing.T) {
 			t.Errorf("Expected 0 chapters after delete, got %d", len(chapMap))
 		}
 	})
+
 }

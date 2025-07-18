@@ -14,11 +14,11 @@ func TestHandleMarkAllAs(t *testing.T) {
 	server, db, _ := testutil.SetupTestServer(t)
 	router := server.Router()
 	s := store.New(db)
-	testutil.PersistOneSeriesAndChapter(t, db)
+	testutil.PersistOneFolderAndChapter(t, db)
 
 	t.Run("Mark all as read", func(t *testing.T) {
 		payload := `{"read": true}`
-		req, _ := http.NewRequest("POST", "/api/browse/1/mark-all-as", bytes.NewBufferString(payload))
+		req, _ := http.NewRequest("POST", "/api/folders/1/mark-all-as", bytes.NewBufferString(payload))
 		req.AddCookie(testutil.CookieForUser(t, server, "testuser", "password", "user"))
 		req.Header.Set("Content-Type", "application/json")
 
@@ -61,7 +61,7 @@ func TestHandleMarkAllAs(t *testing.T) {
 		s.MarkFolderChaptersAs(1, true, 1)
 
 		payload := `{"read": false}`
-		req, _ := http.NewRequest("POST", "/api/browse/1/mark-all-as", bytes.NewBufferString(payload))
+		req, _ := http.NewRequest("POST", "/api/folders/1/mark-all-as", bytes.NewBufferString(payload))
 		req.AddCookie(testutil.CookieForUser(t, server, "testuser", "password", "user"))
 		req.Header.Set("Content-Type", "application/json")
 

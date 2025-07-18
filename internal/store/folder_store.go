@@ -54,6 +54,9 @@ func (s *Store) GetFolder(id int64) (*models.Folder, error) {
 	query := "SELECT id, path, name, parent_id, thumbnail, created_at, updated_at FROM folders WHERE id = ?"
 	err := s.db.QueryRow(query, id).Scan(&folder.ID, &folder.Path, &folder.Name, &parentID, &thumbnail, &folder.CreatedAt, &folder.UpdatedAt)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrFolderNotFound
+		}
 		return nil, err
 	}
 	if parentID.Valid {
@@ -180,7 +183,10 @@ func (s *Store) updateSingleFolderThumbnail(folderID int64) {
 		})
 		firstChapter := chapters[0]
 		if firstChapter.Thumbnail.Valid {
-			s.db.Exec("UPDATE folders SET thumbnail = ? WHERE id = ?", firstChapter.Thumbnail.String, folderID)
+			_, err := s.db.Exec("UPDATE folders SET thumbnail = ? WHERE id = ?", firstChapter.Thumbnail.String, folderID)
+			if err != nil {
+				log.Printf("Error updating folder thumbnail %d: %v", folderID, err)
+			}
 		}
 	}
 }

@@ -30,70 +30,6 @@ func getListParams(r *http.Request) (page, perPage int, search, sortBy, sortDir 
 	return
 }
 
-// handleListSeries is updated to handle search and sort.
-func (s *Server) handleListSeries(w http.ResponseWriter, r *http.Request) {
-	user := getUserFromContext(r)
-	if user == nil {
-		RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
-		return
-	}
-
-	page, perPage, search, sortBy, sortDir := getListParams(r)
-	series, total, err := s.store.ListSeries(user.ID, page, perPage, search, sortBy, sortDir)
-	if err != nil {
-		RespondWithError(w, http.StatusInternalServerError, "Failed to fetch series")
-		return
-	}
-
-	w.Header().Set("X-Total-Count", strconv.Itoa(total))
-	RespondWithJSON(w, http.StatusOK, series)
-}
-
-// handleGetSeries retrieves and returns details for a single manga series.
-// func (s *Server) handleGetSeries(w http.ResponseWriter, r *http.Request) {
-// 	seriesIDStr := chi.URLParam(r, "seriesID")
-// 	seriesID, err := strconv.ParseInt(seriesIDStr, 10, 64)
-// 	if err != nil {
-// 		RespondWithError(w, http.StatusBadRequest, "Invalid series ID")
-// 		return
-// 	}
-
-// 	user := getUserFromContext(r)
-// 	if user == nil {
-// 		RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
-// 		return
-// 	}
-
-// 	// settings, err := s.store.GetSeriesSettings(seriesID, user.ID)
-// 	// if err != nil {
-// 	// 	log.Printf("Failed to retrieve settings for series %d: %v", seriesID, err)
-// 	// }
-// 	page, perPage, search, sortBy, sortDir := getListParams(r)
-
-// 	// save settings to series if they exist
-// 	// if sortBy != "" || sortDir != "" {
-// 	// 	s.store.UpdateSeriesSettings(seriesID, user.ID, sortBy, sortDir)
-// 	// } else {
-// 	// 	sortBy = settings.SortBy   // Use default sort from settings if not specified
-// 	// 	sortDir = settings.SortDir // Use default direction from settings if not specified
-// 	// }
-
-// 	series, total, err := s.store.GetSeriesByID(seriesID, user.ID, page, perPage, search, sortBy, sortDir)
-// 	if err != nil {
-// 		RespondWithError(w, http.StatusNotFound, "Series not found")
-// 		return
-// 	}
-
-// 	series.Settings = &models.SeriesSettings{
-// 		SortBy:  sortBy,
-// 		SortDir: sortDir,
-// 	}
-
-// 	w.Header().Set("X-Total-Count", strconv.Itoa(total))
-// 	RespondWithJSON(w, http.StatusOK, series)
-// }
-
-
 // handleGetPage finds a specific page within an archive and serves it as an image.
 func (s *Server) handleGetPage(w http.ResponseWriter, r *http.Request) {
 	chapterIDStr := chi.URLParam(r, "chapterID")
@@ -247,29 +183,6 @@ func (s *Server) handleUpdateProgress(w http.ResponseWriter, r *http.Request) {
 	RespondWithJSON(w, http.StatusOK, map[string]string{"status": "success"})
 }
 
-// func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
-// 	seriesID, _ := strconv.ParseInt(chi.URLParam(r, "seriesID"), 10, 64)
-
-// 	user := getUserFromContext(r)
-// 	if user == nil {
-// 		RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
-// 		return
-// 	}
-
-// 	var payload struct {
-// 		SortBy  string `json:"sort_by"`
-// 		SortDir string `json:"sort_dir"`
-// 	}
-// 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-// 		RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
-// 		return
-// 	}
-// 	if err := s.store.UpdateSeriesSettings(seriesID, user.ID, payload.SortBy, payload.SortDir); err != nil {
-// 		RespondWithError(w, http.StatusInternalServerError, "Failed to update settings")
-// 		return
-// 	}
-// 	RespondWithJSON(w, http.StatusOK, map[string]string{"status": "success"})
-// }
 
 func (s *Server) handleGetChapterNeighbors(w http.ResponseWriter, r *http.Request) {
 	folderID, _ := strconv.ParseInt(chi.URLParam(r, "folderID"), 10, 64)

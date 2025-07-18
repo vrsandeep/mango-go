@@ -136,7 +136,6 @@ func NewScanner(cfg *config.Config, db *sql.DB) *Scanner {
 // }
 
 // LibrarySync performs a full synchronization between the filesystem and the database.
-// func LibrarySync(app *core.App) {
 func LibrarySync(ctx jobs.JobContext) {
 	jobName := "Library Sync"
 	st := store.New(ctx.DB())
