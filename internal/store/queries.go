@@ -99,43 +99,43 @@ func (s *Store) ListSeries(userID int64, page, perPage int, search, sortBy, sort
 }
 
 // GetSeriesByID fetches a single series and all its associated chapters.
-func (s *Store) GetSeriesByID(id int64, userID int64, page, perPage int, search, sortBy, sortDir string) (*models.Series, int, error) {
-	var series models.Series
-	var thumb, customCover sql.NullString
-	err := s.db.QueryRow("SELECT id, title, path, thumbnail, custom_cover_url, total_chapters FROM series WHERE id = ?", id).Scan(&series.ID, &series.Title, &series.Path, &thumb, &customCover, &series.TotalChapters)
-	if err != nil {
-		return nil, 0, err
-	}
-	series.Thumbnail = thumb.String
-	series.CustomCoverURL = customCover.String
-	series.Tags, _ = s.getTagsForSeries(id)
-	// Fetch per-user settings
-	series.Settings, _ = s.GetSeriesSettings(id, userID)
+// func (s *Store) GetSeriesByID(id int64, userID int64, page, perPage int, search, sortBy, sortDir string) (*models.Series, int, error) {
+// 	var series models.Series
+// 	var thumb, customCover sql.NullString
+// 	err := s.db.QueryRow("SELECT id, title, path, thumbnail, custom_cover_url, total_chapters FROM series WHERE id = ?", id).Scan(&series.ID, &series.Title, &series.Path, &thumb, &customCover, &series.TotalChapters)
+// 	if err != nil {
+// 		return nil, 0, err
+// 	}
+// 	series.Thumbnail = thumb.String
+// 	series.CustomCoverURL = customCover.String
+// 	series.Tags, _ = s.getTagsForSeries(id)
+// 	// Fetch per-user settings
+// 	series.Settings, _ = s.GetSeriesSettings(id, userID)
 
-	// Fetch total chapters count
-	totalChapters := series.TotalChapters
-	if search != "" {
-		var chapterArgs []interface{}
-		chapterArgs = append(chapterArgs, id)
-		chapterCountQuery := "SELECT COUNT(id) FROM chapters WHERE series_id = ?"
-		chapterCountQuery += " AND path LIKE ?"
-		chapterArgs = append(chapterArgs, "%"+search+"%")
-		err = s.db.QueryRow(chapterCountQuery, chapterArgs...).Scan(&totalChapters)
-		if err != nil {
-			return &series, 0, err
-		}
-	}
+// 	// Fetch total chapters count
+// 	totalChapters := series.TotalChapters
+// 	if search != "" {
+// 		var chapterArgs []interface{}
+// 		chapterArgs = append(chapterArgs, id)
+// 		chapterCountQuery := "SELECT COUNT(id) FROM chapters WHERE series_id = ?"
+// 		chapterCountQuery += " AND path LIKE ?"
+// 		chapterArgs = append(chapterArgs, "%"+search+"%")
+// 		err = s.db.QueryRow(chapterCountQuery, chapterArgs...).Scan(&totalChapters)
+// 		if err != nil {
+// 			return &series, 0, err
+// 		}
+// 	}
 
-	// Main query to fetch chapters
-	chapters, err := s.getChaptersForSeries(id, userID, page, perPage, search, sortBy, sortDir)
-	series.Chapters = chapters
-	if err != nil {
-		return &series, 0, err
-	}
-	return &series, totalChapters, nil
-}
+// 	// Main query to fetch chapters
+// 	chapters, err := s.getChaptersForSeries(id, userID, page, perPage, search, sortBy, sortDir)
+// 	series.Chapters = chapters
+// 	if err != nil {
+// 		return &series, 0, err
+// 	}
+// 	return &series, totalChapters, nil
+// }
 
-func (s *Store) getChaptersForSeries(folderId int64, userID int64, page, perPage int, search, sortBy, sortDir string) ([]*models.Chapter, error) {
+func (s *Store) getChaptersForFolder(folderId int64, userID int64, page, perPage int, search, sortBy, sortDir string) ([]*models.Chapter, error) {
 	chapterQuery := `
 		SELECT c.id, c.path, c.page_count,
 		       COALESCE(ucp.read, 0) as read,
@@ -235,24 +235,24 @@ func getChapterTitle(chapter *models.Chapter) string {
 	return title
 }
 
-func (s *Store) getTagsForSeries(seriesID int64) ([]*models.Tag, error) {
-	query := "SELECT t.id, t.name FROM tags t JOIN series_tags st ON t.id = st.tag_id WHERE st.series_id = ?"
-	rows, err := s.db.Query(query, seriesID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
+// func (s *Store) getTagsForSeries(seriesID int64) ([]*models.Tag, error) {
+// 	query := "SELECT t.id, t.name FROM tags t JOIN series_tags st ON t.id = st.tag_id WHERE st.series_id = ?"
+// 	rows, err := s.db.Query(query, seriesID)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	defer rows.Close()
 
-	var tags []*models.Tag
-	for rows.Next() {
-		var tag models.Tag
-		if err := rows.Scan(&tag.ID, &tag.Name); err != nil {
-			return nil, err
-		}
-		tags = append(tags, &tag)
-	}
-	return tags, nil
-}
+// 	var tags []*models.Tag
+// 	for rows.Next() {
+// 		var tag models.Tag
+// 		if err := rows.Scan(&tag.ID, &tag.Name); err != nil {
+// 			return nil, err
+// 		}
+// 		tags = append(tags, &tag)
+// 	}
+// 	return tags, nil
+// }
 
 // GetAllChapterPaths returns a slice of all chapter file paths in the DB.
 func (s *Store) GetAllChapterPaths() ([]string, error) {
@@ -300,13 +300,9 @@ func (s *Store) GetAllChaptersForThumbnailing() ([]*models.Chapter, error) {
 }
 
 // GetChapterNeighbors finds the previous and next chapter IDs based on sort settings.
-func (s *Store) GetChapterNeighbors(seriesID, currentChapterID, userID int64) (map[string]*int64, error) {
-	settings, err := s.GetSeriesSettings(seriesID, userID)
-	if err != nil {
-		return nil, err
-	}
+func (s *Store) GetChapterNeighbors(folderID, currentChapterID, userID int64) (map[string]*int64, error) {
 	var chapters []*models.Chapter
-	chapters, err = s.getChaptersForSeries(seriesID, userID, 1, 10000, "", settings.SortBy, settings.SortDir)
+	chapters, err := s.getChaptersForFolder(folderID, userID, 1, 10000, "", "auto", "asc")
 	if err != nil {
 		return nil, err
 	}

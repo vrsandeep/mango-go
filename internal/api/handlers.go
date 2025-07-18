@@ -93,95 +93,6 @@ func (s *Server) handleListSeries(w http.ResponseWriter, r *http.Request) {
 // 	RespondWithJSON(w, http.StatusOK, series)
 // }
 
-// handleUpdateCover handles requests to update the custom cover URL for a series.
-// func (s *Server) handleUpdateCover(w http.ResponseWriter, r *http.Request) {
-// 	seriesIDStr := chi.URLParam(r, "seriesID")
-// 	seriesID, err := strconv.ParseInt(seriesIDStr, 10, 64)
-// 	if err != nil {
-// 		RespondWithError(w, http.StatusBadRequest, "Invalid series ID")
-// 		return
-// 	}
-
-// 	var payload struct {
-// 		URL string `json:"url"`
-// 	}
-// 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-// 		RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
-// 		return
-// 	}
-
-// 	if payload.URL == "" {
-// 		RespondWithError(w, http.StatusBadRequest, "Cover URL cannot be empty")
-// 		return
-// 	}
-
-// 	if rowsAffected, err := s.store.UpdateSeriesCoverURL(seriesID, payload.URL); err != nil {
-// 		log.Printf("Failed to update cover for series %d: %v", seriesID, err)
-// 		RespondWithError(w, http.StatusInternalServerError, "Failed to update cover")
-// 		return
-// 	} else if rowsAffected == 0 {
-// 		RespondWithError(w, http.StatusNotFound, "Series not found")
-// 		return
-// 	}
-
-// 	RespondWithJSON(w, http.StatusOK, map[string]string{"status": "success"})
-// }
-
-// handleMarkAllAs marks all chapters in a series as read or unread.
-// func (s *Server) handleMarkAllAs(w http.ResponseWriter, r *http.Request) {
-// 	seriesIDStr := chi.URLParam(r, "seriesID")
-// 	seriesID, err := strconv.ParseInt(seriesIDStr, 10, 64)
-// 	if err != nil {
-// 		RespondWithError(w, http.StatusBadRequest, "Invalid series ID")
-// 		return
-// 	}
-// 	user := getUserFromContext(r)
-
-// 	var payload struct {
-// 		Read bool `json:"read"`
-// 	}
-// 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-// 		RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
-// 		return
-// 	}
-
-// 	if err := s.store.MarkAllChaptersAs(seriesID, payload.Read, user.ID); err != nil {
-// 		log.Printf("Failed to mark all chapters for series %d: %v", seriesID, err)
-// 		RespondWithError(w, http.StatusInternalServerError, "Failed to update chapters")
-// 		return
-// 	}
-
-// 	RespondWithJSON(w, http.StatusOK, map[string]string{"status": "success"})
-// }
-
-// func (s *Server) handleAddTag(w http.ResponseWriter, r *http.Request) {
-// 	seriesID, _ := strconv.ParseInt(chi.URLParam(r, "seriesID"), 10, 64)
-// 	var payload struct {
-// 		Name string `json:"name"`
-// 	}
-// 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-// 		RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
-// 		return
-// 	}
-// 	tag, err := s.store.AddTagToSeries(seriesID, payload.Name)
-// 	if err != nil {
-// 		log.Printf("Failed to add tag to series %d: %v", seriesID, err)
-// 		RespondWithError(w, http.StatusInternalServerError, "Failed to add tag")
-// 		return
-// 	}
-// 	RespondWithJSON(w, http.StatusCreated, tag)
-// }
-
-// func (s *Server) handleRemoveTag(w http.ResponseWriter, r *http.Request) {
-// 	seriesID, _ := strconv.ParseInt(chi.URLParam(r, "seriesID"), 10, 64)
-// 	tagID, _ := strconv.ParseInt(chi.URLParam(r, "tagID"), 10, 64)
-// 	if err := s.store.RemoveTagFromSeries(seriesID, tagID); err != nil {
-// 		log.Printf("Failed to remove tag %d from series %d: %v", tagID, seriesID, err)
-// 		RespondWithError(w, http.StatusInternalServerError, "Failed to remove tag")
-// 		return
-// 	}
-// 	w.WriteHeader(http.StatusNoContent)
-// }
 
 // handleGetPage finds a specific page within an archive and serves it as an image.
 func (s *Server) handleGetPage(w http.ResponseWriter, r *http.Request) {
@@ -361,7 +272,7 @@ func (s *Server) handleUpdateProgress(w http.ResponseWriter, r *http.Request) {
 // }
 
 func (s *Server) handleGetChapterNeighbors(w http.ResponseWriter, r *http.Request) {
-	seriesID, _ := strconv.ParseInt(chi.URLParam(r, "seriesID"), 10, 64)
+	folderID, _ := strconv.ParseInt(chi.URLParam(r, "folderID"), 10, 64)
 	chapterID, _ := strconv.ParseInt(chi.URLParam(r, "chapterID"), 10, 64)
 
 	user := getUserFromContext(r)
@@ -370,7 +281,7 @@ func (s *Server) handleGetChapterNeighbors(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	neighbors, err := s.store.GetChapterNeighbors(seriesID, chapterID, user.ID)
+	neighbors, err := s.store.GetChapterNeighbors(folderID, chapterID, user.ID)
 	if err != nil {
 		RespondWithError(w, http.StatusInternalServerError, "Failed to calculate neighbors")
 		return

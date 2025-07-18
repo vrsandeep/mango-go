@@ -70,7 +70,6 @@ func (s *Server) Router() http.Handler {
 			// r.Delete("/series/{seriesID}/tags/{tagID}", s.handleRemoveTag)
 			// r.Get("/series/{seriesID}/chapters/{chapterID}", s.handleGetChapterDetails)
 			// r.Get("/series/{seriesID}/chapters/{chapterID}/pages/{pageNumber}", s.handleGetPage)
-			r.Get("/series/{seriesID}/chapters/{chapterID}/neighbors", s.handleGetChapterNeighbors)
 			r.Post("/chapters/{chapterID}/progress", s.handleUpdateProgress)
 
 			// Browse Routes
@@ -80,6 +79,7 @@ func (s *Server) Router() http.Handler {
 			r.Post("/folders/{folderID}/settings", s.handleUpdateFolderSettings)
 			r.Post("/folders/{folderID}/mark-all-as", s.handleMarkFolderAs)
 			r.Post("/folders/{folderID}/cover", s.handleUploadFolderCover)
+			r.Get("/folders/{folderID}/chapters/{chapterID}/neighbors", s.handleGetChapterNeighbors)
 
 			r.Get("/chapters/{chapterID}/pages/{pageNumber}", s.handleGetPage)
 			r.Get("/chapters/{chapterID}", s.handleGetChapterDetails)

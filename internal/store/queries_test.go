@@ -101,50 +101,50 @@ func TestListSeries(t *testing.T) {
 	})
 }
 
-func TestGetSeriesByID(t *testing.T) {
-	db := testutil.SetupTestDB(t)
-	defer db.Close()
-	populateDB(t, db)
-	s := store.New(db)
+// func TestGetSeriesByID(t *testing.T) {
+// 	db := testutil.SetupTestDB(t)
+// 	defer db.Close()
+// 	populateDB(t, db)
+// 	s := store.New(db)
 
-	t.Run("Success", func(t *testing.T) {
-		series, count, err := s.GetSeriesByID(2, 1, 1, 10, "ch1", "path", "asc") // Get Series A
-		if err != nil {
-			t.Fatalf("GetSeriesByID failed: %v", err)
-		}
-		if series.Title != "Series A" {
-			t.Errorf("Expected title 'Series A', got '%s'", series.Title)
-		}
-		if len(series.Chapters) != 1 {
-			t.Errorf("Expected 1 chapter, got %d", len(series.Chapters))
-		}
-		if count != 1 {
-			t.Errorf("Expected number of chapters to be 1, got %d", count)
-		}
-		if series.Chapters[0].PageCount != 20 {
-			t.Errorf("Expected chapter page count 20, got %d", series.Chapters[0].PageCount)
-		}
-		if series.Chapters[0].Read != false {
-			t.Errorf("Expected chapter 'read' status to be false, got true")
-		}
-		if series.Chapters[0].ProgressPercent != 0 {
-			t.Errorf("Expected chapter 'progress_percent' to be 0, got %d", series.Chapters[0].ProgressPercent)
-		}
-		if series.CustomCoverURL != "" {
-			t.Errorf("Expected CustomCoverURL to be empty, got '%s'", series.CustomCoverURL)
-		}
-	})
+// 	t.Run("Success", func(t *testing.T) {
+// 		series, count, err := s.GetSeriesByID(2, 1, 1, 10, "ch1", "path", "asc") // Get Series A
+// 		if err != nil {
+// 			t.Fatalf("GetSeriesByID failed: %v", err)
+// 		}
+// 		if series.Title != "Series A" {
+// 			t.Errorf("Expected title 'Series A', got '%s'", series.Title)
+// 		}
+// 		if len(series.Chapters) != 1 {
+// 			t.Errorf("Expected 1 chapter, got %d", len(series.Chapters))
+// 		}
+// 		if count != 1 {
+// 			t.Errorf("Expected number of chapters to be 1, got %d", count)
+// 		}
+// 		if series.Chapters[0].PageCount != 20 {
+// 			t.Errorf("Expected chapter page count 20, got %d", series.Chapters[0].PageCount)
+// 		}
+// 		if series.Chapters[0].Read != false {
+// 			t.Errorf("Expected chapter 'read' status to be false, got true")
+// 		}
+// 		if series.Chapters[0].ProgressPercent != 0 {
+// 			t.Errorf("Expected chapter 'progress_percent' to be 0, got %d", series.Chapters[0].ProgressPercent)
+// 		}
+// 		if series.CustomCoverURL != "" {
+// 			t.Errorf("Expected CustomCoverURL to be empty, got '%s'", series.CustomCoverURL)
+// 		}
+// 	})
 
-	t.Run("Not Found", func(t *testing.T) {
-		_, count, err := s.GetSeriesByID(999, 1, 1, 10, "", "", "")
-		if err == nil {
-			t.Error("Expected an error for non-existent series, got nil")
-		}
-		if count != 0 {
-			t.Errorf("Expected count to be 0 for non-existent series, got %d", count)
-		}
-	})
-}
+// 	t.Run("Not Found", func(t *testing.T) {
+// 		_, count, err := s.GetSeriesByID(999, 1, 1, 10, "", "", "")
+// 		if err == nil {
+// 			t.Error("Expected an error for non-existent series, got nil")
+// 		}
+// 		if count != 0 {
+// 			t.Errorf("Expected count to be 0 for non-existent series, got %d", count)
+// 		}
+// 	})
+// }
 
 // func TestUpdateSeriesCoverURL(t *testing.T) {
 // 	db := testutil.SetupTestDB(t)
