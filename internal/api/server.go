@@ -63,7 +63,7 @@ func (s *Server) Router() http.Handler {
 
 			// r.Get("/series", s.handleListSeries)
 			// r.Get("/series/{seriesID}", s.handleGetSeries)
-			r.Post("/series/{seriesID}/cover", s.handleUpdateCover)
+			// r.Post("/series/{seriesID}/cover", s.handleUpdateCover)
 			// r.Post("/series/{seriesID}/mark-all-as", s.handleMarkAllAs)
 			// r.Post("/series/{seriesID}/settings", s.handleUpdateSettings)
 			// r.Post("/series/{seriesID}/tags", s.handleAddTag)
@@ -76,8 +76,11 @@ func (s *Server) Router() http.Handler {
 			// Browse Routes
 			r.Get("/browse", s.handleBrowseFolder)
 			r.Get("/browse/breadcrumb", s.handleGetBreadcrumb)
-			r.Post("/browse/{folderID}/settings", s.handleUpdateFolderSettings)
-			r.Post("/browse/{folderID}/mark-all-as", s.handleMarkFolderAs)
+
+			r.Post("/folders/{folderID}/settings", s.handleUpdateFolderSettings)
+			r.Post("/folders/{folderID}/mark-all-as", s.handleMarkFolderAs)
+			r.Post("/folders/{folderID}/cover", s.handleUploadFolderCover)
+
 			r.Get("/chapters/{chapterID}/pages/{pageNumber}", s.handleGetPage)
 			r.Get("/chapters/{chapterID}", s.handleGetChapterDetails)
 

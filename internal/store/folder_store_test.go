@@ -672,3 +672,37 @@ func TestGetFolderWithInvalidID(t *testing.T) {
 		t.Error("Expected error for non-existent folder ID")
 	}
 }
+
+
+func TestUpdateFolderThumbnail(t *testing.T) {
+	db := testutil.SetupTestDB(t)
+	s := store.New(db)
+
+	newURL := "http://example.com/cover.png"
+
+	folder, err := s.CreateFolder("/library/Thumbnail Test", "Thumbnail Test", nil)
+	if err != nil {
+		t.Fatalf("Failed to create folder: %v", err)
+	}
+
+	// test with non existing series ID
+	err = s.UpdateFolderThumbnail(999, newURL)
+	if err != nil {
+		t.Error("Expected no error when updating cover URL for non-existent series")
+	}
+
+	// populateDB(t, db)
+	err = s.UpdateFolderThumbnail(folder.ID, newURL)
+	if err != nil {
+		t.Fatalf("UpdateSeriesCoverURL failed: %v", err)
+	}
+
+	// Verify the update
+	folder, err = s.GetFolder(folder.ID)
+	if err != nil {
+		t.Fatalf("GetSeriesByID failed after update: %v", err)
+	}
+	if folder.Thumbnail != newURL {
+		t.Errorf("Expected Thumbnail to be '%s', got '%s'", newURL, folder.Thumbnail)
+	}
+}

@@ -49,61 +49,10 @@ func (s *Store) GetOrCreateSeries(tx *sql.Tx, title, path string) (int64, error)
 }
 
 // UpdateSeriesCoverURL updates the custom cover URL for a given series.
-func (s *Store) UpdateSeriesCoverURL(seriesID int64, url string) (int64, error) {
-	rows, err := s.db.Exec("UPDATE series SET custom_cover_url = ? WHERE id = ?", url, seriesID)
-	affected, _ := rows.RowsAffected()
-	return affected, err
-}
-
-// // MarkAllChaptersAs updates the 'read' status for all chapters of a series.
-// func (s *Store) MarkAllChaptersAs(seriesID int64, read bool, userID int64) error {
-// 	// get chapter ids from series by joining chapters and series tables
-// 	query := `
-// 		SELECT c.id
-// 		FROM chapters c
-// 		JOIN series s ON c.series_id = s.id
-// 		WHERE s.id = ?
-// 	`
-// 	rows, err := s.db.Query(query, seriesID)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	defer rows.Close()
-
-// 	var chapterIDs []int64
-// 	for rows.Next() {
-// 		var id int64
-// 		if err := rows.Scan(&id); err != nil {
-// 			return err
-// 		}
-// 		chapterIDs = append(chapterIDs, id)
-// 	}
-
-// 	// Update user_chapter_progress for each chapter individually
-// 	query = `
-// 		INSERT INTO user_chapter_progress (user_id, chapter_id, progress_percent, read, updated_at)
-// 		VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-// 		ON CONFLICT(user_id, chapter_id) DO UPDATE SET
-// 			progress_percent = excluded.progress_percent,
-// 			read = excluded.read,
-// 			updated_at = CURRENT_TIMESTAMP;
-// 	`
-// 	stmt, err := s.db.Prepare(query)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	defer stmt.Close()
-
-// 	progressPercent := map[bool]int{true: 100, false: 0}[read] // Set progress to 100 if read, 0 if unread
-
-// 	for _, chapterID := range chapterIDs {
-// 		_, err := stmt.Exec(userID, chapterID, progressPercent, read)
-// 		if err != nil {
-// 			return err
-// 		}
-// 	}
-
-// 	return nil
+// func (s *Store) UpdateSeriesCoverURL(seriesID int64, url string) (int64, error) {
+// 	rows, err := s.db.Exec("UPDATE series SET custom_cover_url = ? WHERE id = ?", url, seriesID)
+// 	affected, _ := rows.RowsAffected()
+// 	return affected, err
 // }
 
 // UpdateChapterProgress updates the reading progress for a given chapter.

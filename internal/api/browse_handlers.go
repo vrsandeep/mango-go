@@ -2,11 +2,13 @@ package api
 
 import (
 	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/vrsandeep/mango-go/internal/library"
 	"github.com/vrsandeep/mango-go/internal/models"
 	"github.com/vrsandeep/mango-go/internal/store"
 )
@@ -168,4 +170,46 @@ func (s *Server) handleMarkFolderAs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	RespondWithJSON(w, http.StatusOK, map[string]string{"status": "success"})
+}
+
+// handleUploadFolderCover handles requests to upload a cover image for a folder.
+func (s *Server) handleUploadFolderCover(w http.ResponseWriter, r *http.Request) {
+	folderID, err := strconv.ParseInt(chi.URLParam(r, "folderID"), 10, 64)
+	if err != nil {
+		RespondWithError(w, http.StatusBadRequest, "Invalid folder ID")
+		return
+	}
+
+	// Limit the upload size to prevent abuse (e.g., 10MB)
+	r.Body = http.MaxBytesReader(w, r.Body, 10*1024*1024)
+
+	file, _, err := r.FormFile("cover_file")
+	if err != nil {
+		RespondWithError(w, http.StatusBadRequest, "Invalid file upload")
+		return
+	}
+	defer file.Close()
+
+	fileBytes, err := io.ReadAll(file)
+	if err != nil {
+		RespondWithError(w, http.StatusInternalServerError, "Failed to read uploaded file")
+		return
+	}
+
+	thumbnailDataURI, err := library.GenerateThumbnail(fileBytes)
+	if err != nil {
+		RespondWithError(w, http.StatusBadRequest, "Unsupported image format or corrupt file")
+		return
+	}
+
+	if err := s.store.UpdateFolderThumbnail(folderID, thumbnailDataURI); err != nil {
+		if err == store.ErrFolderNotFound {
+			RespondWithError(w, http.StatusNotFound, "Folder not found")
+			return
+		}
+		RespondWithError(w, http.StatusInternalServerError, "Failed to save new cover")
+		return
+	}
+
+	RespondWithJSON(w, http.StatusOK, map[string]string{"message": "Cover updated successfully."})
 }

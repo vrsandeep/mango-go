@@ -94,38 +94,38 @@ func (s *Server) handleListSeries(w http.ResponseWriter, r *http.Request) {
 // }
 
 // handleUpdateCover handles requests to update the custom cover URL for a series.
-func (s *Server) handleUpdateCover(w http.ResponseWriter, r *http.Request) {
-	seriesIDStr := chi.URLParam(r, "seriesID")
-	seriesID, err := strconv.ParseInt(seriesIDStr, 10, 64)
-	if err != nil {
-		RespondWithError(w, http.StatusBadRequest, "Invalid series ID")
-		return
-	}
+// func (s *Server) handleUpdateCover(w http.ResponseWriter, r *http.Request) {
+// 	seriesIDStr := chi.URLParam(r, "seriesID")
+// 	seriesID, err := strconv.ParseInt(seriesIDStr, 10, 64)
+// 	if err != nil {
+// 		RespondWithError(w, http.StatusBadRequest, "Invalid series ID")
+// 		return
+// 	}
 
-	var payload struct {
-		URL string `json:"url"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
-		return
-	}
+// 	var payload struct {
+// 		URL string `json:"url"`
+// 	}
+// 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+// 		RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
+// 		return
+// 	}
 
-	if payload.URL == "" {
-		RespondWithError(w, http.StatusBadRequest, "Cover URL cannot be empty")
-		return
-	}
+// 	if payload.URL == "" {
+// 		RespondWithError(w, http.StatusBadRequest, "Cover URL cannot be empty")
+// 		return
+// 	}
 
-	if rowsAffected, err := s.store.UpdateSeriesCoverURL(seriesID, payload.URL); err != nil {
-		log.Printf("Failed to update cover for series %d: %v", seriesID, err)
-		RespondWithError(w, http.StatusInternalServerError, "Failed to update cover")
-		return
-	} else if rowsAffected == 0 {
-		RespondWithError(w, http.StatusNotFound, "Series not found")
-		return
-	}
+// 	if rowsAffected, err := s.store.UpdateSeriesCoverURL(seriesID, payload.URL); err != nil {
+// 		log.Printf("Failed to update cover for series %d: %v", seriesID, err)
+// 		RespondWithError(w, http.StatusInternalServerError, "Failed to update cover")
+// 		return
+// 	} else if rowsAffected == 0 {
+// 		RespondWithError(w, http.StatusNotFound, "Series not found")
+// 		return
+// 	}
 
-	RespondWithJSON(w, http.StatusOK, map[string]string{"status": "success"})
-}
+// 	RespondWithJSON(w, http.StatusOK, map[string]string{"status": "success"})
+// }
 
 // handleMarkAllAs marks all chapters in a series as read or unread.
 // func (s *Server) handleMarkAllAs(w http.ResponseWriter, r *http.Request) {

@@ -11,10 +11,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   const paginationContainer = document.getElementById('pagination-container');
   const editFolderBtn = document.getElementById('edit-folder-btn');
   const editFolderModal = document.getElementById('edit-folder-modal');
-  const modalCloseBtn = document.getElementById('modal-close-btn');
+  // const modalCloseBtn = document.getElementById('modal-close-btn');
   const tagsContainer = document.getElementById('tags-container');
   const tagInput = document.getElementById('tag-input');
   const autocompleteSuggestions = document.getElementById('autocomplete-suggestions');
+  const modalSaveBtn = document.getElementById('modal-save-btn');
+  const modalCancelBtn = document.getElementById('modal-cancel-btn');
+  const coverFileInput = document.getElementById('cover-file-input');
 
   // --- State Management ---
   let state = {
@@ -254,11 +257,46 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadFolderContents();
   };
 
+  const handleSaveChanges = async () => {
+    const file = coverFileInput.files[0];
+    if (!file) {
+      // In the future, you could handle other fields here.
+      // For now, if no file, just close the modal.
+      editFolderModal.style.display = 'none';
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('cover_file', file);
+
+    try {
+      const response = await fetch(`/api/folders/${state.currentFolderId}/cover`, {
+        method: 'POST',
+        body: formData, // The browser will set the Content-Type header automatically
+      });
+
+      if (response.ok) {
+        editFolderModal.style.display = 'none';
+        loadFolderContents(); // Reload to show the new cover
+      } else {
+        const errorData = await response.json();
+        alert(`Error uploading cover: ${errorData.error}`);
+      }
+    } catch (err) {
+      alert('An unexpected error occurred during upload.');
+    }
+  };
   // --- Event Listeners ---
   editFolderBtn.addEventListener('click', () => {
-    if (state.currentFolderId) editFolderModal.style.display = 'flex';
+    if (state.currentFolderId) {
+      editFolderModal.style.display = 'flex';
+      coverFileInput.value = ''; // Clear previous selection
+      editFolderModal.style.display = 'flex';
+    }
   });
-  modalCloseBtn.addEventListener('click', () => editFolderModal.style.display = 'none');
+  modalCancelBtn.addEventListener('click', () => editFolderModal.style.display = 'none');
+  modalSaveBtn.addEventListener('click', handleSaveChanges);
+  // modalCloseBtn.addEventListener('click', () => editFolderModal.style.display = 'none');
   tagsContainer.addEventListener('click', (e) => {
     if (e.target.classList.contains('tag-remove-btn')) {
       removeTag(e.target.dataset.tagId);

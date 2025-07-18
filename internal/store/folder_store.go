@@ -12,6 +12,7 @@ import (
 	"github.com/vrsandeep/mango-go/internal/models"
 	"github.com/vrsandeep/mango-go/internal/util"
 )
+var ErrFolderNotFound = errors.New("folder not found")
 
 // CreateFolder inserts a new folder into the database.
 func (s *Store) CreateFolder(path, name string, parentID *int64) (*models.Folder, error) {
@@ -506,5 +507,22 @@ func (s *Store) MarkFolderChaptersAs(folderID int64, read bool, userID int64) er
 		}
 	}
 
+	return nil
+}
+
+// UpdateFolderThumbnail updates the thumbnail for a single folder.
+func (s *Store) UpdateFolderThumbnail(folderID int64, thumbnail string) error {
+	query := "UPDATE folders SET thumbnail = ? WHERE id = ?"
+	result, err := s.db.Exec(query, thumbnail, folderID)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return ErrFolderNotFound
+	}
 	return nil
 }
