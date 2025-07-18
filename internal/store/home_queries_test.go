@@ -92,21 +92,24 @@ func TestHomePageQueries(t *testing.T) {
 			}
 		}
 	})
-	// t.Run("Next Up", func(t *testing.T) {
-	// 	items, err := s.GetNextUp(user1.ID, 10)
-	// 	if err != nil {
-	// 		t.Fatalf("GetNextUp failed: %v", err)
-	// 	}
-	// 	if len(items) != 1 {
-	// 		t.Fatalf("Expected 1 item in Next Up, got %d", len(items))
-	// 	}
-	// 	if *items[0].ChapterID != 2 {
-	// 		t.Errorf("Expected next up chapter to be ID 3, got %d", *items[0].ChapterID)
-	// 	}
-	// 	if items[0].ChapterTitle != "ch2.cbz" {
-	// 		t.Errorf("Expected next up chapter title to be ch2.cbz, got %s", items[0].ChapterTitle)
-	// 	}
-	// })
+
+	t.Run("Next Up", func(t *testing.T) {
+		s.UpdateChapterProgress(1, user1.ID, 100, true)
+
+		items, err := s.GetNextUp(user1.ID, 10)
+		if err != nil {
+			t.Fatalf("GetNextUp failed: %v", err)
+		}
+		if len(items) != 1 {
+			t.Fatalf("Expected 1 item in Next Up, got %d", len(items))
+		}
+		if *items[0].ChapterID != 2 {
+			t.Errorf("Expected next up chapter to be ID 3, got %d", *items[0].ChapterID)
+		}
+		if items[0].ChapterTitle != "ch2" {
+			t.Errorf("Expected next up chapter title to be ch2, got %s", items[0].ChapterTitle)
+		}
+	})
 
 
 	t.Run("Start Reading", func(t *testing.T) {
@@ -137,12 +140,6 @@ func TestHomePageQueries(t *testing.T) {
 	})
 }
 
-func setupNextUpTestDB(t *testing.T, s *store.Store, user *models.User) {
-	t.Helper()
-
-	// PROGRESS: User has read the first chapter of Vol 1.
-	// s.UpdateChapterProgress(user.ID, chV1_1.ID, 100, true)
-}
 
 func TestGetNextUp(t *testing.T) {
 	db := testutil.SetupTestDB(t)
@@ -165,7 +162,7 @@ func TestGetNextUp(t *testing.T) {
 	chV2_1, _ := s.CreateChapter(fAV2.ID, "/A/V2/ch1.cbz", "h_av2_1", 10, "")
 
 	t.Run("Suggests next chapter in same folder", func(t *testing.T) {
-		s.UpdateChapterProgress(user.ID, chV1_1.ID, 100, true) // Finish chapter 1
+		s.UpdateChapterProgress(chV1_1.ID, user.ID, 100, true) // Finish chapter 1
 		items, err := s.GetNextUp(user.ID, 10)
 		if err != nil {
 			t.Fatalf("GetNextUp failed: %v", err)
@@ -179,16 +176,23 @@ func TestGetNextUp(t *testing.T) {
 	})
 
 	t.Run("Suggests first chapter in next folder", func(t *testing.T) {
-		s.UpdateChapterProgress(user.ID, chV1_1.ID, 100, true)
-		s.UpdateChapterProgress(user.ID, chV1_2.ID, 100, true) // Finish chapter 2 (last in Vol 1)
+		s.UpdateChapterProgress(chV1_1.ID, user.ID, 100, true)
+		s.UpdateChapterProgress(chV1_2.ID, user.ID, 100, true) // Finish chapter 2 (last in Vol 1)
 
 		items, err := s.GetNextUp(user.ID, 10)
 		if err != nil {
 			t.Fatalf("GetNextUp failed: %v", err)
 		}
+		// Debug: Print all returned items
+		for i, item := range items {
+			t.Logf("Item %d: Chapter ID=%d, Title=%s, Series=%s", i, *item.ChapterID, item.ChapterTitle, item.SeriesTitle)
+		}
 		if len(items) != 1 {
 			t.Fatalf("Expected 1 item in Next Up, got %d", len(items))
 		}
+		t.Logf("Expected chapter ID %d, got %d", chV2_1.ID, *items[0].ChapterID)
+		t.Logf("Chapter title: %s", items[0].ChapterTitle)
+		t.Logf("Series title: %s", items[0].SeriesTitle)
 		if *items[0].ChapterID != chV2_1.ID {
 			t.Errorf("Expected next up chapter to be ID %d, but got %d", chV2_1.ID, *items[0].ChapterID)
 		}
