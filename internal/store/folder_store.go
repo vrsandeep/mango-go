@@ -6,12 +6,15 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
+	"slices"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/vrsandeep/mango-go/internal/models"
 	"github.com/vrsandeep/mango-go/internal/util"
 )
+
 var ErrFolderNotFound = errors.New("folder not found")
 
 // CreateFolder inserts a new folder into the database.
@@ -302,14 +305,18 @@ func (s *Store) ListItems(opts ListItemsOptions) (*models.Folder, []*models.Fold
 		sortClause = "ORDER BY item_type ASC, chapter_updated_at %s"
 	case "progress":
 		sortClause = "ORDER BY item_type ASC, user_progress %s, sort_name ASC"
+	default:
+		sortClause = "ORDER BY item_type ASC, sort_name %s"
 	}
 	finalQuery += " " + fmt.Sprintf(sortClause, sortDir)
-	finalQuery += " LIMIT ? OFFSET ?"
 
 	allArgs := append(folderArgs, opts.UserID)
 	allArgs = append(allArgs, chapterArgs...)
-	offset := (opts.Page - 1) * opts.PerPage
-	allArgs = append(allArgs, opts.PerPage, offset)
+	if opts.SortBy != "" && opts.SortBy != "auto" {
+		finalQuery += " LIMIT ? OFFSET ?"
+		offset := (opts.Page - 1) * opts.PerPage
+		allArgs = append(allArgs, opts.PerPage, offset)
+	}
 
 	rows, err := s.db.Query(finalQuery, allArgs...)
 	if err != nil {
@@ -319,6 +326,7 @@ func (s *Store) ListItems(opts ListItemsOptions) (*models.Folder, []*models.Fold
 
 	var subfolders []*models.Folder
 	var chapters []*models.Chapter
+
 	for rows.Next() {
 		// Scan results and append to either subfolders or chapters slice based on item_type
 		var itemType int
@@ -345,6 +353,7 @@ func (s *Store) ListItems(opts ListItemsOptions) (*models.Folder, []*models.Fold
 			updatedAt.Time, _ = time.Parse("2006-01-02 15:04:05", updatedAtStr.String)
 			updatedAt.Valid = true
 		}
+		// create a map of folder id and struct of total chapters and read chapters
 		if itemType == 1 { // Folder
 			folder.ID = chapter.ID
 			folder.Path = chapPath.String
@@ -366,15 +375,51 @@ func (s *Store) ListItems(opts ListItemsOptions) (*models.Folder, []*models.Fold
 			chapters = append(chapters, &chapter)
 		}
 	}
+
+	// add total chapters and read chapters to subfolders
+	for _, folder := range subfolders {
+		totalChapters, readChapters, err := s.GetFolderStats(folder.ID, opts.UserID)
+		if err != nil {
+			return currentFolder, nil, nil, 0, err
+		}
+		folder.TotalChapters = totalChapters
+		folder.ReadChapters = readChapters
+		folder.Settings = &models.FolderSettings{
+			SortBy:  opts.SortBy,
+			SortDir: opts.SortDir,
+		}
+	}
 	// Sort subfolders naturally if requested
 	switch sortBy {
 	case "auto":
-		sort.Slice(subfolders, func(i, j int) bool {
-			return util.NaturalSortLess(subfolders[i].Name, subfolders[j].Name)
+		folderTitles := make([]string, len(subfolders))
+		for i, folder := range subfolders {
+			folderTitles[i] = folder.Name
+		}
+		fs := util.NewChapterSorter(folderTitles)
+		slices.SortFunc(subfolders, func(a, b *models.Folder) int {
+			comparison := fs.Compare(a.Name, b.Name)
+			if strings.ToLower(sortDir) == "desc" {
+				return -comparison
+			}
+			return comparison
 		})
-		sort.Slice(chapters, func(i, j int) bool {
-			return util.NaturalSortLess(chapters[i].Path, chapters[j].Path)
+		subfolders = limitAndOffsetFolders(subfolders, opts.Page, opts.PerPage)
+
+		// Sort chapters naturally
+		chapterTitles := make([]string, len(chapters))
+		for i, chapter := range chapters {
+			chapterTitles[i] = GetChapterTitle(chapter)
+		}
+		cs := util.NewChapterSorter(chapterTitles)
+		slices.SortFunc(chapters, func(a, b *models.Chapter) int {
+			comparison := cs.Compare(GetChapterTitle(a), GetChapterTitle(b))
+			if strings.ToLower(sortDir) == "desc" {
+				return -comparison
+			}
+			return comparison
 		})
+		chapters = limitAndOffsetChapters(chapters, opts.Page, opts.PerPage)
 	case "progress":
 		sort.Slice(chapters, func(i, j int) bool {
 			return chapters[i].ProgressPercent < chapters[j].ProgressPercent
@@ -422,6 +467,47 @@ func (s *Store) ListItems(opts ListItemsOptions) (*models.Folder, []*models.Fold
 	return currentFolder, subfolders, chapters, totalItems, nil
 }
 
+
+// limitAndOffsetChapters is a helper function to remove excess elements from the slice and return it
+func limitAndOffsetChapters(slice []*models.Chapter, page, perPage int) []*models.Chapter {
+	if slice == nil {
+		return nil
+	}
+	offset := (page - 1) * perPage
+	var newslice []*models.Chapter
+	if offset < len(slice) {
+		end := offset + perPage
+		if end > len(slice) {
+			end = len(slice)
+		}
+		newslice = slice[offset:end]
+	} else {
+		// If offset is beyond the length of slice, return an empty slice
+		newslice = []*models.Chapter{}
+	}
+	return newslice
+}
+
+// limitAndOffsetFolders is a helper function to remove excess elements from the slice and return it
+func limitAndOffsetFolders(slice []*models.Folder, page, perPage int) []*models.Folder {
+	if slice == nil {
+		return nil
+	}
+	offset := (page - 1) * perPage
+	var newslice []*models.Folder
+	if offset < len(slice) {
+		end := offset + perPage
+		if end > len(slice) {
+			end = len(slice)
+		}
+		newslice = slice[offset:end]
+	} else {
+		// If offset is beyond the length of slice, return an empty slice
+		newslice = []*models.Folder{}
+	}
+	return newslice
+}
+
 // GetFolderPath retrieves the entire ancestry of a folder for breadcrumbs.
 func (s *Store) GetFolderPath(folderID int64) ([]*models.Folder, error) {
 	var path []*models.Folder
@@ -464,7 +550,6 @@ func (s *Store) UpdateFolderSettings(folderID int64, userID int64, sortBy, sortD
 	_, err := s.db.Exec(query, folderID, userID, sortBy, sortDir)
 	return err
 }
-
 
 // MarkAllChaptersAs updates the 'read' status for all chapters of a folder.
 func (s *Store) MarkFolderChaptersAs(folderID int64, read bool, userID int64) error {

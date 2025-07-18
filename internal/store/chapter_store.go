@@ -128,3 +128,29 @@ func (s *Store) UpdateChapterProgress(chapterID int64, userID int64, progressPer
 	}
 	return nil
 }
+
+func (s *Store) GetFolderStats(folderID int64, userID int64) (int, int, error) {
+	query := `
+		WITH total_chapters AS (
+			SELECT COUNT(*) as total_chapters, ? as folder_id
+			FROM chapters c
+			WHERE c.folder_id = ?
+		),
+		read_chapters AS (
+			SELECT COUNT(*) as read_chapters, ? as folder_id
+			FROM chapters c
+			LEFT JOIN user_chapter_progress ucp ON c.id = ucp.chapter_id
+			WHERE c.folder_id = ? AND ucp.user_id = ?
+		)
+		SELECT COALESCE(total_chapters.total_chapters, 0) as total_chapters, COALESCE(read_chapters.read_chapters, 0) as read_chapters
+		FROM total_chapters
+		LEFT JOIN read_chapters ON total_chapters.folder_id = read_chapters.folder_id
+	`
+	var totalChapters int
+	var readChapters int
+	err := s.db.QueryRow(query, folderID, folderID, folderID,folderID, userID).Scan(&totalChapters, &readChapters)
+	if err != nil {
+		return 0, 0, err
+	}
+	return totalChapters, readChapters, nil
+}

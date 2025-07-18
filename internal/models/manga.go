@@ -27,6 +27,11 @@ type Folder struct {
 	// For API responses
 	Subfolders []*Folder  `json:"subfolders,omitempty"`
 	Chapters   []*Chapter `json:"chapters,omitempty"`
+
+	// Fields calculated by the API, not stored in DB
+	TotalChapters int             `json:"total_chapters,omitempty"`
+	ReadChapters  int             `json:"read_chapters,omitempty"`
+	Settings      *FolderSettings `json:"settings,omitempty"` // Folder-specific settings
 }
 
 // Series represents a single manga series.

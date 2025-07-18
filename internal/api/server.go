@@ -185,7 +185,8 @@ func (s *Server) Router() http.Handler {
 	r.Get("/library/folder/{folderID}", serveHTML("library.html"))
 	// r.Get("/series/{id}", serveHTML("chapters.html"))
 	// r.Get("/tags/{id}", serveHTML("tag_series.html"))
-	r.Get("/tags/{id}", serveHTML("tag_folders.html"))
+	r.Get("/tags/{id}", serveHTML("library.html"))
+	// r.Get("/tags/{id}", serveHTML("tag_folder.html"))
 	r.Get("/reader/series/{seriesID}/chapters/{chapterID}", serveHTML("reader.html"))
 
 	return r

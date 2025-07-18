@@ -108,7 +108,7 @@ func TestChapterStore(t *testing.T) {
 	t.Run("Update Chapter Progress", func(t *testing.T) {
 		chapMap, _ := s.GetAllChaptersByHash()
 		chapID := chapMap["hash1"].ID
-		newProgress := 50
+		newProgress := 100
 		newReadStatus := true
 
 		// Create a user
@@ -130,8 +130,43 @@ func TestChapterStore(t *testing.T) {
 		}
 	})
 
+	t.Run("Get Folder Stats for a read chapter", func(t *testing.T) {
+		chapMap, _ := s.GetAllChaptersByHash()
+		chapter, _ := s.GetChapterByID(chapMap["hash1"].ID, 1)
+		totalChapters, readChapters, err := s.GetFolderStats(chapter.FolderID, 1)
+		if err != nil {
+			t.Fatalf("GetFolderStats failed: %v", err)
+		}
+		if totalChapters != 1 {
+			t.Errorf("Expected 1 total chapters, got %d", totalChapters)
+		}
+		if readChapters != 1 {
+			t.Errorf("Expected 1 read chapters, got %d", readChapters)
+		}
+	})
+
+	t.Run("Get Folder Stats for a untouched/unread chapter", func(t *testing.T) {
+		folder, _ := s.CreateFolder("/library/Untouched Series", "Untouched Series", nil)
+		chapter, _ := s.CreateChapter(folder.ID, "/library/Untouched Series/ch1.cbz", "hash2", 20, "thumb2")
+
+		totalChapters, readChapters, err := s.GetFolderStats(chapter.FolderID, 1)
+		if err != nil {
+			t.Fatalf("GetFolderStats failed: %v", err)
+		}
+		if totalChapters != 1 {
+			t.Errorf("Expected 1 total chapters, got %d", totalChapters)
+		}
+		if readChapters != 0 {
+			t.Errorf("Expected 0 read chapters, got %d", readChapters)
+		}
+	})
+
 	t.Run("Delete Chapter By Hash", func(t *testing.T) {
 		err := s.DeleteChapterByHash("hash1")
+		if err != nil {
+			t.Fatalf("DeleteChapterByHash failed: %v", err)
+		}
+		err = s.DeleteChapterByHash("hash2")
 		if err != nil {
 			t.Fatalf("DeleteChapterByHash failed: %v", err)
 		}

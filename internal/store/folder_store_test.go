@@ -328,6 +328,18 @@ func TestListItems(t *testing.T) {
 	if len(subfolders) != 2 {
 		t.Errorf("Expected 2 subfolders, got %d", len(subfolders))
 	}
+	if subfolders[0].TotalChapters != 2 {
+		t.Errorf("Expected 2 total chapters, got %d", subfolders[0].TotalChapters)
+	}
+	if subfolders[0].ReadChapters != 0 {
+		t.Errorf("Expected 0 read chapters, got %d", subfolders[0].ReadChapters)
+	}
+	if subfolders[1].TotalChapters != 1 {
+		t.Errorf("Expected 1 total chapters, got %d", subfolders[1].TotalChapters)
+	}
+	if subfolders[1].ReadChapters != 0 {
+		t.Errorf("Expected 0 read chapters, got %d", subfolders[1].ReadChapters)
+	}
 	if len(chapters) != 0 {
 		t.Error("Expected no chapters at series level")
 	}

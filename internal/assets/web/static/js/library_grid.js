@@ -40,9 +40,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     cardsGrid.innerHTML = '';
     postCardsFetchAction(cardsList);
     renderPagination();
-    if (!cardsList || cardsList.length === 0) {
-      cardsGrid.innerHTML = '<p>No items found.</p>';
-    }
+    // if (!cardsList || cardsList.length === 0) {
+    //   cardsGrid.innerHTML = '<p>No items found.</p>';
+    // }
     renderCards(cardsList, cardsGrid)
     state.isLoading = false;
   };

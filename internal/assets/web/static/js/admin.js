@@ -8,12 +8,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const progressContainer = jobEl.querySelector('.job-progress-container');
     const progressBar = jobEl.querySelector('.job-progress-bar');
     const description = jobEl.querySelector('.job-description');
+    const jobName = button.dataset.jobName;
 
     progressContainer.style.display = 'block';
     progressBar.style.width = '0%';
     description.textContent = 'Starting job...';
 
-    await fetch(endpoint, { method: 'POST' });
+    await fetch(endpoint, { method: 'POST', body: JSON.stringify({ job_name: jobName }) });
   };
 
   const initWebSocket = () => {
