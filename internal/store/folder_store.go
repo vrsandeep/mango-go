@@ -257,11 +257,11 @@ func (s *Store) ListItems(opts ListItemsOptions) (*models.Folder, []*models.Fold
 			1 as item_type, -- 1 for folder
 			f.id,
 			f.path,
-			f.name,
+			f.name as name,
 			f.thumbnail,
 			NULL as chapter_page_count,
 			NULL as chapter_created_at,
-			NULL as chapter_updated_at,
+			f.updated_at as sort_updated_at,
 			NULL as user_read,
 			NULL as user_progress,
 			f.created_at as sort_created_at,
@@ -302,7 +302,7 @@ func (s *Store) ListItems(opts ListItemsOptions) (*models.Folder, []*models.Fold
 	case "created_at":
 		sortClause = "ORDER BY item_type ASC, sort_created_at %s"
 	case "updated_at":
-		sortClause = "ORDER BY item_type ASC, chapter_updated_at %s"
+		sortClause = "ORDER BY item_type ASC, sort_updated_at %s"
 	case "progress":
 		sortClause = "ORDER BY item_type ASC, user_progress %s, sort_name ASC"
 	default:
@@ -353,7 +353,6 @@ func (s *Store) ListItems(opts ListItemsOptions) (*models.Folder, []*models.Fold
 			updatedAt.Time, _ = time.Parse("2006-01-02 15:04:05", updatedAtStr.String)
 			updatedAt.Valid = true
 		}
-		// create a map of folder id and struct of total chapters and read chapters
 		if itemType == 1 { // Folder
 			folder.ID = chapter.ID
 			folder.Path = chapPath.String
@@ -384,10 +383,6 @@ func (s *Store) ListItems(opts ListItemsOptions) (*models.Folder, []*models.Fold
 		}
 		folder.TotalChapters = totalChapters
 		folder.ReadChapters = readChapters
-		folder.Settings = &models.FolderSettings{
-			SortBy:  opts.SortBy,
-			SortDir: opts.SortDir,
-		}
 	}
 	// Sort subfolders naturally if requested
 	switch sortBy {
@@ -455,15 +450,7 @@ func (s *Store) ListItems(opts ListItemsOptions) (*models.Folder, []*models.Fold
 			jProgress := float64(jReadChapters) / float64(jTotalChapters)
 			return iProgress < jProgress
 		})
-	case "name":
-		sort.Slice(subfolders, func(i, j int) bool {
-			return util.NaturalSortLess(subfolders[i].Name, subfolders[j].Name)
-		})
-		sort.Slice(chapters, func(i, j int) bool {
-			return util.NaturalSortLess(chapters[i].Path, chapters[j].Path)
-		})
 	}
-	// totalItems := totalFolders + 0 // + totalChapters
 	return currentFolder, subfolders, chapters, totalItems, nil
 }
 

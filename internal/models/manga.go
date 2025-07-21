@@ -31,25 +31,7 @@ type Folder struct {
 	// Fields calculated by the API, not stored in DB
 	TotalChapters int             `json:"total_chapters,omitempty"`
 	ReadChapters  int             `json:"read_chapters,omitempty"`
-	Settings      *FolderSettings `json:"settings,omitempty"` // Folder-specific settings
-}
-
-// Series represents a single manga series.
-type Series struct {
-	ID             int64      `json:"id"`
-	Title          string     `json:"title"`
-	Path           string     `json:"path"`
-	Thumbnail      string     `json:"thumbnail,omitempty"`
-	CustomCoverURL string     `json:"custom_cover_url,omitempty"` // New field
-	Chapters       []*Chapter `json:"chapters,omitempty"`         // omitempty hides it when not loaded
-	Tags           []*Tag     `json:"tags,omitempty"`
-	CreatedAt      time.Time  `json:"created_at"`
-	UpdatedAt      time.Time  `json:"updated_at"`
-
-	// Fields calculated by the API, not stored in DB
-	TotalChapters int             `json:"total_chapters,omitempty"`
-	ReadChapters  int             `json:"read_chapters,omitempty"`
-	Settings      *SeriesSettings `json:"settings,omitempty"` // Series-specific settings
+	// Settings      *FolderSettings `json:"settings,omitempty"` // Folder-specific settings
 }
 
 // Chapter represents a single chapter of a manga.
@@ -78,14 +60,6 @@ type Tag struct {
 	ID          int64  `json:"id"`
 	Name        string `json:"name"`
 	FolderCount int    `json:"folder_count,omitempty"`
-}
-
-// SeriesSettings holds per-user sort preferences for a series.
-type SeriesSettings struct {
-	SortBy   string `json:"sort_by"`  // e.g. "auto", "path"
-	SortDir  string `json:"sort_dir"` // e.g. "asc", "desc"
-	SeriesID int64  `json:"-"`        // Hide from JSON responses
-	// UserID   int64  `json:"-"`        // Hide from JSON responses
 }
 
 type FolderSettings struct {

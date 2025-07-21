@@ -1,10 +1,80 @@
+/* Common Card Helper */
+.library-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.search-bar {
+    flex-grow: 1;
+    max-width: 400px;
+}
+
+.search-bar input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    background-color: var(--card-bg);
+    color: var(--text-color);
+}
+
+.sort-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.sort-controls select {
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    background-color: var(--card-bg);
+    color: var(--text-color);
+}
+
+.sort-controls button {
+    background-color: var(--btn-bg);
+    color: var(--text-color);
+    border: none;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    border-radius: 5px;
+}
+
+.sort-controls button:hover {
+    background-color: var(--accent-color);
+    color: white;
+}
+
+.sort-controls span {
+    color: var(--text-color);
+    font-size: 0.9rem;
+}
+
+.total-count {
+    color: var(--subtle-text-color);
+    /* color: #888; */
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+    display: inline-block;
+    margin-left: 1rem;
+}
+
+.total-count::before {
+    content: "Total: ";
+    font-weight: bold;
+}
 /* Tags */
 .tags-container {
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
-    margin-bottom: 1rem;
-    padding: 0.5rem;
+    /* margin-bottom: 1rem; */
+    /* padding: 0.5rem; */
     background-color: var(--card-bg);
     border-radius: 8px;
 }
@@ -53,10 +123,15 @@
     font-size: 0.9rem;
     color: var(--subtle-text-color);
     margin-bottom: 1.5rem;
+    font-size: 1.2rem;
+        white-space: nowrap;
+        overflow-x: auto;
+        padding-bottom: 5px;
 }
 
 .breadcrumb a {
     color: var(--subtle-text-color);
+    text-decoration: none;
 }
 
 .breadcrumb a:hover {
@@ -124,7 +199,37 @@
     width: 100%;
     min-width: 150px;
 }
+.grid-section-header {
+    width: 100%;
+    grid-column: 1 / -1;
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 1.1rem;
+    color: var(--subtle-text-color);
+}
 
+.item-card.folder .thumbnail-container::after {
+    content: '📁';
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    font-size: 1.5rem;
+    text-shadow: 0 0 4px black;
+}
+
+.autocomplete-suggestion {
+    padding: 0.5em 1em;
+    cursor: pointer;
+    color: var(--text-color);
+    text-decoration: none;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.autocomplete-suggestion:hover {
+    background-color: var(--accent-color);
+}
 .autocomplete-suggestions {
     position: absolute;
     top: 100%;
@@ -138,7 +243,6 @@
     overflow-y: auto;
     z-index: 100;
     display: none;
-    /* Hidden by default */
 }
 
 .suggestion-item {

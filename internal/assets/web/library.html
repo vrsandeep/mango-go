@@ -8,41 +8,6 @@
     <link rel="stylesheet" href="https://unpkg.com/phosphor-icons@1.4.2/src/css/icons.css">
     <link rel="stylesheet" href="/static/css/library_grid.css">
     <link rel="stylesheet" href="/static/css/chapters.css">
-    <style>
-        .breadcrumb {
-            margin-bottom: 1.5rem;
-            font-size: 1.2rem;
-            color: var(--subtle-text-color);
-            white-space: nowrap;
-            overflow-x: auto;
-            padding-bottom: 5px;
-        }
-        .breadcrumb a {
-            color: var(--subtle-text-color);
-            text-decoration: none;
-        }
-        .breadcrumb a:hover {
-            color: var(--accent-color);
-        }
-        .grid-section-header {
-            width: 100%;
-            grid-column: 1 / -1;
-            margin-top: 1rem;
-            margin-bottom: 0.5rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 1px solid var(--border-color);
-            font-size: 1.1rem;
-            color: var(--subtle-text-color);
-        }
-        .item-card.folder .thumbnail-container::after {
-            content: '📁';
-            position: absolute;
-            bottom: 8px;
-            right: 8px;
-            font-size: 1.5rem;
-            text-shadow: 0 0 4px black;
-        }
-    </style>
 </head>
 
 <body>
@@ -78,6 +43,7 @@
     <main class="container">
         <nav class="breadcrumb" id="breadcrumb-container"></nav>
         <div class="page-header">
+            <img id="folder-thumb" class="header-thumb" style="display: none;">
             <h1 id="page-title">Library</h1>
             <button class="edit-btn" id="edit-folder-btn" style="display: none;" title="Edit Folder"><i
                     class="ph-bold ph-pencil-simple"></i></button>
@@ -121,7 +87,7 @@
                 </div>
             </div>
 
-            <label>Tags</label>
+            <p>Tags</p>
             <div class="tags-section">
                 <div class="tags-wrapper">
                     <i class="ph-bold ph-tag"></i>
@@ -143,8 +109,6 @@
     <footer class="main-footer"><span id="version-footer"></span></footer>
     <script src="/static/js/header.js"></script>
     <script src="/static/js/auth.js"></script>
-    <!-- <script src="/static/js/library_old.js"></script>
-        <script src="/static/js/library_grid.js"></script> -->
     <script src="/static/js/library.js"></script>
 </body>
 

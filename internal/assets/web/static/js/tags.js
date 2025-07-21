@@ -13,7 +13,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       tags.forEach(tag => {
         const li = document.createElement('li');
         li.className = 'tag-item';
-        li.innerHTML = `<a href="/tags/${tag.id}">${tag.name} <span class="tag-count">(${tag.folder_count})</span></a>`;
+        const tagCount = tag.folder_count || 0;
+        li.innerHTML = `<a href="/tags/${tag.id}">${tag.name} <span class="tag-count">(${tagCount})</span></a>`;
         tagsList.appendChild(li);
       });
     } else {

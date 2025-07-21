@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const cardsGrid = document.getElementById('cards-grid');
   const pageTitleEl = document.getElementById('page-title');
   const breadcrumbEl = document.getElementById('breadcrumb-container');
+  const folderThumb = document.getElementById('folder-thumb');
   const searchInput = document.getElementById('search-input');
   const sortBySelect = document.getElementById('sort-by');
   const sortDirBtn = document.getElementById('sort-dir-btn');
@@ -19,14 +20,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   const modalCancelBtn = document.getElementById('modal-cancel-btn');
   const coverFileInput = document.getElementById('cover-file-input');
   const totalCountEl = document.getElementById('total-count');
+  const markAllReadBtn = document.getElementById('mark-all-read-btn');
+  const markAllUnreadBtn = document.getElementById('mark-all-unread-btn');
 
   // --- State Management ---
   let state = {
     currentFolderId: null,
+    currentTagId: null,
     currentPage: 1,
     search: '',
-    sortBy: 'auto',
-    sortDir: 'asc',
+    sortBy: null,
+    sortDir: null,
     isLoading: false,
     totalItems: 0,
     perPage: 100
@@ -41,11 +45,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     const parts = window.location.pathname.split('/folder/');
     return parts.length > 1 ? parts[1] : null;
   };
+  const getTagIdFromUrl = () => {
+    const parts = window.location.pathname.split('/tags/');
+    return parts.length > 1 ? parts[1] : null;
+  };
+  const getTagNameFromId = async (id) => {
+    return allTags.find(tag => tag.id === parseInt(id)).name;
+  };
 
   // Fetches and renders the breadcrumb navigation.
   const renderBreadcrumb = async () => {
     if (!state.currentFolderId) {
       breadcrumbEl.innerHTML = '';
+      return;
+    }
+    if (breadcrumbEl.innerHTML != '') {
       return;
     }
     const url = `/api/browse/breadcrumb?folderId=${state.currentFolderId}`;
@@ -153,12 +167,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (state.currentFolderId) {
       params.set('folderId', state.currentFolderId);
     }
+    if (state.currentTagId) {
+      params.set('tagId', state.currentTagId);
+    }
 
     const response = await fetch(`/api/browse?${params.toString()}`);
     const data = await response.json();
 
-    pageTitleEl.textContent = data.current_folder ? data.current_folder.name : 'Library';
+    if (data.current_folder) {
+      pageTitleEl.textContent = data.current_folder.name;
+    } else if (state.currentTagId) {
+      const tagName = await getTagNameFromId(state.currentTagId);
+      pageTitleEl.textContent = `Tag: ${tagName}`;
+      document.title = `Tag: ${tagName} - Mango`;
+    } else {
+      pageTitleEl.textContent = 'Library';
+    }
     document.title = `${pageTitleEl.textContent} - Mango`;
+    folderThumb.src = data.current_folder ? data.current_folder.thumbnail : '';
+    folderThumb.style.display = data.current_folder ? 'block' : 'none';
 
     // Show the Edit button only when viewing a specific folder
     editFolderBtn.style.display = data.current_folder ? 'block' : 'none';
@@ -259,7 +286,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const addTag = async (tagName) => {
     const normalizedTagName = tagName.trim().toLowerCase();
-    if (normalizedTagName === '' || !currentFolderId || currentFolderTags.some(t => t.name === normalizedTagName)) {
+    if (normalizedTagName === '' || !state.currentFolderId || currentFolderTags.some(t => t.name === normalizedTagName)) {
       tagInput.value = '';
       return;
     }
@@ -318,6 +345,20 @@ document.addEventListener('DOMContentLoaded', async () => {
       alert('An unexpected error occurred during upload.');
     }
   };
+
+  // Mark all chapters as read or unread.
+  const markAllAs = async (read) => {
+    const response = await fetch(`/api/folders/${state.currentFolderId}/mark-all-as`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ read })
+    });
+    if (response.ok) {
+      loadFolderContents();
+    } else {
+      alert('Failed to mark all chapters as read');
+    }
+  };
   // --- Event Listeners ---
   editFolderBtn.addEventListener('click', () => {
     if (state.currentFolderId) {
@@ -368,17 +409,27 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   sortBySelect.addEventListener('change', () => {
     state.sortBy = sortBySelect.value;
+    state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
     loadFolderContents();
   });
 
   sortDirBtn.addEventListener('click', () => {
+    state.sortBy = sortBySelect.value;
     state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
     sortDirBtn.textContent = state.sortDir === 'asc' ? '▲' : '▼';
     loadFolderContents();
   });
 
+  markAllReadBtn.addEventListener('click', async () => {
+    markAllAs(true);
+  });
+  markAllUnreadBtn.addEventListener('click', async () => {
+    markAllAs(false);
+  });
+
   const init = async () => {
     state.currentFolderId = getFolderIdFromUrl();
+    state.currentTagId = getTagIdFromUrl();
     await loadAllTags(); // Load tags for autocomplete
     await loadFolderContents();
   };
