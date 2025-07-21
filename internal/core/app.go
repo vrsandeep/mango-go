@@ -76,7 +76,6 @@ func New() (*App, error) {
 	jobManager := jobs.NewManager(app)
 	app.jobManager = jobManager
 	app.jobManager.Register("library-sync", "Library Sync", library.LibrarySync)
-	app.jobManager.Register("prune-database", "Prune Database", library.PruneDatabase)
 	app.jobManager.Register("regen-thumbnails", "Regenerate Thumbnails", library.RegenerateThumbnails)
 
 	return app, nil

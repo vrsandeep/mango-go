@@ -216,3 +216,31 @@ func (s *Store) GetChapterNeighbors(folderID, currentChapterID, userID int64) (m
 
 	return neighbors, nil
 }
+
+func (s *Store) GetAllChaptersForThumbnailing(limit int, offset int) ([]*models.Chapter, error) {
+	rows, err := s.db.Query("SELECT id FROM chapters LIMIT ? OFFSET ?", limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var chapters []*models.Chapter
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		chapters = append(chapters, &models.Chapter{ID: id})
+	}
+
+	return chapters, nil
+}
+
+func (s *Store) GetTotalChaptersForThumbnailing() (int, error) {
+	var total int
+	err := s.db.QueryRow("SELECT COUNT(*) FROM chapters").Scan(&total)
+	if err != nil {
+		return 0, err
+	}
+	return total, nil
+}
