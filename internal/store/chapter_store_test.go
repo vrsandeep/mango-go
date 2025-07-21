@@ -176,4 +176,113 @@ func TestChapterStore(t *testing.T) {
 		}
 	})
 
+	t.Run("Get Chapter Title", func(t *testing.T) {
+		// Create a test chapter
+		folder, _ := s.CreateFolder("/library/Test Series", "Test Series", nil)
+		chapter, _ := s.CreateChapter(folder.ID, "/library/Test Series/Chapter 1.cbz", "hash3", 20, "thumb3")
+
+		title := store.GetChapterTitle(chapter)
+		expectedTitle := "Chapter 1"
+		if title != expectedTitle {
+			t.Errorf("Expected title '%s', got '%s'", expectedTitle, title)
+		}
+
+		// Test with different file extensions
+		chapter.Path = "/library/Test Series/Chapter 2.pdf"
+		title = store.GetChapterTitle(chapter)
+		expectedTitle = "Chapter 2"
+		if title != expectedTitle {
+			t.Errorf("Expected title '%s', got '%s'", expectedTitle, title)
+		}
+
+		// Test with no extension
+		chapter.Path = "/library/Test Series/Chapter 3"
+		title = store.GetChapterTitle(chapter)
+		expectedTitle = "Chapter 3"
+		if title != expectedTitle {
+			t.Errorf("Expected title '%s', got '%s'", expectedTitle, title)
+		}
+
+		// Test with empty path
+		chapter.Path = ""
+		title = store.GetChapterTitle(chapter)
+		expectedTitle = ""
+		if title != expectedTitle {
+			t.Errorf("Expected title '%s', got '%s'", expectedTitle, title)
+		}
+	})
+
+	t.Run("Get Chapter Neighbors", func(t *testing.T) {
+		// Create a folder with multiple chapters
+		folder, _ := s.CreateFolder("/library/Neighbor Series", "Neighbor Series", nil)
+
+		// Create multiple chapters
+		ch1, _ := s.CreateChapter(folder.ID, "/library/Neighbor Series/ch1.cbz", "hash4", 20, "thumb4")
+		ch2, _ := s.CreateChapter(folder.ID, "/library/Neighbor Series/ch2.cbz", "hash5", 20, "thumb5")
+		ch3, _ := s.CreateChapter(folder.ID, "/library/Neighbor Series/ch3.cbz", "hash6", 20, "thumb6")
+
+		// Create a user for the test
+		user, _ := s.CreateUser("neighboruser", "neighbor@example.com", "user")
+
+		// Test middle chapter (should have both prev and next)
+		neighbors, err := s.GetChapterNeighbors(folder.ID, ch2.ID, user.ID)
+		if err != nil {
+			t.Fatalf("GetChapterNeighbors failed: %v", err)
+		}
+		if neighbors["prev"] == nil {
+			t.Error("Expected previous chapter for middle chapter")
+		}
+		if *neighbors["prev"] != ch1.ID {
+			t.Errorf("Expected previous chapter ID %d, got %d", ch1.ID, *neighbors["prev"])
+		}
+		if neighbors["next"] == nil {
+			t.Error("Expected next chapter for middle chapter")
+		}
+		if *neighbors["next"] != ch3.ID {
+			t.Errorf("Expected next chapter ID %d, got %d", ch3.ID, *neighbors["next"])
+		}
+
+		// Test first chapter (should have next but no prev)
+		neighbors, err = s.GetChapterNeighbors(folder.ID, ch1.ID, user.ID)
+		if err != nil {
+			t.Fatalf("GetChapterNeighbors failed: %v", err)
+		}
+		if neighbors["prev"] != nil {
+			t.Error("Expected no previous chapter for first chapter")
+		}
+		if neighbors["next"] == nil {
+			t.Error("Expected next chapter for first chapter")
+		}
+		if *neighbors["next"] != ch2.ID {
+			t.Errorf("Expected next chapter ID %d, got %d", ch2.ID, *neighbors["next"])
+		}
+
+		// Test last chapter (should have prev but no next)
+		neighbors, err = s.GetChapterNeighbors(folder.ID, ch3.ID, user.ID)
+		if err != nil {
+			t.Fatalf("GetChapterNeighbors failed: %v", err)
+		}
+		if neighbors["prev"] == nil {
+			t.Error("Expected previous chapter for last chapter")
+		}
+		if *neighbors["prev"] != ch2.ID {
+			t.Errorf("Expected previous chapter ID %d, got %d", ch2.ID, *neighbors["prev"])
+		}
+		if neighbors["next"] != nil {
+			t.Error("Expected no next chapter for last chapter")
+		}
+
+		// Test with non-existent chapter ID
+		neighbors, err = s.GetChapterNeighbors(folder.ID, 99999, user.ID)
+		if err != nil {
+			t.Fatalf("GetChapterNeighbors failed: %v", err)
+		}
+		if neighbors["prev"] != nil {
+			t.Error("Expected no previous chapter for non-existent chapter")
+		}
+		if neighbors["next"] != nil {
+			t.Error("Expected no next chapter for non-existent chapter")
+		}
+	})
+
 }

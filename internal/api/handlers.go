@@ -125,16 +125,15 @@ func (s *Server) handleGetPage(w http.ResponseWriter, r *http.Request) {
 
 // handleGetChapterDetails retrieves and returns details for a single chapter.
 func (s *Server) handleGetChapterDetails(w http.ResponseWriter, r *http.Request) {
+	user := getUserFromContext(r)
+	if user == nil {
+		RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
 	chapterIDStr := chi.URLParam(r, "chapterID")
 	chapterID, err := strconv.ParseInt(chapterIDStr, 10, 64)
 	if err != nil {
 		RespondWithError(w, http.StatusBadRequest, "Invalid chapter ID")
-		return
-	}
-
-	user := getUserFromContext(r)
-	if user == nil {
-		RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
 
@@ -184,14 +183,13 @@ func (s *Server) handleUpdateProgress(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleGetChapterNeighbors(w http.ResponseWriter, r *http.Request) {
-	folderID, _ := strconv.ParseInt(chi.URLParam(r, "folderID"), 10, 64)
-	chapterID, _ := strconv.ParseInt(chi.URLParam(r, "chapterID"), 10, 64)
-
 	user := getUserFromContext(r)
 	if user == nil {
 		RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
+	folderID, _ := strconv.ParseInt(chi.URLParam(r, "folderID"), 10, 64)
+	chapterID, _ := strconv.ParseInt(chi.URLParam(r, "chapterID"), 10, 64)
 
 	neighbors, err := s.store.GetChapterNeighbors(folderID, chapterID, user.ID)
 	if err != nil {

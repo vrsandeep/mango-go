@@ -3,6 +3,7 @@ package store
 import (
 	"database/sql"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/vrsandeep/mango-go/internal/models"
@@ -153,4 +154,65 @@ func (s *Store) GetFolderStats(folderID int64, userID int64) (int, int, error) {
 		return 0, 0, err
 	}
 	return totalChapters, readChapters, nil
+}
+
+// GetChapterTitle extracts the title from a chapter's path.
+func GetChapterTitle(chapter *models.Chapter) string {
+	// Extract the last part of the path as the title
+	parts := strings.Split(chapter.Path, "/")
+	if len(parts) == 0 {
+		return ""
+	}
+	title := parts[len(parts)-1]
+	// Remove file extension if present
+	if dotIndex := strings.LastIndex(title, "."); dotIndex != -1 {
+		title = title[:dotIndex]
+	}
+	return title
+}
+
+// GetChapterNeighbors finds the previous and next chapter IDs based on sort settings.
+func (s *Store) GetChapterNeighbors(folderID, currentChapterID, userID int64) (map[string]*int64, error) {
+	var chapters []*models.Chapter
+	// 1. Fetch all chapters in the folder
+	_, _, chapters, _, err := s.ListItems(ListItemsOptions{
+		UserID:   userID,
+		ParentID: &folderID,
+		Page:     1,
+		PerPage:  10000, // Assume a folder won't have more chapters than this
+		SortBy:   "auto",
+		SortDir:  "asc",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. Find the index of the current chapter
+	currentIndex := -1
+	for i, ch := range chapters {
+		if ch.ID == currentChapterID {
+			currentIndex = i
+			break
+		}
+	}
+
+	if currentIndex == -1 {
+		return map[string]*int64{"prev": nil, "next": nil}, nil
+	}
+
+	neighbors := make(map[string]*int64)
+	if currentIndex > 0 {
+		prevID := chapters[currentIndex-1].ID
+		neighbors["prev"] = &prevID
+	} else {
+		neighbors["prev"] = nil
+	}
+	if currentIndex < len(chapters)-1 {
+		nextID := chapters[currentIndex+1].ID
+		neighbors["next"] = &nextID
+	} else {
+		neighbors["next"] = nil
+	}
+
+	return neighbors, nil
 }
