@@ -179,3 +179,167 @@ func TestGetBreadcrumb(t *testing.T) {
 		t.Errorf("Breadcrumb was incorrect, got %+v", resp)
 	}
 }
+
+func TestGetFolderSettings(t *testing.T) {
+	_, router, cookie, folderA, _, _ := setupTestData(t)
+
+	// Test 1: Get default settings for a folder that has no saved settings
+	req, _ := http.NewRequest("GET", fmt.Sprintf("/api/folders/%d/settings", folderA.ID), nil)
+	req.AddCookie(cookie)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Fatalf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+	}
+
+	var settings models.FolderSettings
+	json.Unmarshal(rr.Body.Bytes(), &settings)
+	if settings.SortBy != "auto" {
+		t.Errorf("Expected default sort_by 'auto', got '%s'", settings.SortBy)
+	}
+	if settings.SortDir != "asc" {
+		t.Errorf("Expected default sort_dir 'asc', got '%s'", settings.SortDir)
+	}
+
+	// Test 2: Update settings and then retrieve them
+	updatePayload := `{"sort_by": "name", "sort_dir": "desc"}`
+	req, _ = http.NewRequest("POST", fmt.Sprintf("/api/folders/%d/settings", folderA.ID), bytes.NewBufferString(updatePayload))
+	req.AddCookie(cookie)
+	req.Header.Set("Content-Type", "application/json")
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Fatalf("Update settings: expected status 200, got %d", status)
+	}
+
+	// Test 3: Retrieve the updated settings
+	req, _ = http.NewRequest("GET", fmt.Sprintf("/api/folders/%d/settings", folderA.ID), nil)
+	req.AddCookie(cookie)
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Fatalf("Get updated settings: expected status 200, got %d", status)
+	}
+
+	json.Unmarshal(rr.Body.Bytes(), &settings)
+	if settings.SortBy != "name" {
+		t.Errorf("Expected sort_by 'name', got '%s'", settings.SortBy)
+	}
+	if settings.SortDir != "desc" {
+		t.Errorf("Expected sort_dir 'desc', got '%s'", settings.SortDir)
+	}
+
+	// Test 4: Test unauthorized access (no cookie)
+	req, _ = http.NewRequest("GET", fmt.Sprintf("/api/folders/%d/settings", folderA.ID), nil)
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusUnauthorized {
+		t.Fatalf("Unauthorized access: expected status 401, got %d", status)
+	}
+
+	// Test 5: Test with non-existent folder ID (should return default settings)
+	req, _ = http.NewRequest("GET", "/api/folders/99999/settings", nil)
+	req.AddCookie(cookie)
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Fatalf("Non-existent folder: expected status 200, got %d", status)
+	}
+
+	// Should return default settings for non-existent folder
+	json.Unmarshal(rr.Body.Bytes(), &settings)
+	if settings.SortBy != "auto" {
+		t.Errorf("Expected default sort_by 'auto' for non-existent folder, got '%s'", settings.SortBy)
+	}
+	if settings.SortDir != "asc" {
+		t.Errorf("Expected default sort_dir 'asc' for non-existent folder, got '%s'", settings.SortDir)
+	}
+}
+
+func TestUpdateFolderSettings(t *testing.T) {
+	server, router, cookie, folderA, _, _ := setupTestData(t)
+
+	// Test 1: Update settings with valid payload
+	updatePayload := `{"sort_by": "created_at", "sort_dir": "asc"}`
+	req, _ := http.NewRequest("POST", fmt.Sprintf("/api/folders/%d/settings", folderA.ID), bytes.NewBufferString(updatePayload))
+	req.AddCookie(cookie)
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Fatalf("Update settings: expected status 200, got %d", status)
+	}
+
+	// Verify settings were saved
+	settings, err := server.Store().GetFolderSettings(folderA.ID, 1) // Assuming user ID is 1
+	if err != nil {
+		t.Fatalf("Failed to retrieve settings: %v", err)
+	}
+	if settings.SortBy != "created_at" {
+		t.Errorf("Expected sort_by 'created_at', got '%s'", settings.SortBy)
+	}
+	if settings.SortDir != "asc" {
+		t.Errorf("Expected sort_dir 'asc', got '%s'", settings.SortDir)
+	}
+
+	// Test 2: Update settings again (should update existing record)
+	updatePayload2 := `{"sort_by": "progress", "sort_dir": "desc"}`
+	req, _ = http.NewRequest("POST", fmt.Sprintf("/api/folders/%d/settings", folderA.ID), bytes.NewBufferString(updatePayload2))
+	req.AddCookie(cookie)
+	req.Header.Set("Content-Type", "application/json")
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Fatalf("Update settings again: expected status 200, got %d", status)
+	}
+
+	// Verify settings were updated
+	settings, err = server.Store().GetFolderSettings(folderA.ID, 1)
+	if err != nil {
+		t.Fatalf("Failed to retrieve updated settings: %v", err)
+	}
+	if settings.SortBy != "progress" {
+		t.Errorf("Expected sort_by 'progress', got '%s'", settings.SortBy)
+	}
+	if settings.SortDir != "desc" {
+		t.Errorf("Expected sort_dir 'desc', got '%s'", settings.SortDir)
+	}
+
+	// Test 3: Test unauthorized access (no cookie)
+	req, _ = http.NewRequest("POST", fmt.Sprintf("/api/folders/%d/settings", folderA.ID), bytes.NewBufferString(updatePayload))
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusUnauthorized {
+		t.Fatalf("Unauthorized access: expected status 401, got %d", status)
+	}
+
+	// Test 4: Test with invalid JSON payload
+	req, _ = http.NewRequest("POST", fmt.Sprintf("/api/folders/%d/settings", folderA.ID), bytes.NewBufferString(`{"invalid": json`))
+	req.AddCookie(cookie)
+	req.Header.Set("Content-Type", "application/json")
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusBadRequest {
+		t.Fatalf("Invalid JSON: expected status 400, got %d", status)
+	}
+
+	// Test 5: Test with non-existent folder ID
+	req, _ = http.NewRequest("POST", "/api/folders/99999/settings", bytes.NewBufferString(updatePayload))
+	req.AddCookie(cookie)
+	req.Header.Set("Content-Type", "application/json")
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusInternalServerError {
+		t.Fatalf("Non-existent folder: expected status 500, got %d", status)
+	}
+}

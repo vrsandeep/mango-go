@@ -76,6 +76,7 @@ func (s *Server) Router() http.Handler {
 			r.Get("/browse", s.handleBrowseFolder)
 			r.Get("/browse/breadcrumb", s.handleGetBreadcrumb)
 
+			r.Get("/folders/{folderID}/settings", s.handleGetFolderSettings)
 			r.Post("/folders/{folderID}/settings", s.handleUpdateFolderSettings)
 			r.Post("/folders/{folderID}/mark-all-as", s.handleMarkFolderAs)
 			r.Post("/folders/{folderID}/cover", s.handleUploadFolderCover)

@@ -1,6 +1,42 @@
 // --- Interface for library_grid.js ---
 let currentFolderId;
 
+// --- Folder Settings Management ---
+let folderSettingsLoaded = false;
+
+// Fetch folder settings and update state
+const loadFolderSettings = async () => {
+    if (!currentFolderId || folderSettingsLoaded) return;
+
+    try {
+        const response = await fetch(`/api/folders/${currentFolderId}/settings`);
+        if (response.ok) {
+            const settings = await response.json();
+            state.sortBy = settings.sort_by || 'auto';
+            state.sortDir = settings.sort_dir || 'asc';
+
+            // Update UI elements to reflect the loaded settings
+            const sortBySelect = document.getElementById('sort-by');
+            const sortDirBtn = document.getElementById('sort-dir-btn');
+            if (sortBySelect) sortBySelect.value = state.sortBy;
+            if (sortDirBtn) sortDirBtn.textContent = state.sortDir === 'asc' ? '▲' : '▼';
+
+            folderSettingsLoaded = true;
+        }
+    } catch (error) {
+        console.error('Failed to load folder settings:', error);
+    }
+};
+
+// Update current folder ID and reload settings
+const updateCurrentFolder = (newFolderId) => {
+    if (currentFolderId !== newFolderId) {
+        currentFolderId = newFolderId;
+        folderSettingsLoaded = false; // Reset flag to allow loading new folder settings
+        loadFolderSettings(); // Load settings for the new folder
+    }
+};
+
 // This function tells the generic grid how to get its data.
 const getCardsLoadingUrl = () => {
     const params = new URLSearchParams({
@@ -55,6 +91,9 @@ const resetState = (cardsGrid) => {
     document.getElementById('page-title').textContent = 'Library';
     document.getElementById('tags-container').innerHTML = '';
     document.getElementById('edit-folder-modal').style.display = 'none';
+
+    // Reset folder settings flag to allow reloading when navigating to different folders
+    folderSettingsLoaded = false;
 };
 
 
@@ -161,9 +200,12 @@ const removeTag = async (tagId) => {
 
 
 // --- DOMContentLoaded Initialization ---
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     const pathParts = window.location.pathname.split('/folder/');
     currentFolderId = pathParts.length > 1 ? pathParts[1] : null;
+
+    // Load folder settings before initial card load
+    await loadFolderSettings();
 
     const editFolderBtn = document.getElementById('edit-folder-btn');
     const editFolderModal = document.getElementById('edit-folder-modal');
@@ -177,7 +219,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const autocompleteSuggestions = document.getElementById('autocomplete-suggestions');
 
     // --- Modal Event Listeners ---
-    editFolderBtn.addEventListener('click', () => editFolderModal.style.display = 'flex');
+    editFolderBtn.addEventListener('click', () => {
+        if (currentFolderId) {
+            editFolderModal.style.display = 'flex';
+            coverFileInput.value = ''; // Clear previous selection
+        }
+    });
     modalCancelBtn.addEventListener('click', () => editFolderModal.style.display = 'none');
     editFolderModal.addEventListener('click', (e) => { if (e.target === editFolderModal) editFolderModal.style.display = 'none'; });
 

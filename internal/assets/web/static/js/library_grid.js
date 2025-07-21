@@ -110,14 +110,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     paginationContainer.appendChild(createButton('&raquo;', totalPages, state.currentPage === totalPages));
   };
 
-  // --- Event Listeners ---
-  // loadMoreBtn.addEventListener('click', () => {
-  //   if (!state.isLoading) {
-  //     state.currentPage++;
-  //     loadCards(false);
-  //   }
-  // });
-
   let searchTimeout;
   searchInput.addEventListener('input', () => {
     clearTimeout(searchTimeout);

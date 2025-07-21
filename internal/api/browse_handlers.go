@@ -143,7 +143,23 @@ func (s *Server) handleUpdateFolderSettings(w http.ResponseWriter, r *http.Reque
 	RespondWithJSON(w, http.StatusOK, map[string]string{"status": "success"})
 }
 
+func (s *Server) handleGetFolderSettings(w http.ResponseWriter, r *http.Request) {
+	folderID, _ := strconv.ParseInt(chi.URLParam(r, "folderID"), 10, 64)
 
+	user := getUserFromContext(r)
+	if user == nil {
+		RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	settings, err := s.store.GetFolderSettings(folderID, user.ID)
+	if err != nil {
+		RespondWithError(w, http.StatusInternalServerError, "Failed to retrieve folder settings")
+		return
+	}
+
+	RespondWithJSON(w, http.StatusOK, settings)
+}
 
 // handleMarkFolderAs marks all chapters in a series as read or unread.
 func (s *Server) handleMarkFolderAs(w http.ResponseWriter, r *http.Request) {

@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const modalSaveBtn = document.getElementById('modal-save-btn');
   const modalCancelBtn = document.getElementById('modal-cancel-btn');
   const coverFileInput = document.getElementById('cover-file-input');
+  const totalCountEl = document.getElementById('total-count');
 
   // --- State Management ---
   let state = {
@@ -30,7 +31,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     totalItems: 0,
     perPage: 100
   };
-  // let allTags = [];
+  let allTags = [];
   let currentFolderTags = [];
 
   // --- Core Functions ---
@@ -51,10 +52,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const response = await fetch(url);
     const path = await response.json();
 
-    breadcrumbEl.innerHTML = '<a href="/library">Library</a>';
+    let html = '<a href="/library">Library</a>';
     path.forEach(folder => {
-      breadcrumbEl.innerHTML += ` / <a href="/library/folder/${folder.id}">${folder.name}</a>`;
+      html += ` / <a href="/library/folder/${folder.id}">${folder.name}</a>`;
     });
+    breadcrumbEl.innerHTML = html;
   };
 
   // Renders the grid with folders first, then chapters.
@@ -85,6 +87,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <img class="thumbnail" src="${folder.thumbnail || '/static/images/logo.svg'}" loading="lazy" alt="Cover for ${folder.name}">
             </div>
             <div class="item-title" title="${folder.name}">${folder.name}</div>
+            <div class="progress-bar-container">
+              <div class="progress-bar" style="width: ${folder.read_chapters / folder.total_chapters * 100 || 0}%;"></div>
+            </div>
         `;
     return card;
   };
@@ -108,6 +113,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     return card;
   };
 
+  // Fetch folder settings and update state
+  const loadFolderSettings = async () => {
+    if (!state.currentFolderId) return;
+    if (state.sortBy != null && state.sortDir != null) return;
+
+    try {
+      const response = await fetch(`/api/folders/${state.currentFolderId}/settings`);
+      if (response.ok) {
+        const settings = await response.json();
+        state.sortBy = settings.sort_by || 'auto';
+        state.sortDir = settings.sort_dir || 'asc';
+
+        // Update UI elements to reflect the loaded settings
+        sortBySelect.value = state.sortBy;
+        sortDirBtn.textContent = state.sortDir === 'asc' ? '▲' : '▼';
+      }
+    } catch (error) {
+      console.error('Failed to load folder settings:', error);
+    }
+  };
+
   // Main function to fetch all data and render the page.
   const loadFolderContents = async () => {
     if (state.isLoading) return;
@@ -115,6 +141,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     cardsGrid.innerHTML = '<p>Loading...</p>';
 
     await renderBreadcrumb();
+    await loadFolderSettings();
 
     const params = new URLSearchParams({
       page: state.currentPage,
@@ -140,6 +167,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderGrid(data);
 
     state.totalItems = parseInt(response.headers.get('X-Total-Count') || '0', 10);
+    totalCountEl.textContent = `${state.totalItems}`;
     renderPagination();
 
     state.isLoading = false;
@@ -210,8 +238,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // --- Tagging Logic ---
   const loadAllTags = async () => {
-    const response = await fetch('/api/tags');
-    allTags = await response.json() || [];
+    try {
+      const response = await fetch('/api/tags');
+      allTags = await response.json() || [];
+    } catch (e) {
+      console.error("Failed to load all tags:", e);
+    }
   };
 
   const renderTags = (tags) => {
@@ -227,7 +259,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const addTag = async (tagName) => {
     const normalizedTagName = tagName.trim().toLowerCase();
-    if (normalizedTagName === '' || currentFolderTags.some(t => t.name === normalizedTagName)) {
+    if (normalizedTagName === '' || !currentFolderId || currentFolderTags.some(t => t.name === normalizedTagName)) {
       tagInput.value = '';
       return;
     }
@@ -291,7 +323,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (state.currentFolderId) {
       editFolderModal.style.display = 'flex';
       coverFileInput.value = ''; // Clear previous selection
-      editFolderModal.style.display = 'flex';
     }
   });
   modalCancelBtn.addEventListener('click', () => editFolderModal.style.display = 'none');
@@ -314,14 +345,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       autocompleteSuggestions.style.display = 'none';
       return;
     }
-    const suggestions = allTags.filter(tag => tag.name.toLowerCase().includes(query));
+    const suggestions = allTags.filter(tag => tag.name.toLowerCase().includes(query) && !currentFolderTags.some(t => t.name === tag.name));
     autocompleteSuggestions.innerHTML = '';
-    suggestions.forEach(tag => {
+    suggestions.slice(0, 5).forEach(suggestion => {
       const suggestionEl = document.createElement('div');
       suggestionEl.className = 'autocomplete-suggestion';
-      suggestionEl.textContent = tag.name;
+      suggestionEl.textContent = suggestion.name;
       suggestionEl.addEventListener('click', () => {
-        addTag(tag.name);
+        addTag(suggestion.name);
         autocompleteSuggestions.style.display = 'none';
       });
       autocompleteSuggestions.appendChild(suggestionEl);
@@ -345,6 +376,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     sortDirBtn.textContent = state.sortDir === 'asc' ? '▲' : '▼';
     loadFolderContents();
   });
+
   const init = async () => {
     state.currentFolderId = getFolderIdFromUrl();
     await loadAllTags(); // Load tags for autocomplete
