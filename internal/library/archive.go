@@ -37,12 +37,12 @@ func IsImageFile(name string) bool {
 // IsSupportedArchive checks if a filename has a supported archive extension.
 func IsSupportedArchive(name string) bool {
 	archiveExts := map[string]bool{
-		".cbz":  true,
-		".zip":  true,
-		".cbr":  true,
-		".rar":  true,
-		".7z":   true,
-		".cb7":  true,
+		".cbz": true,
+		".zip": true,
+		".cbr": true,
+		".rar": true,
+		".7z":  true,
+		".cb7": true,
 	}
 	ext := strings.ToLower(filepath.Ext(name))
 	return archiveExts[ext]

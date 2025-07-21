@@ -189,7 +189,7 @@ func TestHandleGetChapterNeighbors(t *testing.T) {
 		}
 
 		if *neighbors["prev"] != ch1.ID {
-			t.Errorf("Expected previous chapter ID, got %d", *neighbors["prev"]	)
+			t.Errorf("Expected previous chapter ID, got %d", *neighbors["prev"])
 		}
 		if *neighbors["next"] != ch3.ID {
 			t.Errorf("Expected next chapter ID, got %d", *neighbors["next"])

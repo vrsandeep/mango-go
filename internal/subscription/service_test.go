@@ -37,9 +37,9 @@ func setupTestApp(t *testing.T) *core.App {
 
 	app := &core.App{Version: "test"}
 	app.SetConfig(&config.Config{
-			Library: struct {
-				Path string `mapstructure:"path"`
-			}{Path: t.TempDir()},
+		Library: struct {
+			Path string `mapstructure:"path"`
+		}{Path: t.TempDir()},
 	})
 	app.SetDB(testutil.SetupTestDB(t))
 	app.SetWsHub(hub)

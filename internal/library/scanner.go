@@ -135,7 +135,6 @@ func NewScanner(cfg *config.Config, db *sql.DB) *Scanner {
 // 	return tx.Commit()
 // }
 
-
 // PruneDatabase is a new function for the admin job.
 func PruneDatabase(ctx jobs.JobContext) {
 	jobId := "prune-database"

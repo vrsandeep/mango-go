@@ -63,7 +63,6 @@ func TestAdminHandlers(t *testing.T) {
 		}
 	})
 
-
 	t.Run("Unauthorized Access", func(t *testing.T) {
 		req, _ := http.NewRequest("POST", "/api/admin/jobs/run", nil)
 		req.AddCookie(userCookie) // Use a regular user cookie

@@ -34,7 +34,6 @@ func main() {
 	}
 	defer app.Close()
 
-
 	// --- First User Provisioning ---
 	st := store.New(app.DB())
 	userCount, err := st.CountUsers()

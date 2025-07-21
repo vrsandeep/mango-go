@@ -30,9 +30,9 @@ func SetupTestServerWithProviders(t *testing.T) (*api.Server, *sql.DB) {
 
 	app := &core.App{Version: "test"}
 	app.SetConfig(&config.Config{
-			Library: struct {
-				Path string `mapstructure:"path"`
-			}{Path: t.TempDir()},
+		Library: struct {
+			Path string `mapstructure:"path"`
+		}{Path: t.TempDir()},
 	})
 	app.SetDB(db)
 	app.SetWsHub(hub)

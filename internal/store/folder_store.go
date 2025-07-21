@@ -467,7 +467,6 @@ func (s *Store) ListItems(opts ListItemsOptions) (*models.Folder, []*models.Fold
 	return currentFolder, subfolders, chapters, totalItems, nil
 }
 
-
 // limitAndOffsetChapters is a helper function to remove excess elements from the slice and return it
 func limitAndOffsetChapters(slice []*models.Chapter, page, perPage int) []*models.Chapter {
 	if slice == nil {

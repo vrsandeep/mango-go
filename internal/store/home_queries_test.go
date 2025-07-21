@@ -111,7 +111,6 @@ func TestHomePageQueries(t *testing.T) {
 		}
 	})
 
-
 	t.Run("Start Reading", func(t *testing.T) {
 		items, err := s.GetStartReading(user1.ID, 10)
 		if err != nil {
@@ -139,7 +138,6 @@ func TestHomePageQueries(t *testing.T) {
 		}
 	})
 }
-
 
 func TestGetNextUp(t *testing.T) {
 	db := testutil.SetupTestDB(t)

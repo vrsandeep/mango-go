@@ -148,7 +148,7 @@ func (s *Store) GetFolderStats(folderID int64, userID int64) (int, int, error) {
 	`
 	var totalChapters int
 	var readChapters int
-	err := s.db.QueryRow(query, folderID, folderID, folderID,folderID, userID).Scan(&totalChapters, &readChapters)
+	err := s.db.QueryRow(query, folderID, folderID, folderID, folderID, userID).Scan(&totalChapters, &readChapters)
 	if err != nil {
 		return 0, 0, err
 	}

@@ -19,22 +19,22 @@ const Version = "0.0.1" // Application version
 // App holds the core components of the application that are shared
 // between the server and the CLI.
 type App struct {
-	config  *config.Config
-	dB      *sql.DB
-	wsHub   *websocket.Hub
-	Version string
+	config       *config.Config
+	dB           *sql.DB
+	wsHub        *websocket.Hub
+	Version      string
 	WebFS        embed.FS
 	MigrationsFS embed.FS
-	jobManager *jobs.JobManager
+	jobManager   *jobs.JobManager
 }
 
-func (a *App) DB() *sql.DB                 { return a.dB }
-func (a *App) Config() *config.Config        { return a.config }
-func (a *App) WsHub() *websocket.Hub       { return a.wsHub }
-func (a *App) JobManager() *jobs.JobManager { return a.jobManager }
-func (a *App) SetConfig(cfg *config.Config) { a.config = cfg }
-func (a *App) SetDB(db *sql.DB) { a.dB = db }
-func (a *App) SetWsHub(hub *websocket.Hub) { a.wsHub = hub }
+func (a *App) DB() *sql.DB                               { return a.dB }
+func (a *App) Config() *config.Config                    { return a.config }
+func (a *App) WsHub() *websocket.Hub                     { return a.wsHub }
+func (a *App) JobManager() *jobs.JobManager              { return a.jobManager }
+func (a *App) SetConfig(cfg *config.Config)              { a.config = cfg }
+func (a *App) SetDB(db *sql.DB)                          { a.dB = db }
+func (a *App) SetWsHub(hub *websocket.Hub)               { a.wsHub = hub }
 func (a *App) SetJobManager(jobManager *jobs.JobManager) { a.jobManager = jobManager }
 
 // New sets up and returns a new App instance. It handles loading the

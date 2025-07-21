@@ -80,4 +80,3 @@ func TestSubscribeToSeries(t *testing.T) {
 		t.Errorf("Expected 1 item in subscriptions after second call, but found %d", count)
 	}
 }
-

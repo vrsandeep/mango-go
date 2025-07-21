@@ -686,7 +686,6 @@ func TestGetFolderWithInvalidID(t *testing.T) {
 	}
 }
 
-
 func TestUpdateFolderThumbnail(t *testing.T) {
 	db := testutil.SetupTestDB(t)
 	s := store.New(db)

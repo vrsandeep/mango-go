@@ -21,9 +21,9 @@ func SetupTestApp(t *testing.T) *core.App {
 
 	// cfg := &config.Config{}
 	cfg := &config.Config{
-			Library: struct {
-				Path string `mapstructure:"path"`
-			}{Path: t.TempDir()},
+		Library: struct {
+			Path string `mapstructure:"path"`
+		}{Path: t.TempDir()},
 	}
 	hub := websocket.NewHub()
 	go hub.Run()

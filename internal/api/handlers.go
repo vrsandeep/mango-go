@@ -183,7 +183,6 @@ func (s *Server) handleUpdateProgress(w http.ResponseWriter, r *http.Request) {
 	RespondWithJSON(w, http.StatusOK, map[string]string{"status": "success"})
 }
 
-
 func (s *Server) handleGetChapterNeighbors(w http.ResponseWriter, r *http.Request) {
 	folderID, _ := strconv.ParseInt(chi.URLParam(r, "folderID"), 10, 64)
 	chapterID, _ := strconv.ParseInt(chi.URLParam(r, "chapterID"), 10, 64)

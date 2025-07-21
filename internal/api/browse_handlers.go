@@ -118,7 +118,6 @@ func (s *Server) handleRemoveTagFromFolder(w http.ResponseWriter, r *http.Reques
 	w.WriteHeader(http.StatusNoContent)
 }
 
-
 func (s *Server) handleUpdateFolderSettings(w http.ResponseWriter, r *http.Request) {
 	folderID, _ := strconv.ParseInt(chi.URLParam(r, "folderID"), 10, 64)
 

@@ -19,10 +19,10 @@ type fakeJobContext struct {
 	jobMgr *jobs.JobManager
 }
 
-func (f *fakeJobContext) DB() *sql.DB              { return f.db }
-func (f *fakeJobContext) Config() *config.Config   { return f.cfg }
-func (f *fakeJobContext) WsHub() *websocket.Hub    { return f.ws }
-func (f *fakeJobContext) JobManager() *jobs.JobManager  { return f.jobMgr }
+func (f *fakeJobContext) DB() *sql.DB                  { return f.db }
+func (f *fakeJobContext) Config() *config.Config       { return f.cfg }
+func (f *fakeJobContext) WsHub() *websocket.Hub        { return f.ws }
+func (f *fakeJobContext) JobManager() *jobs.JobManager { return f.jobMgr }
 
 func TestManager_NewManager(t *testing.T) {
 	ctx := &fakeJobContext{cfg: &config.Config{}, ws: websocket.NewHub()}
@@ -40,8 +40,12 @@ func TestManager_RegisterAndGetStatus(t *testing.T) {
 	assert.Len(t, statuses, 2)
 	var foundA, foundB bool
 	for _, s := range statuses {
-		if s.ID == "jobA" { foundA = true }
-		if s.ID == "jobB" { foundB = true }
+		if s.ID == "jobA" {
+			foundA = true
+		}
+		if s.ID == "jobB" {
+			foundB = true
+		}
 	}
 	assert.True(t, foundA && foundB)
 }

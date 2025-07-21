@@ -31,7 +31,7 @@ func TestHandleMarkAllAs(t *testing.T) {
 
 		// Verify the change in the database
 		_, _, chapters, _, err := s.ListItems(store.ListItemsOptions{
-			UserID: 1,
+			UserID:   1,
 			ParentID: &[]int64{1}[0],
 			Page:     1,
 			PerPage:  10,
@@ -74,7 +74,7 @@ func TestHandleMarkAllAs(t *testing.T) {
 
 		// Verify the change in the database
 		_, _, chapters, _, err := s.ListItems(store.ListItemsOptions{
-			UserID: 1,
+			UserID:   1,
 			ParentID: &[]int64{1}[0],
 			Page:     1,
 			PerPage:  10,

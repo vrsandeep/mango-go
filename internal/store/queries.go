@@ -13,7 +13,6 @@ import (
 	"github.com/vrsandeep/mango-go/internal/util"
 )
 
-
 func (s *Store) getChaptersForFolder(folderId int64, userID int64, page, perPage int, search, sortBy, sortDir string) ([]*models.Chapter, error) {
 	chapterQuery := `
 		SELECT c.id, c.path, c.page_count,
@@ -114,7 +113,6 @@ func GetChapterTitle(chapter *models.Chapter) string {
 	}
 	return title
 }
-
 
 // GetChapterNeighbors finds the previous and next chapter IDs based on sort settings.
 func (s *Store) GetChapterNeighbors(folderID, currentChapterID, userID int64) (map[string]*int64, error) {

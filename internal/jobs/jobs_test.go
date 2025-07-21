@@ -16,16 +16,16 @@ import (
 // mockJobContext implements JobContext for testing
 // Only implements the methods needed for these tests
 type mockJobContext struct {
-	db        *sql.DB
-	config    *config.Config
-	wsHub     *websocket.Hub
-	jobMgr    *jobs.JobManager
+	db     *sql.DB
+	config *config.Config
+	wsHub  *websocket.Hub
+	jobMgr *jobs.JobManager
 }
 
-func (m *mockJobContext) DB() *sql.DB              { return m.db }
-func (m *mockJobContext) Config() *config.Config   { return m.config }
-func (m *mockJobContext) WsHub() *websocket.Hub   { return m.wsHub }
-func (m *mockJobContext) JobManager() *jobs.JobManager  { return m.jobMgr }
+func (m *mockJobContext) DB() *sql.DB                  { return m.db }
+func (m *mockJobContext) Config() *config.Config       { return m.config }
+func (m *mockJobContext) WsHub() *websocket.Hub        { return m.wsHub }
+func (m *mockJobContext) JobManager() *jobs.JobManager { return m.jobMgr }
 
 func TestNewManagerAndRegister(t *testing.T) {
 	ctx := &mockJobContext{config: &config.Config{}, wsHub: websocket.NewHub()}

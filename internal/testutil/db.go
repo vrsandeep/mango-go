@@ -102,7 +102,7 @@ func SetupTestLibraryAndDB(t *testing.T) (string, *sql.DB) {
 	return rootDir, db
 }
 
-func PersistOneFolderAndChapter(t *testing.T, db *sql.DB){
+func PersistOneFolderAndChapter(t *testing.T, db *sql.DB) {
 	t.Helper()
 
 	// Create a temporary directory for test archives
