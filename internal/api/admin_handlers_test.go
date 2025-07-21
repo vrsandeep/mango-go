@@ -15,7 +15,7 @@ import (
 func TestAdminHandlers(t *testing.T) {
 	server, _, jobManager := testutil.SetupTestServer(t) // This helper sets up a test server and DB
 	router := server.Router()
-	jobManager.Register("Test Job", func(ctx jobs.JobContext) {
+	jobManager.Register("test-job", "Test Job", func(ctx jobs.JobContext) {
 		time.Sleep(1 * time.Second)
 	})
 
@@ -24,9 +24,9 @@ func TestAdminHandlers(t *testing.T) {
 
 	t.Run("Library Sync", func(t *testing.T) {
 		type body struct {
-			JobName string `json:"job_name"`
+			JobID string `json:"job_id"`
 		}
-		payload, _ := json.Marshal(body{JobName: "Test Job"})
+		payload, _ := json.Marshal(body{JobID: "test-job"})
 		req, _ := http.NewRequest("POST", "/api/admin/jobs/run", bytes.NewBuffer(payload))
 		req.Header.Set("Content-Type", "application/json")
 		req.AddCookie(adminCookie)

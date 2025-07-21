@@ -34,14 +34,14 @@ func TestManager_NewManager(t *testing.T) {
 func TestManager_RegisterAndGetStatus(t *testing.T) {
 	ctx := &fakeJobContext{cfg: &config.Config{}, ws: websocket.NewHub()}
 	mgr := jobs.NewManager(ctx)
-	mgr.Register("jobA", func(ctx jobs.JobContext) {})
-	mgr.Register("jobB", func(ctx jobs.JobContext) {})
+	mgr.Register("jobA", "Job A", func(ctx jobs.JobContext) {})
+	mgr.Register("jobB", "Job B", func(ctx jobs.JobContext) {})
 	statuses := mgr.GetStatus()
 	assert.Len(t, statuses, 2)
 	var foundA, foundB bool
 	for _, s := range statuses {
-		if s.Name == "jobA" { foundA = true }
-		if s.Name == "jobB" { foundB = true }
+		if s.ID == "jobA" { foundA = true }
+		if s.ID == "jobB" { foundB = true }
 	}
 	assert.True(t, foundA && foundB)
 }
@@ -51,7 +51,7 @@ func TestManager_RunJob_SuccessAndStatus(t *testing.T) {
 	mgr := jobs.NewManager(ctx)
 	ctx.jobMgr = mgr
 	var called bool
-	mgr.Register("jobX", func(ctx jobs.JobContext) { called = true })
+	mgr.Register("jobX", "Job X", func(ctx jobs.JobContext) { called = true })
 	err := mgr.RunJob("jobX", ctx)
 	assert.NoError(t, err)
 	time.Sleep(50 * time.Millisecond)
@@ -65,7 +65,7 @@ func TestManager_RunJob_AlreadyRunning(t *testing.T) {
 	mgr := jobs.NewManager(ctx)
 	ctx.jobMgr = mgr
 	block := make(chan struct{})
-	mgr.Register("jobY", func(ctx jobs.JobContext) { <-block })
+	mgr.Register("jobY", "Job Y", func(ctx jobs.JobContext) { <-block })
 	_ = mgr.RunJob("jobY", ctx)
 	err := mgr.RunJob("jobY", ctx)
 	assert.Error(t, err)
@@ -83,7 +83,7 @@ func TestManager_RunJob_Panic(t *testing.T) {
 	ctx := &fakeJobContext{cfg: &config.Config{}, ws: websocket.NewHub()}
 	mgr := jobs.NewManager(ctx)
 	ctx.jobMgr = mgr
-	mgr.Register("panicJob", func(ctx jobs.JobContext) { panic("fail") })
+	mgr.Register("panicJob", "Panic Job", func(ctx jobs.JobContext) { panic("fail") })
 	err := mgr.RunJob("panicJob", ctx)
 	assert.NoError(t, err)
 	time.Sleep(50 * time.Millisecond)
@@ -98,7 +98,7 @@ func TestManager_Concurrency(t *testing.T) {
 	ctx.jobMgr = mgr
 	var mu sync.Mutex
 	var count int
-	mgr.Register("jobC", func(ctx jobs.JobContext) {
+	mgr.Register("jobC", "Job C", func(ctx jobs.JobContext) {
 		mu.Lock()
 		count++
 		mu.Unlock()

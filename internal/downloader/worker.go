@@ -79,7 +79,7 @@ func worker(id int, app *core.App, st *store.Store) {
 			st.UpdateQueueItemStatus(job.ID, "completed", "Download finished successfully.")
 			// Trigger a library scan to pick up the new chapter
 			go func() {
-				app.JobManager().RunJob("Library Sync", app)
+				app.JobManager().RunJob("library-sync", app)
 			}()
 		}
 	}
@@ -145,7 +145,7 @@ func processDownload(app *core.App, st *store.Store, job *models.DownloadQueueIt
 
 		// Broadcast progress update via WebSocket
 		app.WsHub().BroadcastJSON(models.ProgressUpdate{
-			JobName:  "downloader",
+			JobID:    "downloader",
 			Message:  fmt.Sprintf("Downloaded page %d of %d", i+1, total),
 			Progress: float64(progress),
 			ItemID:   job.ID,

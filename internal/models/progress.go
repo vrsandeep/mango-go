@@ -1,7 +1,7 @@
 package models
 
 type ProgressUpdate struct {
-	JobName  string  `json:"job_name"`
+	JobID    string  `json:"jobId"`
 	Message  string  `json:"message"`
 	Progress float64 `json:"progress"`
 	ItemID   int64   `json:"item_id"`

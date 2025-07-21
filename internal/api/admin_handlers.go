@@ -12,21 +12,21 @@ func (s *Server) handleGetVersion(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleRunAdminJob(w http.ResponseWriter, r *http.Request) {
 	var payload struct {
-		JobName string `json:"job_name"`
+		JobID string `json:"job_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
 
-	err := s.app.JobManager().RunJob(payload.JobName, s.app)
+	err := s.app.JobManager().RunJob(payload.JobID, s.app)
 	if err != nil {
 		RespondWithError(w, http.StatusConflict, err.Error()) // 409 Conflict if a job is already running
 		return
 	}
 
 	RespondWithJSON(w, http.StatusAccepted, map[string]string{
-		"message": "Job '" + payload.JobName + "' started successfully.",
+		"message": "Job '" + payload.JobID + "' started successfully.",
 	})
 }
 

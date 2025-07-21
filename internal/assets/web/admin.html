@@ -68,55 +68,42 @@
                 <button class="href" data-endpoint="/admin/users">Go</button>
                 </div>
             </div>
-            <div class="job-item" id="job-full-scan">
+            <div class="job-item" id="library-sync">
                 <div class="job-details">
-                <h3>Full Library Scan</h3>
-                <p class="job-description">Re-scans every file in your library directory. Use this if you have made major changes.
-                </p>
-                <div class="job-progress-container">
-                    <div class="job-progress-bar"></div>
-                </div>
+                    <h3>Full Library Scan</h3>
+                    <p class="job-description">Re-scans every file in your library directory. Use this if you have made major changes.</p>
+                    <div class="job-progress-container">
+                        <div class="job-progress-bar"></div>
+                    </div>
                 </div>
                 <div class="job-actions">
-                <button class="start-job-btn" data-endpoint="/api/admin/jobs/run" data-job-name="Library Sync">Start</button>
+                <button class="start-job-btn" data-job-id="library-sync">Start</button>
                 </div>
             </div>
-            <!-- <div class="job-item" id="job-incremental-scan">
+            <div class="job-item" id="prune-database">
                 <div class="job-details">
-                <h3>Find new chapters</h3>
-                <p class="job-description">Scans your library and only adds new series and chapters.</p>
-                <div class="job-progress-container">
-                    <div class="job-progress-bar"></div>
-                </div>
+                    <h3>Prune Database</h3>
+                    <p class="job-description">Removes entries for items that no longer exist on your disk.</p>
+                    <div class="job-progress-container">
+                        <div class="job-progress-bar"></div>
+                    </div>
                 </div>
                 <div class="job-actions">
-                <button class="start-job-btn" data-endpoint="/api/admin/scan-incremental">Start</button>
+                    <button class="start-job-btn" data-job-id="prune-database">Start</button>
                 </div>
             </div>
-            <div class="job-item" id="job-prune-database">
+            <div class="job-item" id="regen-thumbnails">
                 <div class="job-details">
-                <h3>Prune Database</h3>
-                <p class="job-description">Removes entries from the database that no longer exist on your disk.</p>
-                <div class="job-progress-container">
-                    <div class="job-progress-bar"></div>
-                </div>
+                    <h3>Regenerate Thumbnails</h3>
+                    <p class="job-description">Re-creates all chapter and series thumbnails. This can take a while.</p>
+                    <div class="job-progress-container">
+                        <div class="job-progress-bar"></div>
+                    </div>
                 </div>
                 <div class="job-actions">
-                <button class="start-job-btn" data-endpoint="/api/admin/prune-database">Start</button>
+                    <button class="start-job-btn" data-job-id="regen-thumbnails">Start</button>
                 </div>
             </div>
-            <div class="job-item" id="job-regenerate-thumbnails">
-                <div class="job-details">
-                <h3>Regenerate Thumbnails</h3>
-                <p class="job-description">Re-creates all chapter and series thumbnails. This can take a while.</p>
-                <div class="job-progress-container">
-                    <div class="job-progress-bar"></div>
-                </div>
-                </div>
-                <div class="job-actions">
-                <button class="start-job-btn" data-endpoint="/api/admin/generate-thumbnails">Start</button>
-                </div>
-            </div> -->
         </div>
     </main>
 

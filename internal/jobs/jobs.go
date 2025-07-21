@@ -25,20 +25,20 @@ func startLibrarySyncJob(s *gocron.Scheduler, app JobContext) {
 		return
 	}
 
-	jobName := "Library Sync"
-	log.Printf("Scheduling job: '%s' to run every %d minutes.", jobName, interval)
+	jobId := "library-sync"
+	log.Printf("Scheduling job: '%s' to run every %d minutes.", jobId, interval)
 
 	_, err := s.Every(interval).Minutes().Do(func() {
-		log.Println("Scheduler is triggering job:", jobName)
+		log.Println("Scheduler is triggering job:", jobId)
 		// Submit the job to the manager instead of running it directly.
 		// This prevents conflicts with manually triggered jobs.
-		err := app.JobManager().RunJob(jobName, app)
+		err := app.JobManager().RunJob(jobId, app)
 		if err != nil {
-			log.Printf("Scheduled job '%s' could not start: %v", jobName, err)
+			log.Printf("Scheduled job '%s' could not start: %v", jobId, err)
 		}
 	})
 	if err != nil {
-		log.Printf("Error scheduling '%s' job: %v", jobName, err)
+		log.Printf("Error scheduling '%s' job: %v", jobId, err)
 	}
 }
 

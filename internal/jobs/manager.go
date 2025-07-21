@@ -24,6 +24,7 @@ type JobContext interface {
 type jobTask func(ctx JobContext)
 
 type JobStatus struct {
+	ID        string    `json:"id"`
 	Name      string    `json:"name"`
 	Status    string    `json:"status"` // "idle", "running", "success", "failed"
 	Message   string    `json:"message"`
@@ -48,41 +49,41 @@ func NewManager(appCtx JobContext) *JobManager {
 	return jm
 }
 
-func (jm *JobManager) Register(name string, task jobTask) {
+func (jm *JobManager) Register(id, name string, task jobTask) {
 	jm.mu.Lock()
 	defer jm.mu.Unlock()
-	jm.jobs[name] = task
-	jm.status[name] = &JobStatus{Name: name, Status: "idle"}
+	jm.jobs[id] = task
+	jm.status[id] = &JobStatus{ID: id, Name: name, Status: "idle"}
 }
 
 // RunJob now accepts the JobContext interface.
-func (jm *JobManager) RunJob(name string, ctx JobContext) error {
+func (jm *JobManager) RunJob(id string, ctx JobContext) error {
 	jm.mu.Lock()
 	if jm.running {
 		jm.mu.Unlock()
 		return fmt.Errorf("a job is already running")
 	}
 
-	task, ok := jm.jobs[name]
+	task, ok := jm.jobs[id]
 	if !ok {
 		jm.mu.Unlock()
-		return fmt.Errorf("job '%s' not found", name)
+		return fmt.Errorf("job '%s' not found", id)
 	}
 
 	jm.running = true
-	status := jm.status[name]
+	status := jm.status[id]
 	status.Status = "running"
 	status.StartTime = time.Now()
 	status.Message = "Job started..."
 	jm.mu.Unlock()
 
-	log.Printf("Starting job: %s", name)
+	log.Printf("Starting job: %s (%s)", status.Name, id)
 	// Run the actual task in a new goroutine so it doesn't block.
 	go func() {
 		defer func() {
 			// Ensure we always update the status and unlock the manager
 			if r := recover(); r != nil {
-				log.Printf("Job '%s' panicked: %v", name, r)
+				log.Printf("Job '%s' panicked: %v", id, r)
 				status.Status = "failed"
 				status.Message = fmt.Sprintf("Job panicked: %v", r)
 			}
@@ -95,14 +96,13 @@ func (jm *JobManager) RunJob(name string, ctx JobContext) error {
 			}
 			jm.running = false
 			jm.mu.Unlock()
-			log.Printf("Finished job: %s", name)
+			log.Printf("Finished job: %s (%s)", status.Name, id)
 		}()
 
 		task(ctx)
 	}()
 	return nil
 }
-
 
 func (jm *JobManager) GetStatus() []*JobStatus {
 	jm.mu.Lock()

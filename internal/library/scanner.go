@@ -135,20 +135,37 @@ func NewScanner(cfg *config.Config, db *sql.DB) *Scanner {
 // 	return tx.Commit()
 // }
 
+
+// PruneDatabase is a new function for the admin job.
+func PruneDatabase(ctx jobs.JobContext) {
+	jobId := "prune-database"
+	sendProgress(ctx, jobId, "Pruning database...", 0, false)
+	// ... (logic for pruning)
+	sendProgress(ctx, jobId, "Pruning complete.", 100, true)
+}
+
+// RegenerateThumbnails is a new function for the admin job.
+func RegenerateThumbnails(ctx jobs.JobContext) {
+	jobId := "regen-thumbnails"
+	sendProgress(ctx, jobId, "Regenerating thumbnails...", 0, false)
+	// ... (logic for thumbnail generation)
+	sendProgress(ctx, jobId, "Thumbnail regeneration complete.", 100, true)
+}
+
 // LibrarySync performs a full synchronization between the filesystem and the database.
 func LibrarySync(ctx jobs.JobContext) {
-	jobName := "Library Sync"
+	jobId := "library-sync"
 	st := store.New(ctx.DB())
 
-	sendProgress(ctx, jobName, "Starting library sync...", 0, false)
+	sendProgress(ctx, jobId, "Starting library sync...", 0, false)
 
 	// 1. Preparation: Get current state from DB
-	sendProgress(ctx, jobName, "Fetching current library state...", 5, false)
+	sendProgress(ctx, jobId, "Fetching current library state...", 5, false)
 	dbFolders, _ := st.GetAllFoldersByPath()
 	dbChapters, _ := st.GetAllChaptersByHash()
 
 	// 2. File System Discovery
-	sendProgress(ctx, jobName, "Discovering files on disk...", 10, false)
+	sendProgress(ctx, jobId, "Discovering files on disk...", 10, false)
 	diskItems := make(map[string]diskItem)
 	rootPath := ctx.Config().Library.Path
 	filepath.WalkDir(rootPath, func(path string, d fs.DirEntry, err error) error {
@@ -164,26 +181,26 @@ func LibrarySync(ctx jobs.JobContext) {
 	})
 
 	// 3. Reconcile Folders
-	sendProgress(ctx, jobName, "Syncing folder structure...", 25, false)
+	sendProgress(ctx, jobId, "Syncing folder structure...", 25, false)
 	syncFolders(st, rootPath, diskItems, dbFolders)
 
 	// Refresh folder map after sync
 	dbFolders, _ = st.GetAllFoldersByPath()
 
 	// 4. Reconcile Chapters
-	sendProgress(ctx, jobName, "Syncing chapters...", 50, false)
+	sendProgress(ctx, jobId, "Syncing chapters...", 50, false)
 	syncChapters(st, diskItems, dbChapters, dbFolders)
 
 	// 5. Pruning: Remove DB entries for items no longer on disk
-	sendProgress(ctx, jobName, "Pruning deleted items...", 75, false)
+	sendProgress(ctx, jobId, "Pruning deleted items...", 75, false)
 	prune(st, diskItems, dbFolders, dbChapters)
 
 	// 6. Thumbnail Generation
-	sendProgress(ctx, jobName, "Updating thumbnails...", 90, false)
+	sendProgress(ctx, jobId, "Updating thumbnails...", 90, false)
 	st.UpdateAllFolderThumbnails()
 
-	sendProgress(ctx, jobName, "Library sync completed.", 100, true)
-	log.Println("Job finished:", jobName)
+	sendProgress(ctx, jobId, "Library sync completed.", 100, true)
+	log.Println("Job finished:", jobId)
 }
 
 // syncFolders ensures the folder structure in the DB matches the disk.
@@ -273,9 +290,9 @@ func generateContentHash(data []byte, filename string) string {
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
-func sendProgress(ctx jobs.JobContext, jobName string, message string, progress float64, done bool) {
+func sendProgress(ctx jobs.JobContext, jobId string, message string, progress float64, done bool) {
 	update := models.ProgressUpdate{
-		JobName:  jobName,
+		JobID:    jobId,
 		Message:  message,
 		Progress: progress,
 		Done:     done,
