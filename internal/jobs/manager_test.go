@@ -119,5 +119,11 @@ func TestManager_Concurrency(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 	mu.Lock()
 	assert.Equal(t, 1, count, "job should only run once concurrently")
+	if count != 1 {
+		statuses := mgr.GetStatus()
+		for _, s := range statuses {
+			t.Logf("Job %s: %s", s.ID, s.Status)
+		}
+	}
 	mu.Unlock()
 }

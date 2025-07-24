@@ -1,50 +1,32 @@
-# This GitHub Actions workflow automatically runs tests on every push and
-# pull request to the master branch.
+name: Run Tests
 
-# Name of the workflow
-name: Run Go Tests
-
-# Controls when the workflow will run
 on:
   # Triggers the workflow on push events but only for the "master" branch
   push:
     branches: [ "master" ]
-  # Triggers the workflow on pull request events for the "master" branch
   pull_request:
     branches: [ "master" ]
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "test"
   test:
-    # The type of runner that the job will run on
     runs-on: ubuntu-latest
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Step 1: Check out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Step 2: Set up the Go environment
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.24'
 
-      # Step 3: Install system dependencies required for testing
-      # go-sqlite3 requires the SQLite3 library (and gcc), which is not installed on the
-      # default runner. The tests also require the migrate CLI tool.
       - name: Install dependencies
         run: |
-          sudo apt-get update && sudo apt-get install -y libsqlite3-dev && \
-          go install -tags 'sqlite3' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+          sudo apt-get update && sudo apt-get install -y libsqlite3-dev npm make && \
+          npm install -g esbuild
 
-      # Step 4: Download Go module dependencies
-      - name: Install Go dependencies
-        run: go mod download
+      - name: Build assets and download Go dependencies
+        run: make assets download-go-deps
 
-      # Step 5: Run the tests
-      # The -v flag enables verbose output.
       - name: Run tests
-        run: go test -v ./...
+        run: go test ./...
