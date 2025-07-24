@@ -1,0 +1,92 @@
+version: 2
+
+before:
+  hooks:
+    - cmd: make assets
+      env:
+        - CGO_ENABLED=1
+
+builds:
+  - env:
+      - CGO_ENABLED=1
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    binary: mango-go
+    ldflags:
+      - -s -w
+      - -X main.version={{ .Version }}
+      - -X main.commit={{ .Commit }}
+      - -X main.date={{ .Date }}
+    ignore:
+      - goos=darwin
+        goarch=arm64
+        goarm=7
+    hooks:
+      pre: make assets
+    overrides:
+      - goos: windows
+        binary: mango-go.exe
+
+archives:
+  - format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE
+      - config.yml
+    ignore:
+      - - "**/.*"
+    allow_different_binary_count: true
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+      - Merge pull request
+      - Merge branch
+  use: github-native
+
+release:
+  draft: false
+  prerelease: false
+  name_template: '{{ .ProjectName }} {{ .Version }}'
+  body: |
+    ## What's Changed
+
+    {{ .Changelog }}
+
+    ## Installation
+
+    Download the appropriate binary for your platform:
+
+    {{ range $asset := .Assets }}
+    - [{{ $asset.Name }}]({{ $asset.BrowserDownloadURL }})
+    {{- end }}
+
+    ## Checksums
+
+    ```
+    {{ .Checksums }}
+    ```

@@ -18,12 +18,19 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version: '1.24.4'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install esbuild
+        run: npm install -g esbuild
 
       - name: Install dependencies
         run: |
-          sudo apt-get update && sudo apt-get install -y libsqlite3-dev npm make && \
-          npm install -g esbuild
+          sudo apt-get update && sudo apt-get install -y libsqlite3-dev make
 
       - name: Build assets and download Go dependencies
         run: make assets download-go-deps
