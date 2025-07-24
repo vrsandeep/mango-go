@@ -20,22 +20,6 @@ func New(db *sql.DB) *Store {
 	return &Store{db: db}
 }
 
-// UpdateSeriesThumbnailIfNeeded sets the series thumbnail only if it's not already set.
-// This ensures the first scanned chapter's cover becomes the series cover.
-func (s *Store) UpdateSeriesThumbnailIfNeeded(tx *sql.Tx, seriesID int64, thumbnail string) error {
-	var currentThumbnail sql.NullString
-	err := tx.QueryRow("SELECT thumbnail FROM series WHERE id = ?", seriesID).Scan(&currentThumbnail)
-	if err != nil {
-		return err
-	}
-
-	if !currentThumbnail.Valid || currentThumbnail.String == "" {
-		_, err := tx.Exec("UPDATE series SET thumbnail = ? WHERE id = ?", thumbnail, seriesID)
-		return err
-	}
-	return nil
-}
-
 // AddChaptersToQueue adds multiple chapters to the download queue in a single transaction.
 func (s *Store) AddChaptersToQueue(seriesTitle, providerID string, chapters []models.ChapterResult) error {
 	tx, err := s.db.Begin()

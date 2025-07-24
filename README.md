@@ -71,7 +71,7 @@ The application can be compiled into a single, portable binary file that contain
 
 1. **Build the Binary:**
    ```sh
-   go build -o mango-go .
+   make build
    ```
 
 2. **Configure:**

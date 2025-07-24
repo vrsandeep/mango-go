@@ -1,6 +1,7 @@
 package store
 
 import (
+	"cmp"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -275,11 +276,11 @@ func (s *Store) ListItems(opts ListItemsOptions) (*models.Folder, []*models.Fold
 			c.path,
 			c.path as name, -- Use path for sorting/display name
 			c.thumbnail,
-			c.page_count,
-			c.created_at,
-			c.updated_at,
-			COALESCE(ucp.read, 0),
-			COALESCE(ucp.progress_percent, 0),
+			c.page_count as chapter_page_count,
+			c.created_at as chapter_created_at,
+			c.updated_at as sort_updated_at,
+			COALESCE(ucp.read, 0) as user_read,
+			COALESCE(ucp.progress_percent, 0) as user_progress,
 			c.created_at as sort_created_at,
 			c.path as sort_name
 		FROM chapters c
@@ -304,7 +305,7 @@ func (s *Store) ListItems(opts ListItemsOptions) (*models.Folder, []*models.Fold
 	case "updated_at":
 		sortClause = "ORDER BY item_type ASC, sort_updated_at %s"
 	case "progress":
-		sortClause = "ORDER BY item_type ASC, user_progress %s, sort_name ASC"
+		sortClause = "ORDER BY item_type ASC, user_progress %s"
 	default:
 		sortClause = "ORDER BY item_type ASC, sort_name %s"
 	}
@@ -416,39 +417,24 @@ func (s *Store) ListItems(opts ListItemsOptions) (*models.Folder, []*models.Fold
 		})
 		chapters = limitAndOffsetChapters(chapters, opts.Page, opts.PerPage)
 	case "progress":
-		sort.Slice(chapters, func(i, j int) bool {
-			return chapters[i].ProgressPercent < chapters[j].ProgressPercent
-		})
 		// Sort subfolders by progress
-		sort.Slice(subfolders, func(i, j int) bool {
-			iChapters := subfolders[i].Chapters
-			iReadChapters := 0
-			iTotalChapters := len(iChapters)
-			for _, c := range iChapters {
-				if c.Read {
-					iReadChapters++
-				}
+		multiplier := 1
+		if strings.ToLower(sortDir) == "desc" {
+			multiplier = -1
+		}
+		slices.SortStableFunc(subfolders, func(i *models.Folder, j *models.Folder) int {
+			if i.TotalChapters == 0 && j.TotalChapters == 0 {
+				return 0 // Both have no chapters, keep original order
 			}
-			jChapters := subfolders[j].Chapters
-			jReadChapters := 0
-			jTotalChapters := len(jChapters)
-			for _, c := range jChapters {
-				if c.Read {
-					jReadChapters++
-				}
+			if i.TotalChapters == 0 {
+				return -1 * multiplier // i has no chapters, j comes first
 			}
-			if iTotalChapters == 0 && jTotalChapters == 0 {
-				return false // Both have no chapters, keep original order
+			if j.TotalChapters == 0 {
+				return 1 * multiplier // j has no chapters, i comes first
 			}
-			if iTotalChapters == 0 {
-				return false // i has no chapters, j comes first
-			}
-			if jTotalChapters == 0 {
-				return true // j has no chapters, i comes first
-			}
-			iProgress := float64(iReadChapters) / float64(iTotalChapters)
-			jProgress := float64(jReadChapters) / float64(jTotalChapters)
-			return iProgress < jProgress
+			iProgress := float64(i.ReadChapters) / float64(i.TotalChapters)
+			jProgress := float64(j.ReadChapters) / float64(j.TotalChapters)
+			return cmp.Compare(iProgress, jProgress) * multiplier
 		})
 	}
 	return currentFolder, subfolders, chapters, totalItems, nil

@@ -1,0 +1,179 @@
+.container {
+    max-width: 1200px;
+}
+
+.search-container {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.search-container input {
+    flex-grow: 1;
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+.search-container select {
+    min-width: 150px;
+}
+
+#provider-select {
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+.results-summary {
+    cursor: pointer;
+    color: var(--subtle-text-color);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.search-results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 1.5rem;
+}
+
+.search-results-grid .item-card {
+    cursor: pointer;
+}
+
+.item-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: center;
+}
+
+.chapter-view {
+    display: none;
+    margin-top: 2rem;
+}
+
+.chapter-view h2 {
+    margin-top: 0;
+}
+
+#chapter-count {
+    margin-bottom: 1rem;
+    color: var(--subtle-text-color);
+}
+
+.action-bar {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.action-bar button {
+    background-color: var(--btn-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.action-bar button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.action-bar button:hover:not(:disabled) {
+    background-color: var(--accent-color);
+    color: white;
+}
+
+.filter-panel {
+    background-color: var(--card-bg);
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    border: 1px solid var(--border-color);
+}
+
+.filter-panel button {
+    background-color: var(--btn-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.filter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.filter-grid input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+.chapter-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.chapter-table th,
+.chapter-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.chapter-table th {
+    cursor: pointer;
+    user-select: none;
+}
+
+.chapter-table tbody tr {
+    cursor: pointer;
+}
+
+.chapter-table tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.chapter-table tbody tr.selected {
+    background-color: var(--accent-color);
+    color: white;
+}
+
+.chapter-table th[data-sort] {
+    position: relative;
+}
+
+.chapter-table th[data-sort] .sort-icon {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.8rem;
+    color: var(--subtle-text-color);
+}
+
+.table-container {
+    max-width: 100%;
+    overflow-x: auto;
+}

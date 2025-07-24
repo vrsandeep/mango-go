@@ -1,363 +1,312 @@
-/* Common Card Helper */
+/* internal/assets/web/static/css/chapters.css */
 .library-controls {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
-    gap: 1rem;
-    flex-wrap: wrap;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
-
 .search-bar {
-    flex-grow: 1;
-    max-width: 400px;
+  flex-grow: 1;
+  max-width: 400px;
 }
-
 .search-bar input {
-    width: 100%;
-    padding: 0.5rem;
-    border: 1px solid var(--border-color);
-    border-radius: 5px;
-    background-color: var(--card-bg);
-    color: var(--text-color);
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  background-color: var(--card-bg);
+  color: var(--text-color);
 }
-
 .sort-controls {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
-
 .sort-controls select {
-    padding: 0.5rem;
-    border: 1px solid var(--border-color);
-    border-radius: 5px;
-    background-color: var(--card-bg);
-    color: var(--text-color);
+  padding: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  background-color: var(--card-bg);
+  color: var(--text-color);
 }
-
 .sort-controls button {
-    background-color: var(--btn-bg);
-    color: var(--text-color);
-    border: none;
-    padding: 0.5rem 1rem;
-    cursor: pointer;
-    border-radius: 5px;
+  background-color: var(--btn-bg);
+  color: var(--text-color);
+  border: none;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  border-radius: 5px;
 }
-
 .sort-controls button:hover {
-    background-color: var(--accent-color);
-    color: white;
+  background-color: var(--accent-color);
+  color: white;
 }
-
 .sort-controls span {
-    color: var(--text-color);
-    font-size: 0.9rem;
+  color: var(--text-color);
+  font-size: 0.9rem;
 }
-
 .total-count {
-    color: var(--subtle-text-color);
-    /* color: #888; */
-    font-size: 0.9rem;
-    margin-bottom: 1rem;
-    display: inline-block;
-    margin-left: 1rem;
+  color: var(--subtle-text-color);
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+  display: inline-block;
+  margin-left: 1rem;
 }
-
 .total-count::before {
-    content: "Total: ";
-    font-weight: bold;
+  content: "Total: ";
+  font-weight: bold;
 }
-/* Tags */
 .tags-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    /* margin-bottom: 1rem; */
-    /* padding: 0.5rem; */
-    background-color: var(--card-bg);
-    border-radius: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  background-color: var(--card-bg);
+  border-radius: 8px;
 }
-
 .tag {
-    background-color: var(--btn-bg);
-    padding: 0.25rem 0.75rem;
-    border-radius: 15px;
-    font-size: 0.9rem;
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
+  background-color: var(--btn-bg);
+  padding: 0.25rem 0.75rem;
+  border-radius: 15px;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 }
-
 .tag-remove-btn {
-    cursor: pointer;
-    font-weight: bold;
+  cursor: pointer;
+  font-weight: bold;
 }
-
 .tag-input {
-    margin-bottom: 1rem;
-    padding: 0.5rem;
-    border: 1px solid var(--border-color);
-    border-radius: 5px;
-    background-color: var(--card-bg);
-    color: var(--text-color);
-    width: 100%;
-    max-width: 400px;
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  background-color: var(--card-bg);
+  color: var(--text-color);
+  width: 100%;
+  max-width: 400px;
 }
-
 .page-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 0.5rem;
-    flex-wrap: wrap;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
 }
-
 .page-header-left {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 }
-
 .breadcrumb {
-    font-size: 0.9rem;
-    color: var(--subtle-text-color);
-    margin-bottom: 1.5rem;
-    font-size: 1.2rem;
-        white-space: nowrap;
-        overflow-x: auto;
-        padding-bottom: 5px;
+  font-size: 0.9rem;
+  color: var(--subtle-text-color);
+  margin-bottom: 1.5rem;
+  font-size: 1.2rem;
+  white-space: nowrap;
+  overflow-x: auto;
+  padding-bottom: 5px;
 }
-
 .breadcrumb a {
-    color: var(--subtle-text-color);
-    text-decoration: none;
+  color: var(--subtle-text-color);
+  text-decoration: none;
 }
-
 .breadcrumb a:hover {
-    color: var(--accent-color);
+  color: var(--accent-color);
 }
-
 .edit-btn {
-    background: none;
-    border: 1px solid var(--border-color);
-    color: var(--text-color);
-    padding: 8px;
-    border-radius: 5px;
-    cursor: pointer;
+  background: none;
+  border: 1px solid var(--border-color);
+  color: var(--text-color);
+  padding: 8px;
+  border-radius: 5px;
+  cursor: pointer;
 }
-
-/* New Unified Tag Input Styles */
 .tags-section {
-    margin-bottom: 1.5rem;
+  margin-bottom: 1.5rem;
 }
-
 .tags-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-    padding: 0.5rem;
-    background-color: var(--bg-color);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.5rem;
+  background-color: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
 }
-
 .tags-wrapper i {
-    font-size: 1.2rem;
-    color: var(--subtle-text-color);
+  font-size: 1.2rem;
+  color: var(--subtle-text-color);
 }
-
 .tag {
-    background-color: var(--btn-bg);
-    padding: 0.25rem 0.75rem;
-    border-radius: 15px;
-    font-size: 0.9rem;
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
+  background-color: var(--btn-bg);
+  padding: 0.25rem 0.75rem;
+  border-radius: 15px;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 }
-
 .tag-remove-btn {
-    cursor: pointer;
-    font-weight: bold;
-    margin-left: 0.25rem;
+  cursor: pointer;
+  font-weight: bold;
+  margin-left: 0.25rem;
 }
-
 .tag-input-container {
-    position: relative;
-    flex-grow: 1;
+  position: relative;
+  flex-grow: 1;
 }
-
 #tag-input {
-    border: none;
-    background: none;
-    color: var(--text-color);
-    padding: 0.5rem;
-    font-size: 1rem;
-    outline: none;
-    width: 100%;
-    min-width: 150px;
+  border: none;
+  background: none;
+  color: var(--text-color);
+  padding: 0.5rem;
+  font-size: 1rem;
+  outline: none;
+  width: 100%;
+  min-width: 150px;
 }
 .grid-section-header {
-    width: 100%;
-    grid-column: 1 / -1;
-    margin-top: 1rem;
-    margin-bottom: 0.5rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid var(--border-color);
-    font-size: 1.1rem;
-    color: var(--subtle-text-color);
+  width: 100%;
+  grid-column: 1 / -1;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 1.1rem;
+  color: var(--subtle-text-color);
 }
-
 .item-card.folder .thumbnail-container::after {
-    content: '📁';
-    position: absolute;
-    bottom: 8px;
-    right: 8px;
-    font-size: 1.5rem;
-    text-shadow: 0 0 4px black;
+  content: "\1f4c1";
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  font-size: 1.5rem;
+  text-shadow: 0 0 4px black;
 }
-
 .autocomplete-suggestion {
-    padding: 0.5em 1em;
-    cursor: pointer;
-    color: var(--text-color);
-    text-decoration: none;
-    border-bottom: 1px solid var(--border-color);
+  padding: 0.5em 1em;
+  cursor: pointer;
+  color: var(--text-color);
+  text-decoration: none;
+  border-bottom: 1px solid var(--border-color);
 }
-
 .autocomplete-suggestion:hover {
-    background-color: var(--accent-color);
+  background-color: var(--accent-color);
 }
 .autocomplete-suggestions {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    background-color: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-top: none;
-    border-radius: 0 0 8px 8px;
-    max-height: 200px;
-    overflow-y: auto;
-    z-index: 100;
-    display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 100;
+  display: none;
 }
-
 .suggestion-item {
-    padding: 0.75rem;
-    cursor: pointer;
+  padding: 0.75rem;
+  cursor: pointer;
 }
-
 .suggestion-item:hover,
 .suggestion-item.active {
-    background-color: var(--accent-color);
-    color: white;
+  background-color: var(--accent-color);
+  color: white;
 }
-
-/* Modal Styles */
 .modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.7);
-    display: none;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
 }
-
 .modal-content {
-    background: var(--card-bg);
-    padding: 2rem;
-    border-radius: 8px;
-    width: 90%;
-    max-width: 500px;
+  background: var(--card-bg);
+  padding: 2rem;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 500px;
 }
-
 .modal-content h2 {
-    margin-top: 0;
+  margin-top: 0;
 }
-
 .modal-form-group {
-    margin-bottom: 1rem;
+  margin-bottom: 1rem;
 }
-
 .modal-form-group label {
-    display: block;
-    margin-bottom: 0.5rem;
+  display: block;
+  margin-bottom: 0.5rem;
 }
-
 .modal-form-group input {
-    width: 100%;
-    padding: 0.5rem;
-    background: var(--bg-color);
-    border: 1px solid var(--border-color);
-    color: var(--text-color);
-    border-radius: 5px;
+  width: 100%;
+  padding: 0.5rem;
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  color: var(--text-color);
+  border-radius: 5px;
 }
-
 .modal-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 1rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
 }
-
 .header-thumb {
-    /* cursor: pointer; */
-    width: 100px;
-    height: 140px;
-    object-fit: cover;
-    border-radius: 5px;
+  width: 100px;
+  height: 140px;
+  object-fit: cover;
+  border-radius: 5px;
 }
-
 .modal-form-group button {
-    margin-top: 0.5rem;
-    background-color: var(--btn-bg);
-    color: var(--text-color);
-    border: none;
-    padding: 0.5rem 1.1rem;
-    cursor: pointer;
-    border-radius: 5px;
-    font-size: 1rem;
+  margin-top: 0.5rem;
+  background-color: var(--btn-bg);
+  color: var(--text-color);
+  border: none;
+  padding: 0.5rem 1.1rem;
+  cursor: pointer;
+  border-radius: 5px;
+  font-size: 1rem;
 }
-
-.modal-form-group input[type="text"] {
-    background-color: var(--card-bg);
-    color: var(--text-color);
-    border: 1px solid var(--border-color);
-    border-radius: 5px;
-    font-size: 1rem;
+.modal-form-group input[type=text] {
+  background-color: var(--card-bg);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  font-size: 1rem;
 }
-
 .modal-actions button {
-    margin-top: 0.5rem;
-    background-color: var(--btn-bg);
-    color: var(--text-color);
-    border: none;
-    padding: 0.5rem 1.1rem;
-    cursor: pointer;
-    border-radius: 5px;
-    font-size: 1rem;
+  margin-top: 0.5rem;
+  background-color: var(--btn-bg);
+  color: var(--text-color);
+  border: none;
+  padding: 0.5rem 1.1rem;
+  cursor: pointer;
+  border-radius: 5px;
+  font-size: 1rem;
 }
-
 .modal-actions button:hover {
-    background-color: var(--accent-color);
+  background-color: var(--accent-color);
 }
-
 #mark-all-read-btn,
 #mark-all-unread-btn {
-    background-color: var(--btn-bg);
-    color: var(--text-color);
-    border: 1px solid var(--border-color);
+  background-color: var(--btn-bg);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
 }
-
 #mark-all-read-btn:hover,
 #mark-all-unread-btn:hover {
-    background-color: var(--accent-color);
-    color: var(--text-color);
-    border: 1px solid var(--border-color);
+  background-color: var(--accent-color);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
 }

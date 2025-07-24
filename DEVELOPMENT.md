@@ -4,10 +4,21 @@ This document provides guidelines for setting up Mango-Go for development and co
 
 ## Prerequisites
 
+Before you begin, ensure you have the following installed:
+
 - **Go 1.24.4 or later**: [Install Go](https://golang.org/dl/)
 - **Git**: [Install Git](https://git-scm.com/downloads)
 - **SQLite3**: Usually comes with Go, but you may need to install it separately on some systems
 - **Make** (optional): For using the provided Makefile commands
+- **Docker & Docker Compose:** (Recommended for production)
+- **esbuild:** (Required for production builds) A very fast JavaScript and CSS bundler. You can install it with npm or Go:
+    ```sh
+    # Using npm (requires Node.js)
+    npm install -g esbuild
+
+    # Or, using Go
+    go install [github.com/evanw/esbuild/cmd/esbuild@latest](https://github.com/evanw/esbuild/cmd/esbuild@latest)
+    ```
 
 ## Local Development Setup
 
@@ -27,7 +38,7 @@ go mod download
 ### 3. Build the Application
 
 ```bash
-go build -o mango-go .
+make build
 ```
 
 ### 4. Create Configuration

@@ -141,7 +141,7 @@ func (s *Store) GetFolderStats(folderID int64, userID int64) (int, int, error) {
 			SELECT COUNT(*) as read_chapters, ? as folder_id
 			FROM chapters c
 			LEFT JOIN user_chapter_progress ucp ON c.id = ucp.chapter_id
-			WHERE c.folder_id = ? AND ucp.user_id = ?
+			WHERE c.folder_id = ? AND ucp.user_id = ? and ucp.read = true
 		)
 		SELECT COALESCE(total_chapters.total_chapters, 0) as total_chapters, COALESCE(read_chapters.read_chapters, 0) as read_chapters
 		FROM total_chapters

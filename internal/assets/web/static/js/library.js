@@ -1,3 +1,5 @@
+import { checkAuth } from './auth.js';
+
 document.addEventListener('DOMContentLoaded', async () => {
   const currentUser = await checkAuth();
   if (!currentUser) return;
@@ -96,13 +98,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     const card = document.createElement('a');
     card.href = `/library/folder/${folder.id}`;
     card.className = 'item-card folder';
+    // Calculate progress for the folder
+    const progressPercent = folder.total_chapters > 0 ? (folder.read_chapters / folder.total_chapters) * 100 : 0;
     card.innerHTML = `
             <div class="thumbnail-container">
                 <img class="thumbnail" src="${folder.thumbnail || '/static/images/logo.svg'}" loading="lazy" alt="Cover for ${folder.name}">
             </div>
             <div class="item-title" title="${folder.name}">${folder.name}</div>
             <div class="progress-bar-container">
-              <div class="progress-bar" style="width: ${folder.read_chapters / folder.total_chapters * 100 || 0}%;"></div>
+              <div class="progress-bar" style="width: ${progressPercent}%;"></div>
             </div>
         `;
     return card;

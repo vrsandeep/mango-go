@@ -70,3 +70,5 @@ async function checkAuth(requiredRole = null) {
         return null;
     }
 }
+
+export { checkAuth };

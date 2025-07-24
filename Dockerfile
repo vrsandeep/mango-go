@@ -1,7 +1,7 @@
 FROM golang:1.24.4-alpine AS builder
 
 # Install build tools needed for CGo and SQLite.
-RUN apk add --no-cache build-base sqlite-dev
+RUN apk add --no-cache build-base sqlite-dev nodejs npm git make
 
 # Set the working directory inside the container.
 WORKDIR /app
@@ -14,10 +14,10 @@ RUN go mod download
 COPY . .
 
 # Build the Go application.
-# -o /mango-server: Specifies the output binary name.
+# -o /mango-go: Specifies the output binary name.
 # -ldflags "-w -s": Strips debugging information, reducing the binary size.
 # CGO_ENABLED=1: Required for the go-sqlite3 driver.
-RUN CGO_ENABLED=1 go build -ldflags="-w -s" -o /mango-server .
+RUN make build
 
 # Use alpine as the base image. It's lightweight but contains the necessary
 # runtime libraries (like musl libc) that our binary depends on.
@@ -39,7 +39,7 @@ RUN chown -R mango:mango /app
 USER mango
 
 # Copy the compiled binary from the builder stage.
-COPY --from=builder /mango-server /mango-server
+COPY --from=builder /app/mango-go /mango-go
 
 # Expose the port the application will run on.
 EXPOSE 8080
@@ -47,4 +47,4 @@ EXPOSE 8080
 # Set the entrypoint for the container.
 # Note: Since we are not using a non-root user in this simple setup,
 # the binary will run as root. For enhanced security, a non-root user could be added.
-ENTRYPOINT ["/mango-server"]
+ENTRYPOINT ["/mango-go"]

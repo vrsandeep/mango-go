@@ -134,10 +134,11 @@ func (s *Server) Router() http.Handler {
 	}
 
 	// Create a file server for the static assets within the embedded FS.
-	staticFS, err := fs.Sub(webSubFS, "static")
+	staticFS, err := fs.Sub(webSubFS, "dist")
 	if err != nil {
 		log.Fatalf("Failed to create static sub-filesystem: %v", err)
 	}
+
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
 
 	// Serve the favicon from the embedded FS.

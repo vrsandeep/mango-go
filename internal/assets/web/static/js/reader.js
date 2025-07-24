@@ -1,3 +1,5 @@
+import { checkAuth } from './auth.js';
+
 document.addEventListener('DOMContentLoaded', async () => {
   const currentUser = await checkAuth();
   if (!currentUser) return;
@@ -126,6 +128,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateProgressText();
     updateJumpToPageSelect();
   };
+
   const updateJumpToPageSelect = (progressPercent) => {
     let progress = state.chapterData.progress_percent;
     if (state.readingMode === 'single_page') {
