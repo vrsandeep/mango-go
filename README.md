@@ -2,23 +2,29 @@
 
 A self-hosted manga server and web reader written in Go. This is a modern rewrite of the original [Mango](https://github.com/vrsandeep/Mango/) project, offering improved performance, easier deployment, and better maintainability.
 
-## Features
+## ✨ Features
 
 - 📚 **Manga Library Management**: Organize and browse your manga collection
 - 🌐 **Web Reader**: Read manga directly in your browser
 - 📱 **Responsive Design**: Works on desktop, tablet, and mobile devices
-- 🔍 **Smart Scanning**: Automatic library scanning with metadata extraction
 - 📥 **Download Manager**: Download manga from various sources
 - 🏷️ **Tagging System**: Organize manga with custom tags and folders
 - 👥 **Multi-User Support**: User management with different permission levels
 - 🔄 **Subscriptions**: Track and download new chapters automatically
 - 📊 **Progress Tracking**: Keep track of your reading progress
 
-## Installation & Usage
+
+## Screenshots
+
+![Home page](screenshots/home.png)
+![Library](screenshots/library.png)
+![Light theme](screenshots/home_light.png)
+
+## 🚀 Installation & Usage
 
 There are two primary ways to run Mango-Go: via Docker (recommended for production) or as a standalone binary.
 
-### Option 1: Production Deployment (Docker)
+### 🐳 Option 1: Docker
 
 The recommended way to run Mango-Go in production is using Docker and Docker Compose.
 
@@ -35,10 +41,10 @@ The recommended way to run Mango-Go in production is using Docker and Docker Com
    cd mango-go
    ```
 
-2. **Configure Your Library:**
+2. ⚙️ **Configure Your Library:**
    Open the `docker-compose.yml` file and find the `volumes` section. Change the line:
    ```yml
-   - ./manga:/manga
+   - ./manga:/manga # 👈  This is safe. This project does not modify the manga folder.
    ```
    to point to the actual location of your manga library on your computer. For example:
    ```yml
@@ -93,7 +99,7 @@ The application can be compiled into a single, portable binary file that contain
 
 ## Library Organization
 
-While Mango-Go can work with any folder structure, it's recommended to organize your manga library with series at the root level for optimal scanning performance:
+While Mango-Go can work with any folder structure, it's recommended to organize your manga library with series at the root level:
 
 ```
 manga/
@@ -188,9 +194,8 @@ docker-compose logs
 
 ## Support
 
-- **Issues**: Report bugs and request features on [GitHub Issues](https://github.com/vrsandeep/mango-go/issues)
-- **Discussions**: Join the community on [GitHub Discussions](https://github.com/vrsandeep/mango-go/discussions)
-- **Documentation**: For development and contribution guidelines, see [Development.md](Development.md)
+- 🐞 **Issues**: Report bugs and request features on [GitHub Issues](https://github.com/vrsandeep/mango-go/issues)
+- ✨ **Documentation**: For contribution guidelines, see [Development.md](Development.md)
 
 ## License
 
@@ -199,4 +204,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Acknowledgments
 
 - Original [Mango](https://github.com/hkalexling/mango/) project for inspiration
-- The Go community for excellent libraries and tools

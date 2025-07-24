@@ -13,6 +13,9 @@ RUN go mod download
 # Copy the rest of the application's source code.
 COPY . .
 
+# Install esbuild for building the web assets.
+RUN npm install -g esbuild
+
 # Build the Go application.
 # -o /mango-go: Specifies the output binary name.
 # -ldflags "-w -s": Strips debugging information, reducing the binary size.
