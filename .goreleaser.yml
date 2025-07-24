@@ -1,14 +1,15 @@
 version: 2
 
-before:
-  hooks:
-    - cmd: make assets
-      env:
-        - CGO_ENABLED=1
+# before:
+#   hooks:
+#     - cmd: make assets
+#       env:
+#         CGO_ENABLED: 1
 
 builds:
   - env:
       - CGO_ENABLED=1
+    main: .
     goos:
       - linux
       - darwin
@@ -23,17 +24,17 @@ builds:
       - -X main.commit={{ .Commit }}
       - -X main.date={{ .Date }}
     ignore:
-      - goos=darwin
-        goarch=arm64
-        goarm=7
+      - goos: darwin
+        goarch: arm64
+        goarm: 7
+      - goos: windows
+        goarch: arm64
     hooks:
       pre: make assets
-    overrides:
-      - goos: windows
-        binary: mango-go.exe
+
 
 archives:
-  - format: tar.gz
+  - formats: ['tar.gz']
     name_template: >-
       {{ .ProjectName }}_
       {{- title .Os }}_
@@ -42,20 +43,18 @@ archives:
       {{- else }}{{ .Arch }}{{ end }}
     format_overrides:
       - goos: windows
-        format: zip
+        formats: ['zip']
     files:
       - README.md
       - LICENSE
       - config.yml
-    ignore:
-      - - "**/.*"
     allow_different_binary_count: true
 
 checksum:
   name_template: 'checksums.txt'
 
 snapshot:
-  name_template: "{{ incpatch .Version }}-next"
+  version_template: "{{ incpatch .Version }}-next"
 
 changelog:
   sort: asc
@@ -68,25 +67,19 @@ changelog:
       - Merge branch
   use: github-native
 
+dockers:
+  - image_templates:
+      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}:{{ .Version }}"
+      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}:latest"
+    dockerfile: Dockerfile
+    use: buildx
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--platform=linux/arm64"
+    extra_files:
+      - Dockerfile
+
 release:
   draft: false
   prerelease: false
   name_template: '{{ .ProjectName }} {{ .Version }}'
-  body: |
-    ## What's Changed
-
-    {{ .Changelog }}
-
-    ## Installation
-
-    Download the appropriate binary for your platform:
-
-    {{ range $asset := .Assets }}
-    - [{{ $asset.Name }}]({{ $asset.BrowserDownloadURL }})
-    {{- end }}
-
-    ## Checksums
-
-    ```
-    {{ .Checksums }}
-    ```
