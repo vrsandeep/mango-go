@@ -17,10 +17,8 @@ import (
 
 	"github.com/vrsandeep/mango-go/internal/core"
 	"github.com/vrsandeep/mango-go/internal/downloader/providers"
-	"github.com/vrsandeep/mango-go/internal/jobs"
 	"github.com/vrsandeep/mango-go/internal/models"
 	"github.com/vrsandeep/mango-go/internal/store"
-	"github.com/vrsandeep/mango-go/internal/websocket"
 )
 
 var (
@@ -33,7 +31,7 @@ var (
 // StartWorkerPool initializes and starts the download workers.
 func StartWorkerPool(app *core.App) {
 	jobQueue = make(chan *models.DownloadQueueItem, numWorkers)
-	st := store.New(app.DB)
+	st := store.New(app.DB())
 
 	// On startup, re-queue any items that were "in_progress".
 	st.ResetInProgressQueueItems()
@@ -81,7 +79,7 @@ func worker(id int, app *core.App, st *store.Store) {
 			st.UpdateQueueItemStatus(job.ID, "completed", "Download finished successfully.")
 			// Trigger a library scan to pick up the new chapter
 			go func() {
-				jobs.RunIncrementalScan(app)
+				app.JobManager().RunJob("library-sync", app)
 			}()
 		}
 	}
@@ -146,8 +144,8 @@ func processDownload(app *core.App, st *store.Store, job *models.DownloadQueueIt
 		}
 
 		// Broadcast progress update via WebSocket
-		app.WsHub.BroadcastJSON(websocket.ProgressUpdate{
-			JobName:  "downloader",
+		app.WsHub().BroadcastJSON(models.ProgressUpdate{
+			JobID:    "downloader",
 			Message:  fmt.Sprintf("Downloaded page %d of %d", i+1, total),
 			Progress: float64(progress),
 			ItemID:   job.ID,
@@ -161,7 +159,7 @@ func processDownload(app *core.App, st *store.Store, job *models.DownloadQueueIt
 	}
 
 	// Save the CBZ file
-	seriesDir := filepath.Join(app.Config.Library.Path, job.SeriesTitle)
+	seriesDir := filepath.Join(app.Config().Library.Path, job.SeriesTitle)
 	if err := os.MkdirAll(seriesDir, os.ModePerm); err != nil {
 		return fmt.Errorf("failed to create series directory: %w", err)
 	}

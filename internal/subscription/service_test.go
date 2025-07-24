@@ -35,30 +35,29 @@ func setupTestApp(t *testing.T) *core.App {
 	hub := websocket.NewHub()
 	go hub.Run() // Run the hub in the background
 
-	return &core.App{
-		Config: &config.Config{
-			Library: struct {
-				Path string `mapstructure:"path"`
-			}{Path: t.TempDir()},
-		},
-		DB:      testutil.SetupTestDB(t),
-		WsHub:   hub,
-		Version: "test",
-	}
+	app := &core.App{Version: "test"}
+	app.SetConfig(&config.Config{
+		Library: struct {
+			Path string `mapstructure:"path"`
+		}{Path: t.TempDir()},
+	})
+	app.SetDB(testutil.SetupTestDB(t))
+	app.SetWsHub(hub)
+	return app
 }
 func TestSubscriptionService(t *testing.T) {
 	// Clear the provider registry before each test
 	providers.UnregisterAll()
 
 	app := setupTestApp(t)
-	st := store.New(app.DB)
+	st := store.New(app.DB())
 
 	// Register our mock provider for this test
 	providers.Register(&MockSubProvider{})
 
 	// Create a subscription that was made 1 hour ago
 	subTime := time.Now().Add(-1 * time.Hour)
-	app.DB.Exec("INSERT INTO subscriptions (id, series_title, series_identifier, provider_id, created_at) VALUES (?, ?, ?, ?, ?)", 1, "Test Sub", "test-id", "mocksub", subTime)
+	app.DB().Exec("INSERT INTO subscriptions (id, series_title, series_identifier, provider_id, created_at) VALUES (?, ?, ?, ?, ?)", 1, "Test Sub", "test-id", "mocksub", subTime)
 
 	service := subscription.NewService(app)
 

@@ -1,66 +1,60 @@
+/* internal/assets/web/static/css/home.css */
 .home-section {
-    margin-bottom: 3rem;
+  margin-bottom: 3rem;
 }
-
 .home-section h2 {
-    margin-bottom: 1rem;
-    font-size: 1.5rem;
+  margin-bottom: 1rem;
+  font-size: 1.5rem;
 }
-
 .horizontal-scroll-container {
-    display: flex;
-    overflow-x: auto;
-    gap: 1.5rem;
-    padding-bottom: 1.5rem; /* For scrollbar spacing */
-    scrollbar-width: thin;
-    scrollbar-color: var(--accent-color) var(--btn-bg);
+  display: flex;
+  overflow-x: auto;
+  gap: 1.5rem;
+  padding-bottom: 1.5rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent-color) var(--btn-bg);
 }
-
-/* Hide scrollbar for Webkit browsers but keep functionality */
 .horizontal-scroll-container::-webkit-scrollbar {
-    height: 8px;
+  height: 8px;
 }
 .horizontal-scroll-container::-webkit-scrollbar-track {
-    background: var(--btn-bg);
-    border-radius: 4px;
+  background: var(--btn-bg);
+  border-radius: 4px;
 }
 .horizontal-scroll-container::-webkit-scrollbar-thumb {
-    background-color: var(--accent-color);
-    border-radius: 4px;
+  background-color: var(--accent-color);
+  border-radius: 4px;
 }
-
 .home-section .item-card {
-    flex: 0 0 160px; /* Prevent cards from shrinking */
-    width: 160px;
+  flex: 0 0 160px;
+  width: 160px;
 }
-
 .badge {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    background-color: var(--accent-color);
-    color: #fefefe;
-    padding: 0.25rem 0.5rem;
-    border-radius: 10px;
-    font-size: 0.8rem;
-    font-weight: bold;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background-color: var(--accent-color);
+  color: #fefefe;
+  padding: 0.25rem 0.5rem;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  font-weight: bold;
 }
-
 #home-container p {
-    margin-bottom: 0;
-    text-wrap: balance;
-    text-align: center;
-    font-size: 0.8rem;
-    color: var(--text-color);
-    text-align: center;
-    font-style: italic;
-    font-weight: 300;
-    line-height: 1.2;
-    max-width: 400px;
-    margin: 0 auto;
-    padding: 0 1rem;
-    text-wrap: balance;
-    margin-bottom: 1rem;
-    text-wrap: balance;
-    text-align: center;
+  margin-bottom: 0;
+  text-wrap: balance;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-color);
+  text-align: center;
+  font-style: italic;
+  font-weight: 300;
+  line-height: 1.2;
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  text-wrap: balance;
+  margin-bottom: 1rem;
+  text-wrap: balance;
+  text-align: center;
 }

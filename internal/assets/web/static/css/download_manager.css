@@ -1,0 +1,108 @@
+.container {
+    max-width: 1200px;
+}
+
+.header-actions {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+}
+
+.header-actions button {
+    background-color: var(--btn-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    padding: 8px 16px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.header-actions button:hover {
+    background-color: var(--accent-color);
+    color: white;
+}
+
+.header-actions button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.header-actions button:disabled:hover {
+    background-color: var(--btn-bg);
+    color: white;
+}
+
+.header-actions button.danger {
+    border-color: #8B0000;
+    color: #ff4500;
+}
+
+.header-actions button.danger:hover {
+    background-color: #8B0000;
+    color: white;
+}
+
+.queue-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1.5rem;
+}
+
+.queue-table th,
+.queue-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--card-bg);
+}
+
+.queue-table th:nth-child(3),
+.queue-table td:nth-child(3) {
+    width: 20%;
+}
+
+.progress-bar-container {
+    height: 20px;
+    background-color: #444;
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 0.5rem 0;
+}
+
+.progress-bar-container:hover {
+    background-color: #555;
+}
+
+.progress-bar-container:hover {
+    background-color: var(--accent-color);
+}
+
+.progress-bar {
+    width: 0%;
+    height: 100%;
+    background-color: var(--accent-color);
+    transition: width 0.2s linear;
+    border-radius: 4px;
+    color: white;
+    text-align: center;
+    font-size: 0.8rem;
+    line-height: 20px;
+}
+
+.status-queued {
+    color: #f0f0f0;
+}
+
+.status-in_progress {
+    color: #1e90ff;
+}
+
+.status-completed {
+    color: #32cd32;
+}
+
+.status-failed {
+    color: #ff4500;
+}

@@ -14,35 +14,39 @@ type User struct {
 	CreatedAt    time.Time `json:"created_at"`
 }
 
-// Series represents a single manga series.
-type Series struct {
-	ID             int64      `json:"id"`
-	Title          string     `json:"title"`
-	Path           string     `json:"path"`
-	Thumbnail      string     `json:"thumbnail,omitempty"`
-	CustomCoverURL string     `json:"custom_cover_url,omitempty"` // New field
-	Chapters       []*Chapter `json:"chapters,omitempty"`         // omitempty hides it when not loaded
-	Tags           []*Tag     `json:"tags,omitempty"`
-	CreatedAt      time.Time  `json:"created_at"`
-	UpdatedAt      time.Time  `json:"updated_at"`
+// Folder represents a directory in the user's library.
+type Folder struct {
+	ID        int64     `json:"id"`
+	Path      string    `json:"path"`
+	Name      string    `json:"name"`
+	ParentID  *int64    `json:"parent_id"`
+	Thumbnail string    `json:"thumbnail,omitempty"`
+	Tags      []*Tag    `json:"tags,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	// For API responses
+	Subfolders []*Folder  `json:"subfolders,omitempty"`
+	Chapters   []*Chapter `json:"chapters,omitempty"`
 
 	// Fields calculated by the API, not stored in DB
 	TotalChapters int             `json:"total_chapters,omitempty"`
 	ReadChapters  int             `json:"read_chapters,omitempty"`
-	Settings      *SeriesSettings `json:"settings,omitempty"` // Series-specific settings
+	// Settings      *FolderSettings `json:"settings,omitempty"` // Folder-specific settings
 }
 
 // Chapter represents a single chapter of a manga.
 type Chapter struct {
-	ID              int64     `json:"id"`
-	SeriesID        int64     `json:"series_id"`
-	Path            string    `json:"path"`
-	Thumbnail       string    `json:"thumbnail,omitempty"`
-	PageCount       int       `json:"page_count"`
-	Read            bool      `json:"read"`
-	ProgressPercent int       `json:"progress_percent"`
-	CreatedAt       time.Time `json:"-"` // Hide from JSON responses
-	UpdatedAt       time.Time `json:"-"` // Hide from JSON responses
+	ID          int64     `json:"id"`
+	FolderID    int64     `json:"folder_id"`
+	Path        string    `json:"path"`
+	ContentHash string    `json:"-"` // Internal use, not exposed in API
+	Thumbnail   string    `json:"thumbnail,omitempty"`
+	PageCount   int       `json:"page_count"`
+	CreatedAt   time.Time `json:"created_at"` // `json:"-"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	// Per-user progress
+	Read            bool `json:"read"`
+	ProgressPercent int  `json:"progress_percent"`
 }
 
 // Page represents a single page within a chapter, which is an image
@@ -55,13 +59,11 @@ type Page struct {
 type Tag struct {
 	ID          int64  `json:"id"`
 	Name        string `json:"name"`
-	SeriesCount int    `json:"series_count,omitempty"`
+	FolderCount int    `json:"folder_count,omitempty"`
 }
 
-// SeriesSettings holds per-user sort preferences for a series.
-type SeriesSettings struct {
+type FolderSettings struct {
 	SortBy   string `json:"sort_by"`  // e.g. "auto", "path"
 	SortDir  string `json:"sort_dir"` // e.g. "asc", "desc"
-	SeriesID int64  `json:"-"`        // Hide from JSON responses
-	// UserID   int64  `json:"-"`        // Hide from JSON responses
+	FolderID int64  `json:"-"`        // Hide from JSON responses
 }

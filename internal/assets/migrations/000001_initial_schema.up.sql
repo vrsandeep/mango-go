@@ -1,6 +1,3 @@
--- SQUASHED INITIAL SCHEMA MIGRATION
--- This file replaces all previous migrations.
-
 PRAGMA foreign_keys = ON;
 
 -- Users table

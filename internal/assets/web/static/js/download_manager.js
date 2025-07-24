@@ -1,3 +1,5 @@
+import { checkAuth } from './auth.js';
+
 document.addEventListener('DOMContentLoaded', async () => {
   const currentUser = await checkAuth();
   if (!currentUser) return;

@@ -28,15 +28,15 @@ func TestForeignKeyCascadeDelete(t *testing.T) {
 		t.Fatalf("Failed to create test user: %v", err)
 	}
 
-	// Create a series
-	_, err = db.Exec("INSERT INTO series (title, path, created_at, updated_at) VALUES (?, ?, datetime('now'), datetime('now'))",
-		"Test Series", "/test/path")
+	// Create a folder
+	_, err = db.Exec("INSERT INTO folders (name, path, created_at, updated_at) VALUES (?, ?, datetime('now'), datetime('now'))",
+		"Test Folder", "/test/path")
 	if err != nil {
-		t.Fatalf("Failed to create test series: %v", err)
+		t.Fatalf("Failed to create test folder: %v", err)
 	}
 
 	// Create a chapter
-	_, err = db.Exec("INSERT INTO chapters (series_id, path, page_count, created_at, updated_at) VALUES (?, ?, ?, datetime('now'), datetime('now'))",
+	_, err = db.Exec("INSERT INTO chapters (folder_id, path, page_count, created_at, updated_at) VALUES (?, ?, ?, datetime('now'), datetime('now'))",
 		1, "/test/chapter", 10)
 	if err != nil {
 		t.Fatalf("Failed to create test chapter: %v", err)
@@ -49,11 +49,11 @@ func TestForeignKeyCascadeDelete(t *testing.T) {
 		t.Fatalf("Failed to create test user progress: %v", err)
 	}
 
-	// Create user series settings
-	_, err = db.Exec("INSERT INTO user_series_settings (user_id, series_id, sort_by, sort_dir) VALUES (?, ?, ?, ?)",
+	// Create user folder settings
+	_, err = db.Exec("INSERT INTO user_folder_settings (user_id, folder_id, sort_by, sort_dir) VALUES (?, ?, ?, ?)",
 		1, 1, "auto", "asc")
 	if err != nil {
-		t.Fatalf("Failed to create test user series settings: %v", err)
+		t.Fatalf("Failed to create test user folder settings: %v", err)
 	}
 
 	// Test 3: Delete user and verify cascade delete
@@ -72,36 +72,36 @@ func TestForeignKeyCascadeDelete(t *testing.T) {
 		t.Errorf("Expected 0 records in user_chapter_progress after user deletion, got %d", count)
 	}
 
-	// Verify user_series_settings was deleted
-	err = db.QueryRow("SELECT COUNT(*) FROM user_series_settings WHERE user_id = 1").Scan(&count)
+	// Verify user_folder_settings was deleted
+	err = db.QueryRow("SELECT COUNT(*) FROM user_folder_settings WHERE user_id = 1").Scan(&count)
 	if err != nil {
-		t.Fatalf("Failed to check user_series_settings: %v", err)
+		t.Fatalf("Failed to check user_folder_settings: %v", err)
 	}
 	if count != 0 {
-		t.Errorf("Expected 0 records in user_series_settings after user deletion, got %d", count)
+		t.Errorf("Expected 0 records in user_folder_settings after user deletion, got %d", count)
 	}
 
-	// Test 4: Delete series and verify cascade delete
-	_, err = db.Exec("DELETE FROM series WHERE id = 1")
+	// Test 4: Delete folder and verify cascade delete
+	_, err = db.Exec("DELETE FROM folders WHERE id = 1")
 	if err != nil {
-		t.Fatalf("Failed to delete series: %v", err)
+		t.Fatalf("Failed to delete folder: %v", err)
 	}
 
 	// Verify chapters were deleted
-	err = db.QueryRow("SELECT COUNT(*) FROM chapters WHERE series_id = 1").Scan(&count)
+	err = db.QueryRow("SELECT COUNT(*) FROM chapters WHERE folder_id = 1").Scan(&count)
 	if err != nil {
 		t.Fatalf("Failed to check chapters: %v", err)
 	}
 	if count != 0 {
-		t.Errorf("Expected 0 records in chapters after series deletion, got %d", count)
+		t.Errorf("Expected 0 records in chapters after folder deletion, got %d", count)
 	}
 
-	// Verify user_series_settings was deleted
-	err = db.QueryRow("SELECT COUNT(*) FROM user_series_settings WHERE series_id = 1").Scan(&count)
+	// Verify user_folder_settings was deleted
+	err = db.QueryRow("SELECT COUNT(*) FROM user_folder_settings WHERE folder_id = 1").Scan(&count)
 	if err != nil {
-		t.Fatalf("Failed to check user_series_settings: %v", err)
+		t.Fatalf("Failed to check user_folder_settings: %v", err)
 	}
 	if count != 0 {
-		t.Errorf("Expected 0 records in user_series_settings after series deletion, got %d", count)
+		t.Errorf("Expected 0 records in user_folder_settings after folder deletion, got %d", count)
 	}
 }

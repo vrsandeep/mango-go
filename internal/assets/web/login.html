@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,30 +14,35 @@
             min-height: 100vh;
             background-color: var(--bg-color);
         }
+
         .auth-container {
             width: 100%;
             max-width: 360px;
             padding: 2rem;
             background-color: var(--card-bg);
             border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
             border: 1px solid var(--border-color);
             margin: 0 auto;
         }
+
         .auth-form h2 {
             text-align: center;
             margin-top: 0;
             margin-bottom: 1.5rem;
         }
+
         .form-group {
             margin-bottom: 1rem;
         }
+
         .form-group label {
             display: block;
             margin-bottom: 0.5rem;
             font-weight: 600;
             color: var(--text-color);
         }
+
         .form-group input {
             width: 100%;
             box-sizing: border-box;
@@ -47,6 +53,7 @@
             color: var(--text-color);
             font-size: 1rem;
         }
+
         .auth-form button {
             width: 100%;
             box-sizing: border-box;
@@ -63,27 +70,33 @@
             margin-top: 1rem;
             text-transform: uppercase;
         }
+
         .auth-form button:hover {
             opacity: 0.9;
         }
+
         .error-message {
             color: #ff4500;
             text-align: center;
             margin-top: 1rem;
-            display: none; /* Hidden by default */
+            display: none;
+            /* Hidden by default */
         }
+
         .sidebar-logo {
             display: flex;
             justify-content: center;
             align-items: center;
             margin-bottom: 1.5rem;
         }
+
         .sidebar-logo .header-logo {
             height: 100px;
             width: 100px;
         }
     </style>
 </head>
+
 <body class="dark-theme">
     <div class="auth-container">
         <form class="auth-form" id="login-form">
@@ -103,46 +116,7 @@
             <p class="error-message" id="error-message"></p>
         </form>
     </div>
-
-    <script src="/static/js/auth.js"></script>
-    <script>
-        // First, check if the user is already authenticated. If so, redirect them away from the login page.
-        checkAuth().then(user => {
-            if (user) {
-                window.location.href = '/';
-            }
-        });
-
-        const loginForm = document.getElementById('login-form');
-        const errorMessage = document.getElementById('error-message');
-
-        loginForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            errorMessage.style.display = 'none';
-
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-
-            try {
-                const response = await fetch('/api/users/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
-                });
-
-                if (response.ok) {
-                    window.location.href = '/';
-                } else {
-                    const errorData = await response.json();
-                    errorMessage.textContent = errorData.error || 'Login failed. Please check your credentials.';
-                    errorMessage.style.display = 'block';
-                }
-            } catch (err) {
-                console.error("Login request failed:", err);
-                errorMessage.textContent = 'An error occurred. Please try again later.';
-                errorMessage.style.display = 'block';
-            }
-        });
-    </script>
+    <script src="/static/js/login.js"></script>
 </body>
+
 </html>

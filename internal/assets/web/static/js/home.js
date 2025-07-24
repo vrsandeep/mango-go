@@ -1,3 +1,5 @@
+import { checkAuth } from './auth.js';
+
 document.addEventListener('DOMContentLoaded', async () => {
   const user = await checkAuth();
   if (!user) return;
@@ -11,7 +13,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const isChapter = item.chapter_id && item.chapter_id > 0;
 
     // Link to the chapter reader if it's a chapter, otherwise to the series page.
-    card.href = isChapter ? `/reader/series/${item.series_id}/chapters/${item.chapter_id}` : `/series/${item.series_id}`;
+    card.href = isChapter ? `/reader/series/${item.series_id}/chapters/${item.chapter_id}` : `/library/folder/${item.series_id}`;
 
     const coverSrc = item.cover_art || '';
     const title = isChapter ? item.chapter_title.split(/[\\/]/).pop() : item.series_title;

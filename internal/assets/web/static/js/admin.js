@@ -1,10 +1,13 @@
+import { checkAuth } from './auth.js';
+
 document.addEventListener('DOMContentLoaded', async () => {
   const currentUser = await checkAuth("admin");
   if (!currentUser) return;
 
-  const startJob = async (endpoint, button) => {
+  const startJob = async (button) => {
     button.disabled = true;
-    const jobEl = button.closest('.job-item');
+    const jobId = button.dataset.jobId;
+    const jobEl = document.getElementById(jobId);
     const progressContainer = jobEl.querySelector('.job-progress-container');
     const progressBar = jobEl.querySelector('.job-progress-bar');
     const description = jobEl.querySelector('.job-description');
@@ -13,7 +16,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     progressBar.style.width = '0%';
     description.textContent = 'Starting job...';
 
-    await fetch(endpoint, { method: 'POST' });
+    await fetch('/api/admin/jobs/run', { method: 'POST', body: JSON.stringify({ job_id: jobId }) });
   };
 
   const initWebSocket = () => {
@@ -22,8 +25,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      const jobElId = `job-${data.job_name.toLowerCase().replace(/\s+/g, '-')}`;
-      const jobEl = document.getElementById(jobElId);
+      const jobEl = document.getElementById(data.jobId);
       if (!jobEl) return;
 
       const progressBar = jobEl.querySelector('.job-progress-bar');
@@ -51,7 +53,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   document.querySelectorAll('.start-job-btn').forEach(button => {
     button.addEventListener('click', (e) => {
-      startJob(e.target.dataset.endpoint, e.target);
+      startJob(e.target);
     });
   });
 

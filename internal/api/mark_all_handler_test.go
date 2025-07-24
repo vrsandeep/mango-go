@@ -11,14 +11,14 @@ import (
 )
 
 func TestHandleMarkAllAs(t *testing.T) {
-	server, db := testutil.SetupTestServer(t)
+	server, db, _ := testutil.SetupTestServer(t)
 	router := server.Router()
 	s := store.New(db)
-	testutil.PersistOneSeriesAndChapter(t, db)
+	testutil.PersistOneFolderAndChapter(t, db)
 
 	t.Run("Mark all as read", func(t *testing.T) {
 		payload := `{"read": true}`
-		req, _ := http.NewRequest("POST", "/api/series/1/mark-all-as", bytes.NewBufferString(payload))
+		req, _ := http.NewRequest("POST", "/api/folders/1/mark-all-as", bytes.NewBufferString(payload))
 		req.AddCookie(testutil.CookieForUser(t, server, "testuser", "password", "user"))
 		req.Header.Set("Content-Type", "application/json")
 
@@ -30,19 +30,23 @@ func TestHandleMarkAllAs(t *testing.T) {
 		}
 
 		// Verify the change in the database
-		series, count, err := s.GetSeriesByID(1, 1, 1, 10, "", "", "") // Get all chapters
+		_, _, chapters, _, err := s.ListItems(store.ListItemsOptions{
+			UserID:   1,
+			ParentID: &[]int64{1}[0],
+			Page:     1,
+			PerPage:  10,
+			SortBy:   "",
+			SortDir:  "",
+		}) // Get all chapters
 		if err != nil {
-			t.Fatalf("Failed to get series: %v", err)
+			t.Fatalf("Failed to get folder: %v", err)
 		}
-		if count != 1 {
-			t.Fatalf("Expected 1 chapter, got %d", count)
-		}
-		if len(series.Chapters) != 1 {
-			t.Fatalf("Expected 1 chapter, got %d", len(series.Chapters))
+		if len(chapters) != 1 {
+			t.Fatalf("Expected 1 chapter, got %d", len(chapters))
 		}
 
 		// Verify all chapters are unread initially
-		for _, chapter := range series.Chapters {
+		for _, chapter := range chapters {
 			if !chapter.Read {
 				t.Errorf("Expected chapter %d to be marked as read, but it was not", chapter.ID)
 			}
@@ -54,10 +58,10 @@ func TestHandleMarkAllAs(t *testing.T) {
 
 	t.Run("Mark all as unread", func(t *testing.T) {
 		// First, mark them as read to ensure the "unread" call works
-		s.MarkAllChaptersAs(1, true, 1)
+		s.MarkFolderChaptersAs(1, true, 1)
 
 		payload := `{"read": false}`
-		req, _ := http.NewRequest("POST", "/api/series/1/mark-all-as", bytes.NewBufferString(payload))
+		req, _ := http.NewRequest("POST", "/api/folders/1/mark-all-as", bytes.NewBufferString(payload))
 		req.AddCookie(testutil.CookieForUser(t, server, "testuser", "password", "user"))
 		req.Header.Set("Content-Type", "application/json")
 
@@ -69,19 +73,23 @@ func TestHandleMarkAllAs(t *testing.T) {
 		}
 
 		// Verify the change in the database
-		series, count, err := s.GetSeriesByID(1, 1, 1, 10, "", "", "") // Get all chapters
+		_, _, chapters, _, err := s.ListItems(store.ListItemsOptions{
+			UserID:   1,
+			ParentID: &[]int64{1}[0],
+			Page:     1,
+			PerPage:  10,
+			SortBy:   "",
+			SortDir:  "",
+		}) // Get all chapters
 		if err != nil {
-			t.Fatalf("Failed to get series: %v", err)
+			t.Fatalf("Failed to get folder: %v", err)
 		}
-		if count != 1 {
-			t.Fatalf("Expected 1 chapter, got %d", count)
-		}
-		if len(series.Chapters) != 1 {
-			t.Fatalf("Expected 1 chapters, got %d", len(series.Chapters))
+		if len(chapters) != 1 {
+			t.Fatalf("Expected 1 chapters, got %d", len(chapters))
 		}
 
 		// Verify all chapters are unread initially
-		for _, chapter := range series.Chapters {
+		for _, chapter := range chapters {
 			if chapter.Read {
 				t.Errorf("Expected chapter %d to be unread", chapter.ID)
 			}

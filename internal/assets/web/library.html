@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Library - Mango</title>
+    <link rel="stylesheet" href="https://unpkg.com/phosphor-icons@1.4.2/src/css/icons.css">
+    <link rel="stylesheet" href="/static/css/library_grid.css">
+    <link rel="stylesheet" href="/static/css/chapters.css">
+</head>
+
+<body>
+    <header class="main-header">
+        <div class="header-left">
+            <button class="menu-toggle" id="menu-toggle-btn"><i class="ph-bold ph-list"></i></button>
+            <nav class="nav-links" id="nav-links">
+                <div class="sidebar-logo">
+                    <img src="/static/images/logo.svg" alt="Mango Logo" class="header-logo">
+                    <!-- <svg class="header-logo" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM4 4h16v11.17l-3.17-3.17-2 2-3-3-3.17 3.17L4 12.34V4z"/></svg> -->
+                </div>
+                <a href="/">Home</a>
+                <a href="/library">Library</a>
+                <a href="/admin" class="admin-only" style="display: none;">Admin</a>
+                <a href="/tags">Tags</a>
+                <div class="header-dropdown">
+                    <button class="header-dropdown-btn" tabindex="0">Download <i class="ph-bold ph-caret-down"></i></button>
+                    <div class="header-dropdown-content">
+                        <span style="font-weight:600; color:var(--text-color); padding:0.5em 1.2em;">SOURCE</span>
+                        <a href="/downloads/plugins">Plugins</a>
+                        <hr>
+                        <a href="/downloads/manager">Download Manager</a>
+                        <a href="/downloads/subscriptions">Subscription Manager</a>
+                    </div>
+                </div>
+            </nav>
+        </div>
+        <div class="header-right">
+            <button id="theme-toggle-btn">Theme</button>
+            <button id="logout-btn" class="auth-only" style="display: none;">Logout</button>
+        </div>
+    </header>
+    <main class="container">
+        <nav class="breadcrumb" id="breadcrumb-container"></nav>
+        <div class="page-header">
+            <img id="folder-thumb" class="header-thumb" style="display: none;">
+            <h1 id="page-title">Library</h1>
+            <button class="edit-btn" id="edit-folder-btn" style="display: none;" title="Edit Folder"><i
+                    class="ph-bold ph-pencil-simple"></i></button>
+        </div>
+        <span id="total-count" class="total-count"></span>
+        <div class="library-controls">
+            <div class="search-bar">
+                <input type="search" id="search-input" placeholder="Search this folder...">
+            </div>
+            <div class="sort-controls">
+                <span>Sort by:</span>
+                <select id="sort-by">
+                    <option value="auto">Auto</option>
+                    <option value="name">Name</option>
+                    <option value="created_at">Date Added</option>
+                    <option value="updated_at">Date Modified</option>
+                    <option value="progress">Progress</option>
+                </select>
+                <button id="sort-dir-btn">▲</button>
+            </div>
+        </div>
+        <div class="grid" id="cards-grid"></div>
+        <div class="pagination-container" id="pagination-container"></div>
+    </main>
+
+    <!-- Edit Modal -->
+    <div class="modal-overlay" id="edit-folder-modal">
+        <div class="modal-content">
+            <h2 id="edit-modal-title">Edit Folder</h2>
+
+            <div class="modal-form-group">
+                <label for="cover-file-input">Upload Custom Cover</label>
+                <input type="file" id="cover-file-input" accept="image/png, image/jpeg, image/webp">
+            </div>
+
+            <div class="modal-form-group">
+                <label>Progress</label>
+                <div style="display: flex; gap: 1rem;">
+                    <button id="mark-all-read-btn">Mark All as Read</button>
+                    <button id="mark-all-unread-btn">Mark All as Unread</button>
+                </div>
+            </div>
+
+            <p>Tags</p>
+            <div class="tags-section">
+                <div class="tags-wrapper">
+                    <i class="ph-bold ph-tag"></i>
+                    <div class="tags-container" id="tags-container"></div>
+                    <div class="tag-input-container">
+                        <input type="text" id="tag-input" placeholder="Add a tag...">
+                        <div class="autocomplete-suggestions" id="autocomplete-suggestions"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button id="modal-cancel-btn">Cancel</button>
+                <button id="modal-save-btn">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <footer class="main-footer"><span id="version-footer"></span></footer>
+    <script src="/static/js/header.js"></script>
+    <script src="/static/js/library.js"></script>
+</body>
+
+</html>

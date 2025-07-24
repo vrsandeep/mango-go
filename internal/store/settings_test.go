@@ -8,7 +8,7 @@ import (
 	"github.com/vrsandeep/mango-go/internal/testutil"
 )
 
-func TestSeriesSettings(t *testing.T) {
+func TestFolderSettings(t *testing.T) {
 	db := testutil.SetupTestDB(t)
 	s := store.New(db)
 
@@ -20,34 +20,32 @@ func TestSeriesSettings(t *testing.T) {
 		t.Fatalf("Failed to insert user: %v", err)
 	}
 
-	// Create a dummy series
-	res, err := db.Exec(
-		`INSERT INTO series (id, title, path, created_at, updated_at) VALUES (1, 'Series B', '/path/b', ?, ?)`,
-		time.Now(), time.Now())
+	folder, err := s.CreateFolder("/path/b", "Folder B", nil)
+
 	if err != nil {
-		t.Fatalf("Failed to insert series: %v", err)
+		t.Fatalf("Failed to create folder: %v", err)
 	}
-	seriesID, _ := res.LastInsertId()
+	folderID := folder.ID
 
 	// Test getting default settings
-	settings, err := s.GetSeriesSettings(seriesID, userID)
+	settings, err := s.GetFolderSettings(folderID, userID)
 	if err != nil {
-		t.Fatalf("GetSeriesSettings failed for new series: %v", err)
+		t.Fatalf("GetFolderSettings failed for new folder: %v", err)
 	}
 	if settings.SortBy != "auto" || settings.SortDir != "asc" {
 		t.Errorf("Expected default settings, but got %+v", settings)
 	}
 
 	// Test updating settings
-	err = s.UpdateSeriesSettings(seriesID, userID, "path", "desc")
+	err = s.UpdateFolderSettings(folderID, userID, "path", "desc")
 	if err != nil {
-		t.Fatalf("UpdateSeriesSettings failed: %v", err)
+		t.Fatalf("UpdateFolderSettings failed: %v", err)
 	}
 
 	// Test getting updated settings
-	newSettings, err := s.GetSeriesSettings(seriesID, userID)
+	newSettings, err := s.GetFolderSettings(folderID, userID)
 	if err != nil {
-		t.Fatalf("GetSeriesSettings failed after update: %v", err)
+		t.Fatalf("GetFolderSettings failed after update: %v", err)
 	}
 	if newSettings.SortBy != "path" || newSettings.SortDir != "desc" {
 		t.Errorf("Expected updated settings, but got %+v", newSettings)

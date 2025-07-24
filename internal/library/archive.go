@@ -34,7 +34,21 @@ func IsImageFile(name string) bool {
 	return imageExts[ext]
 }
 
-// ParseArchive dispatches to the correct parser based on file extension.
+// IsSupportedArchive checks if a filename has a supported archive extension.
+func IsSupportedArchive(name string) bool {
+	archiveExts := map[string]bool{
+		".cbz": true,
+		".zip": true,
+		".cbr": true,
+		".rar": true,
+		".7z":  true,
+		".cb7": true,
+	}
+	ext := strings.ToLower(filepath.Ext(name))
+	return archiveExts[ext]
+}
+
+// ParseArchive loads the archive file and returns a list of pages and the first page's data.
 func ParseArchive(filePath string) (pages []*models.Page, firstPageData []byte, err error) {
 	ext := strings.ToLower(filepath.Ext(filePath))
 	switch ext {
@@ -108,8 +122,7 @@ func parseCBR(path string) ([]*models.Page, []byte, error) {
 	defer cancel()
 	fsys, err := archives.FileSystem(ctx, path, nil)
 	if err != nil {
-		// return nil, "", fmt.Errorf("failed to open file system: %w", err)
-		return []*models.Page{}, nil, err
+		return []*models.Page{}, nil, fmt.Errorf("failed to open file system: %w", err)
 	}
 
 	var imageFiles []string
@@ -130,11 +143,11 @@ func parseCBR(path string) ([]*models.Page, []byte, error) {
 		return nil
 	})
 	if err != nil {
-		return []*models.Page{}, nil, err
+		return []*models.Page{}, nil, fmt.Errorf("failed to walk file system: %w", err)
 	}
 
 	if len(imageFiles) == 0 {
-		return []*models.Page{}, nil, err
+		return []*models.Page{}, nil, fmt.Errorf("no image files found in archive %s", path)
 	}
 
 	// Sort image files lexically and pick the first
@@ -144,7 +157,7 @@ func parseCBR(path string) ([]*models.Page, []byte, error) {
 	// Open the first image file
 	f, err := fsys.Open(firstImage)
 	if err != nil {
-		return []*models.Page{}, nil, err
+		return []*models.Page{}, nil, fmt.Errorf("failed to open first image file: %w", err)
 	}
 	defer func(f fs.File) {
 		err := f.Close()
@@ -156,7 +169,7 @@ func parseCBR(path string) ([]*models.Page, []byte, error) {
 	// Read all bytes from the first image file
 	data, err := io.ReadAll(f)
 	if err != nil {
-		return []*models.Page{}, nil, err
+		return []*models.Page{}, nil, fmt.Errorf("failed to read first image file: %w", err)
 	}
 
 	// Sort pages alphabetically by filename to ensure correct order.

@@ -9,6 +9,8 @@ import (
 	"github.com/vrsandeep/mango-go/internal/assets"
 	"github.com/vrsandeep/mango-go/internal/config"
 	"github.com/vrsandeep/mango-go/internal/db"
+	"github.com/vrsandeep/mango-go/internal/jobs"
+	"github.com/vrsandeep/mango-go/internal/library"
 	"github.com/vrsandeep/mango-go/internal/websocket"
 )
 
@@ -17,13 +19,23 @@ const Version = "0.0.1" // Application version
 // App holds the core components of the application that are shared
 // between the server and the CLI.
 type App struct {
-	Config  *config.Config
-	DB      *sql.DB
-	WsHub   *websocket.Hub
-	Version string
+	config       *config.Config
+	dB           *sql.DB
+	wsHub        *websocket.Hub
+	Version      string
 	WebFS        embed.FS
 	MigrationsFS embed.FS
+	jobManager   *jobs.JobManager
 }
+
+func (a *App) DB() *sql.DB                               { return a.dB }
+func (a *App) Config() *config.Config                    { return a.config }
+func (a *App) WsHub() *websocket.Hub                     { return a.wsHub }
+func (a *App) JobManager() *jobs.JobManager              { return a.jobManager }
+func (a *App) SetConfig(cfg *config.Config)              { a.config = cfg }
+func (a *App) SetDB(db *sql.DB)                          { a.dB = db }
+func (a *App) SetWsHub(hub *websocket.Hub)               { a.wsHub = hub }
+func (a *App) SetJobManager(jobManager *jobs.JobManager) { a.jobManager = jobManager }
 
 // New sets up and returns a new App instance. It handles loading the
 // configuration, initializing the database connection, and running migrations.
@@ -54,17 +66,24 @@ func New() (*App, error) {
 	hub := websocket.NewHub()
 	go hub.Run()
 
-	return &App{
-		Config:  cfg,
-		DB:      database,
-		WsHub:   hub,
+	app := &App{
+		config:  cfg,
+		dB:      database,
+		wsHub:   hub,
 		Version: Version,
-	}, nil
+	}
+
+	jobManager := jobs.NewManager(app)
+	app.jobManager = jobManager
+	app.jobManager.Register("library-sync", "Library Sync", library.LibrarySync)
+	app.jobManager.Register("regen-thumbnails", "Regenerate Thumbnails", library.RegenerateThumbnails)
+
+	return app, nil
 }
 
 // Close gracefully closes the application's resources, like the DB connection.
 func (a *App) Close() {
-	if a.DB != nil {
-		a.DB.Close()
+	if a.dB != nil {
+		a.dB.Close()
 	}
 }

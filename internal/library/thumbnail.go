@@ -23,12 +23,11 @@ func GenerateThumbnail(imageData []byte) (string, error) {
 	}
 
 	// Get image dimensions
-
-	img_height := img.Bounds().Dy()
-	img_width := img.Bounds().Dx()
+	imgHeight := img.Bounds().Dy()
+	imgWidth := img.Bounds().Dx()
 
 	var resizedImg image.Image
-	if img_height > img_width {
+	if imgHeight > imgWidth {
 		resizedImg = resize.Resize(thumbnailWidth, 0, img, resize.Lanczos3)
 	} else {
 		resizedImg = resize.Resize(0, thumbnailHeight, img, resize.Lanczos3)

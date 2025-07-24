@@ -2,26 +2,32 @@ package store
 
 import (
 	"database/sql"
-	"log"
 	"sort"
 	"time"
 
 	"github.com/vrsandeep/mango-go/internal/models"
+	"github.com/vrsandeep/mango-go/internal/util"
 )
 
 // GetContinueReading fetches chapters the user has started but not finished, only one per series.
 func (s *Store) GetContinueReading(userID int64, limit int) ([]*models.HomeSectionItem, error) {
+	// --COALESCE(f.custom_cover_url, f.thumbnail, '') as cover_art,
 	query := `
 		SELECT *
 		FROM (
 			SELECT
-				s.id, s.title, c.id, c.path,
-				COALESCE(s.custom_cover_url, s.thumbnail, '') as cover_art,
-				ucp.progress_percent, ucp.read, ucp.updated_at,
-				ROW_NUMBER() OVER (PARTITION BY s.id ORDER BY ucp.updated_at DESC) as rn
+				f.id as series_id,
+				f.name as series_title,
+				c.id as chapter_id,
+				c.path as chapter_title,
+				COALESCE(c.thumbnail, f.thumbnail, '') as cover_art,
+				ucp.progress_percent,
+				ucp.read,
+				ucp.updated_at,
+				ROW_NUMBER() OVER (PARTITION BY f.id ORDER BY ucp.updated_at DESC) as rn
 			FROM user_chapter_progress ucp
 			JOIN chapters c ON ucp.chapter_id = c.id
-			JOIN series s ON c.series_id = s.id
+			JOIN folders f ON c.folder_id = f.id
 			WHERE ucp.user_id = ? AND ucp.read = 0 AND ucp.progress_percent > 0
 		)
 		WHERE rn = 1
@@ -60,106 +66,182 @@ func (s *Store) GetContinueReading(userID int64, limit int) ([]*models.HomeSecti
 
 // GetNextUp fetches the next unread chapter in series the user is actively reading.
 func (s *Store) GetNextUp(userID int64, limit int) ([]*models.HomeSectionItem, error) {
-	// Step 1: Find the most recently finished chapter for each series the user has read.
+	// Simple approach: Get all folders that the user has read chapters in
 	query := `
-		SELECT c.series_id, MAX(ucp.updated_at) as last_read_time
-		FROM user_chapter_progress ucp
-		JOIN chapters c ON ucp.chapter_id = c.id
-		WHERE ucp.user_id = ?
-		GROUP BY c.series_id
+		SELECT DISTINCT f.id, f.name, f.thumbnail, MAX(ucp.updated_at) as last_read_time
+		FROM folders f
+		JOIN chapters c ON c.folder_id = f.id
+		JOIN user_chapter_progress ucp ON ucp.chapter_id = c.id
+		WHERE ucp.user_id = ? AND ucp.read = 1
+		GROUP BY f.id, f.name, f.thumbnail
 		ORDER BY last_read_time DESC
 		LIMIT ?
 	`
-	rows, err := s.db.Query(query, userID, limit*2) // Fetch more to account for fully read series
+	rows, err := s.db.Query(query, userID, limit*2)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var nextUpItems []*models.HomeSectionItem
-	seriesIDs := make(map[int64]string)
+	type folderInfo struct {
+		id           int64
+		name         string
+		thumbnail    string
+		lastReadTime time.Time
+	}
+	var folders []folderInfo
 
 	for rows.Next() {
-		var seriesID int64
+		var f folderInfo
 		var lastRead string
-		if err := rows.Scan(&seriesID, &lastRead); err != nil {
-			return nil, err
+		var thumbnail sql.NullString
+		if err := rows.Scan(&f.id, &f.name, &thumbnail, &lastRead); err != nil {
+			continue
 		}
-		seriesIDs[seriesID] = lastRead
+		f.lastReadTime, _ = time.Parse("2006-01-02 15:04:05", lastRead)
+		f.thumbnail = thumbnail.String
+		folders = append(folders, f)
 	}
-	for seriesID, lastRead := range seriesIDs {
-		var lastReadTime time.Time
-		lastReadTime, err = time.Parse("2006-01-02 15:04:05", lastRead)
-		if err != nil {
-			log.Printf("GetNextUp: could not parse last read time %s: %v", lastRead, err)
-			continue
-		}
 
-		// Step 2: For each series, find the next unread chapter.
-		settings, err := s.GetSeriesSettings(seriesID, userID)
-		var sortBy, sortDir string
+	var items []*models.HomeSectionItem
+	for _, folder := range folders {
+		// Find the first unread chapter in this folder
+		nextChapter, err := s.findNextChapterInFolder(userID, folder.id)
 		if err != nil {
-			log.Printf("GetNextUp: could not get series settings for series %d: %v", seriesID, err)
-			sortBy = "auto"
-			sortDir = "asc"
-		} else {
-			sortBy = settings.SortBy
-			sortDir = settings.SortDir
-		}
-		series, _, err := s.GetSeriesByID(seriesID, userID, 1, 9999, "", sortBy, sortDir) // Fetch all chapters
-		if err != nil {
-			log.Printf("GetNextUp: could not get series by ID %d: %v", seriesID, err)
-			continue
-		}
-
-		// Find the first unread chapter
-		var nextChapter *models.Chapter
-		for _, ch := range series.Chapters {
-			if ch.ProgressPercent > 0 && ch.ProgressPercent < 100 {
-				break
-			}
-			if ch.ProgressPercent == 0 {
-				nextChapter = ch
-				break
+			// If no unread chapters in this folder, try to find the next folder in the hierarchy
+			nextChapter, err = s.findNextChapterInSiblingFolder(userID, folder.id)
+			if err != nil {
+				continue
 			}
 		}
 
 		if nextChapter != nil {
-			coverArt := series.CustomCoverURL
-			if coverArt == "" {
-				coverArt = series.Thumbnail
+			// Get the folder info for the chapter
+			chapterFolder, err := s.GetFolder(nextChapter.FolderID)
+			if err != nil {
+				continue
 			}
-			item := &models.HomeSectionItem{
-				SeriesID:     series.ID,
-				SeriesTitle:  series.Title,
+			items = append(items, &models.HomeSectionItem{
+				SeriesID:     chapterFolder.ID,
+				SeriesTitle:  chapterFolder.Name,
 				ChapterID:    &nextChapter.ID,
-				ChapterTitle: nextChapter.Path,
-				CoverArt:     coverArt,
-				UpdatedAt:    lastReadTime, // Use this for final sorting
+				ChapterTitle: GetChapterTitle(nextChapter),
+				CoverArt:     nextChapter.Thumbnail,
+				UpdatedAt:    folder.lastReadTime,
+			})
+			if len(items) >= limit {
+				break
 			}
-			nextUpItems = append(nextUpItems, item)
 		}
 	}
 
-	// Step 3: Sort the final list by the last read time and take the limit.
-	sort.Slice(nextUpItems, func(i, j int) bool {
-		return nextUpItems[i].UpdatedAt.After(nextUpItems[j].UpdatedAt)
+	return items, nil
+}
+
+// findNextChapterInFolder finds the next unread chapter in a specific folder
+func (s *Store) findNextChapterInFolder(userID, folderID int64) (*models.Chapter, error) {
+	query := `
+		SELECT c.id, c.folder_id, c.path, c.thumbnail, COALESCE(ucp.read, 0) as read
+		FROM chapters c
+		LEFT JOIN user_chapter_progress ucp ON c.id = ucp.chapter_id AND ucp.user_id = ?
+		WHERE c.folder_id = ?
+		ORDER BY c.path ASC
+	`
+	rows, err := s.db.Query(query, userID, folderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var chapter models.Chapter
+		var read bool
+		if err := rows.Scan(&chapter.ID, &chapter.FolderID, &chapter.Path, &chapter.Thumbnail, &read); err != nil {
+			continue
+		}
+		if !read {
+			return &chapter, nil
+		}
+	}
+
+	return nil, sql.ErrNoRows
+}
+
+// findNextChapterInSiblingFolder finds the next unread chapter in a sibling folder
+func (s *Store) findNextChapterInSiblingFolder(userID, folderID int64) (*models.Chapter, error) {
+	// Get the parent folder of the current folder
+	var parentID *int64
+	err := s.db.QueryRow("SELECT parent_id FROM folders WHERE id = ?", folderID).Scan(&parentID)
+	if err != nil {
+		return nil, err
+	}
+
+	if parentID == nil {
+		// This is a root folder, no siblings to check
+		return nil, sql.ErrNoRows
+	}
+
+	// Get all sibling folders (folders with the same parent)
+	query := `
+		SELECT id, name FROM folders
+		WHERE parent_id = ?
+		ORDER BY name ASC
+	`
+	rows, err := s.db.Query(query, *parentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var siblingFolders []struct {
+		id   int64
+		name string
+	}
+
+	for rows.Next() {
+		var sibling struct {
+			id   int64
+			name string
+		}
+		if err := rows.Scan(&sibling.id, &sibling.name); err != nil {
+			continue
+		}
+		siblingFolders = append(siblingFolders, sibling)
+	}
+
+	sort.Slice(siblingFolders, func(i, j int) bool {
+		return util.NaturalSortLess(siblingFolders[i].name, siblingFolders[j].name)
 	})
 
-	if len(nextUpItems) > limit {
-		return nextUpItems[:limit], nil
+	// Find the current folder in the list and get the next one
+	for i, sibling := range siblingFolders {
+		if sibling.id == folderID {
+			// Check the next sibling folder
+			if i+1 < len(siblingFolders) {
+				nextSibling := siblingFolders[i+1]
+				// Find the first unread chapter in the next sibling folder
+				return s.findNextChapterInFolder(userID, nextSibling.id)
+			}
+			break
+		}
 	}
-	return nextUpItems, nil
+
+	// If no next sibling found, try the parent's siblings
+	return s.findNextChapterInSiblingFolder(userID, *parentID)
 }
 
 // GetRecentlyAdded fetches recently added chapters and groups them by series.
 func (s *Store) GetRecentlyAdded(limit int) ([]*models.HomeSectionItem, error) {
 	query := `
 		SELECT
-			s.id, s.title, COALESCE(s.custom_cover_url, s.thumbnail, '') as cover_art,
-			c.id as chapter_id, c.path as chapter_title, c.created_at
+			f.id as series_id,
+			f.name as series_title,
+			f.thumbnail as cover_art,
+			c.id as chapter_id,
+			c.path as chapter_title,
+			c.created_at
 		FROM chapters c
-		JOIN series s ON c.series_id = s.id
+		JOIN folders f ON f.id = c.folder_id
 		ORDER BY c.created_at DESC
 		LIMIT ?
 	`
@@ -169,17 +251,20 @@ func (s *Store) GetRecentlyAdded(limit int) ([]*models.HomeSectionItem, error) {
 	}
 	defer rows.Close()
 
-	seriesMap := make(map[int64]*models.HomeSectionItem)
-	var orderedSeriesIDs []int64
+	folderMap := make(map[int64]*models.HomeSectionItem)
+	var orderedFolderIDs []int64
 
 	for rows.Next() {
 		var item models.HomeSectionItem
 		var chapterID int64
-		if err := rows.Scan(&item.SeriesID, &item.SeriesTitle, &item.CoverArt, &chapterID, &item.ChapterTitle, &item.UpdatedAt); err != nil {
+		var thumbnail sql.NullString
+		var chapterTitle string
+		if err := rows.Scan(&item.SeriesID, &item.SeriesTitle, &thumbnail, &chapterID, &chapterTitle, &item.UpdatedAt); err != nil {
 			return nil, err
 		}
+		item.CoverArt = thumbnail.String
 
-		if existing, ok := seriesMap[item.SeriesID]; ok {
+		if existing, ok := folderMap[item.SeriesID]; ok {
 			// This is the second (or more) chapter for this series.
 			// Increment the count and clear the chapter-specific details.
 			existing.NewChapterCount++
@@ -189,14 +274,15 @@ func (s *Store) GetRecentlyAdded(limit int) ([]*models.HomeSectionItem, error) {
 			// This is the first time we've seen this series in the results.
 			item.NewChapterCount = 1
 			item.ChapterID = &chapterID // Keep the chapter details for now
-			seriesMap[item.SeriesID] = &item
-			orderedSeriesIDs = append(orderedSeriesIDs, item.SeriesID)
+			item.ChapterTitle = GetChapterTitle(&models.Chapter{Path: chapterTitle})
+			folderMap[item.SeriesID] = &item
+			orderedFolderIDs = append(orderedFolderIDs, item.SeriesID)
 		}
 	}
 
 	var finalItems []*models.HomeSectionItem
-	for _, seriesID := range orderedSeriesIDs {
-		finalItems = append(finalItems, seriesMap[seriesID])
+	for _, seriesID := range orderedFolderIDs {
+		finalItems = append(finalItems, folderMap[seriesID])
 		if len(finalItems) >= limit {
 			break
 		}
@@ -205,18 +291,30 @@ func (s *Store) GetRecentlyAdded(limit int) ([]*models.HomeSectionItem, error) {
 	return finalItems, nil
 }
 
-// GetStartReading fetches series the user has not started reading yet.
+// GetStartReading fetches top-level folders which the user has not started reading yet.
 func (s *Store) GetStartReading(userID int64, limit int) ([]*models.HomeSectionItem, error) {
 	query := `
 		SELECT
-			s.id, s.title, COALESCE(s.custom_cover_url, s.thumbnail, '') as cover_art, s.created_at
-		FROM series s
-		WHERE NOT EXISTS (
-			SELECT 1 FROM user_chapter_progress ucp
-			JOIN chapters c ON ucp.chapter_id = c.id
-			WHERE c.series_id = s.id AND ucp.user_id = ?
-		)
-		ORDER BY s.created_at DESC
+			f.id,
+			f.name,
+			COALESCE(f.thumbnail, '') as cover_art,
+			f.created_at
+		FROM folders f
+		WHERE
+			f.parent_id IS NULL AND NOT EXISTS (
+				SELECT 1 FROM (
+					WITH RECURSIVE folder_subtree(id) AS (
+						SELECT f.id
+						UNION ALL
+						SELECT sub.id FROM folders sub JOIN folder_subtree st ON sub.parent_id = st.id
+					)
+					SELECT id FROM folder_subtree
+				) subtree
+				JOIN chapters c ON c.folder_id = subtree.id
+				JOIN user_chapter_progress ucp ON ucp.chapter_id = c.id
+				WHERE ucp.user_id = ?
+			)
+		ORDER BY f.created_at DESC
 		LIMIT ?
 	`
 	rows, err := s.db.Query(query, userID, limit)

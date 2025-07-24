@@ -1,0 +1,32 @@
+.container {
+    max-width: 1200px;
+}
+
+.tags-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    list-style: none;
+    padding: 0;
+}
+
+.tag-item a {
+    display: block;
+    background-color: var(--card-bg);
+    padding: 0.75rem 1.5rem;
+    border-radius: 20px;
+    text-decoration: none;
+    color: var(--text-color);
+    transition: background-color 0.2s;
+    border: 1px solid var(--border-color);
+}
+
+.tag-item a:hover {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+}
+
+.tag-count {
+    margin-left: 0.5rem;
+    color: var(--subtle-text-color);
+}

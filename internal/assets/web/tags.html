@@ -1,41 +1,37 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tags - Mango</title>
     <link rel="stylesheet" href="https://unpkg.com/phosphor-icons@1.4.2/src/css/icons.css">
     <link rel="stylesheet" href="/static/css/library_grid.css">
-    <style>
-        .container { max-width: 1200px; }
-        .tags-list { display: flex; flex-wrap: wrap; gap: 1rem; list-style: none; padding: 0; }
-        .tag-item a { display: block; background-color: var(--card-bg); padding: 0.75rem 1.5rem; border-radius: 20px; text-decoration: none; color: var(--text-color); transition: background-color 0.2s; border: 1px solid var(--border-color); }
-        .tag-item a:hover { background-color: var(--accent-color); border-color: var(--accent-color); }
-        .tag-count { margin-left: 0.5rem; color: var(--subtle-text-color); }
-    </style>
+    <link rel="stylesheet" href="/static/css/tags.css">
 </head>
+
 <body>
     <header class="main-header">
         <div class="header-left">
             <button class="menu-toggle" id="menu-toggle-btn"><i class="ph-bold ph-list"></i></button>
             <nav class="nav-links" id="nav-links">
                 <div class="sidebar-logo">
-                  <!-- <svg class="header-logo" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM4 4h16v11.17l-3.17-3.17-2 2-3-3-3.17 3.17L4 12.34V4z"/></svg> -->
-                  <img src="/static/images/logo.svg" alt="Mango Logo" class="header-logo">
+                    <!-- <svg class="header-logo" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM4 4h16v11.17l-3.17-3.17-2 2-3-3-3.17 3.17L4 12.34V4z"/></svg> -->
+                    <img src="/static/images/logo.svg" alt="Mango Logo" class="header-logo">
                 </div>
                 <a href="/">Home</a>
                 <a href="/library">Library</a>
                 <a href="/admin" class="admin-only" style="display: none;">Admin</a>
                 <a href="/tags">Tags</a>
                 <div class="header-dropdown">
-                  <button class="header-dropdown-btn" tabindex="0">Download <i class="ph-bold ph-caret-down"></i></button>
-                  <div class="header-dropdown-content">
-                    <span style="font-weight:600; color:var(--text-color); padding:0.5em 1.2em;">SOURCE</span>
-                    <a href="/downloads/plugins">Plugins</a>
-                    <hr>
-                    <a href="/downloads/manager">Download Manager</a>
-                    <a href="/downloads/subscriptions">Subscription Manager</a>
-                  </div>
+                    <button class="header-dropdown-btn" tabindex="0">Download <i class="ph-bold ph-caret-down"></i></button>
+                    <div class="header-dropdown-content">
+                        <span style="font-weight:600; color:var(--text-color); padding:0.5em 1.2em;">SOURCE</span>
+                        <a href="/downloads/plugins">Plugins</a>
+                        <hr>
+                        <a href="/downloads/manager">Download Manager</a>
+                        <a href="/downloads/subscriptions">Subscription Manager</a>
+                    </div>
                 </div>
             </nav>
         </div>
@@ -52,7 +48,7 @@
     </main>
     <footer class="main-footer"><span id="version-footer"></span></footer>
     <script src="/static/js/header.js"></script>
-    <script src="/static/js/auth.js"></script>
     <script src="/static/js/tags.js"></script>
 </body>
+
 </html>

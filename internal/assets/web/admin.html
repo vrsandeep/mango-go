@@ -6,21 +6,7 @@
     <title>Admin - Mango</title>
     <link rel="stylesheet" href="https://unpkg.com/phosphor-icons@1.4.2/src/css/icons.css">
     <link rel="stylesheet" href="/static/css/library_grid.css">
-    <style>
-        /* Grid & Cards */
-        .container { max-width: 900px; margin: 2rem auto; padding: 0 1.5rem; }
-        .job-item { display: flex; align-items: center; justify-content: space-between; padding: 1rem; background: var(--card-bg); border-radius: 8px; margin-bottom: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
-        .job-details { flex-grow: 1; }
-        .job-details h3 { margin: 0 0 0.25rem; }
-        .job-details p { margin: 0; font-size: 0.9rem; color: #aaa; }
-        .job-progress-container { width: 100%; height: 8px; background: #444; border-radius: 4px; margin-top: 0.5rem; display: none; }
-        .job-progress-bar { width: 0%; height: 100%; background: var(--accent-color); transition: width 0.2s linear; border-radius: 4px; }
-        .job-actions button { background-color: var(--btn-bg); color: var(--text-color); border: 1px solid var(--border-color); padding: 8px 16px; border-radius: 5px; cursor: pointer; }
-        .job-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
-        .job-actions button:disabled:hover { background-color: var(--btn-bg); color: white; }
-        .job-actions button:hover:not(:disabled) { background-color: var(--accent-color); color: white;}
-        .jobs-container { display: flex; flex-direction: column; gap: 1rem; }
-    </style>
+    <link rel="stylesheet" href="/static/css/admin.css">
 </head>
 <body>
     <header class="main-header">
@@ -68,53 +54,28 @@
                 <button class="href" data-endpoint="/admin/users">Go</button>
                 </div>
             </div>
-            <div class="job-item" id="job-full-scan">
+            <div class="job-item" id="library-sync">
                 <div class="job-details">
-                <h3>Full Library Scan</h3>
-                <p class="job-description">Re-scans every file in your library directory. Use this if you have made major changes.
-                </p>
-                <div class="job-progress-container">
-                    <div class="job-progress-bar"></div>
-                </div>
+                    <h3>Full Library Scan</h3>
+                    <p class="job-description">Re-scans every file in your library directory. Use this if you have made major changes.</p>
+                    <div class="job-progress-container">
+                        <div class="job-progress-bar"></div>
+                    </div>
                 </div>
                 <div class="job-actions">
-                <button class="start-job-btn" data-endpoint="/api/admin/scan-library">Start</button>
+                <button class="start-job-btn" data-job-id="library-sync">Start</button>
                 </div>
             </div>
-            <div class="job-item" id="job-incremental-scan">
+            <div class="job-item" id="regen-thumbnails">
                 <div class="job-details">
-                <h3>Find new chapters</h3>
-                <p class="job-description">Scans your library and only adds new series and chapters.</p>
-                <div class="job-progress-container">
-                    <div class="job-progress-bar"></div>
-                </div>
+                    <h3>Regenerate Thumbnails</h3>
+                    <p class="job-description">Re-creates all chapter and series thumbnails. This can take a while.</p>
+                    <div class="job-progress-container">
+                        <div class="job-progress-bar"></div>
+                    </div>
                 </div>
                 <div class="job-actions">
-                <button class="start-job-btn" data-endpoint="/api/admin/scan-incremental">Start</button>
-                </div>
-            </div>
-            <div class="job-item" id="job-prune-database">
-                <div class="job-details">
-                <h3>Prune Database</h3>
-                <p class="job-description">Removes entries from the database that no longer exist on your disk.</p>
-                <div class="job-progress-container">
-                    <div class="job-progress-bar"></div>
-                </div>
-                </div>
-                <div class="job-actions">
-                <button class="start-job-btn" data-endpoint="/api/admin/prune-database">Start</button>
-                </div>
-            </div>
-            <div class="job-item" id="job-regenerate-thumbnails">
-                <div class="job-details">
-                <h3>Regenerate Thumbnails</h3>
-                <p class="job-description">Re-creates all chapter and series thumbnails. This can take a while.</p>
-                <div class="job-progress-container">
-                    <div class="job-progress-bar"></div>
-                </div>
-                </div>
-                <div class="job-actions">
-                <button class="start-job-btn" data-endpoint="/api/admin/generate-thumbnails">Start</button>
+                    <button class="start-job-btn" data-job-id="regen-thumbnails">Start</button>
                 </div>
             </div>
         </div>
@@ -125,6 +86,5 @@
     </footer>
     <script src="/static/js/header.js"></script>
     <script src="/static/js/admin.js"></script>
-    <script src="/static/js/auth.js"></script>
 </body>
 </html>

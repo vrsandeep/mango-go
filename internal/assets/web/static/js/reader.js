@@ -1,13 +1,15 @@
+import { checkAuth } from './auth.js';
+
 document.addEventListener('DOMContentLoaded', async () => {
   const currentUser = await checkAuth();
   if (!currentUser) return;
 
   const pathParts = window.location.pathname.split('/');
-  const seriesId = pathParts[3];
+  const folderId = pathParts[3];
   const chapterId = pathParts[5];
 
   let state = {
-    seriesData: null,
+    folderData: null,
     chapterData: null,
     allChapters: [],
     currentPage: 1,
@@ -42,13 +44,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // --- Core Functions ---
   const fetchInitialData = async () => {
-    const [chapterRes, seriesRes] = await Promise.all([
-      fetch(`/api/series/${seriesId}/chapters/${chapterId}`),
-      fetch(`/api/series/${seriesId}?per_page=9999`) // Fetch all chapters for dropdown
+    const [chapterRes, folderRes] = await Promise.all([
+      fetch(`/api/chapters/${chapterId}`),
+      fetch(`/api/browse?folderId=${folderId}&per_page=9999`) // Fetch all chapters for dropdown
     ]);
     state.chapterData = await chapterRes.json();
-    state.seriesData = await seriesRes.json();
-    state.allChapters = state.seriesData.chapters;
+    const folderContents = await folderRes.json();
+    state.folderData = folderContents.current_folder;
+    state.allChapters = folderContents.chapters;
   };
 
   const updateProgress = (progressPercent, isRead) => {
@@ -69,7 +72,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     modalProgress.textContent = `Progress: ${page}/${state.chapterData.page_count} (${progress.toFixed(1)}%)`;
   };
   const findNeighboringChapters = async () => {
-    const response = await fetch(`/api/series/${seriesId}/chapters/${chapterId}/neighbors`);
+    const response = await fetch(`/api/folders/${folderId}/chapters/${chapterId}/neighbors`);
     const neighbors = await response.json();
     if (neighbors.prev) {
       prevChapterId = neighbors.prev;
@@ -92,7 +95,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     imageContainer.innerHTML = '';
     for (let i = 1; i <= state.chapterData.page_count; i++) {
       const img = document.createElement('img');
-      img.src = `/api/series/${seriesId}/chapters/${chapterId}/pages/${i}`;
+      img.src = `/api/chapters/${chapterId}/pages/${i}`;
       img.classList.add('page-image');
       img.id = `page-${i}`;
       img.loading = 'lazy';
@@ -125,6 +128,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateProgressText();
     updateJumpToPageSelect();
   };
+
   const updateJumpToPageSelect = (progressPercent) => {
     let progress = state.chapterData.progress_percent;
     if (state.readingMode === 'single_page') {
@@ -143,9 +147,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const populateModal = () => {
     const chapter = state.chapterData;
-    const series = state.seriesData;
+    const folder = state.folderData;
     const lastPart = chapter.path.split(/[\\/]/).pop().replace(/\.[^/.]+$/, '');
-    modalTitle.textContent = series.title + ' - ' + lastPart;
+    modalTitle.textContent = folder.name + ' - ' + lastPart;
     modalPath.textContent = chapter.path;
 
     // Populate Jump to Page dropdown
@@ -210,13 +214,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (state.readingMode === 'continuous') {
       if (e.key === 'ArrowRight' || e.key === 'd') {
         if (nextChapterId && window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 10) {
-          window.location.href = `/reader/series/${seriesId}/chapters/${nextChapterId}`;
+          window.location.href = `/reader/series/${folderId}/chapters/${nextChapterId}`;
         } else {
           window.scrollBy({ top: window.innerHeight, behavior: 'smooth' });
         }
       } else if (e.key === 'ArrowLeft' || e.key === 'a') {
         if (prevChapterId && window.scrollY <= 10) {
-          window.location.href = `/reader/series/${seriesId}/chapters/${prevChapterId}`;
+          window.location.href = `/reader/series/${folderId}/chapters/${prevChapterId}`;
         } else {
           window.scrollBy({ top: -window.innerHeight, behavior: 'smooth' });
         }
@@ -275,7 +279,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   jumpToEntrySelect.addEventListener('change', (e) => {
     const newChapterId = e.target.value;
     if (newChapterId !== chapterId) {
-      window.location.href = `/reader/series/${seriesId}/chapters/${newChapterId}`;
+      window.location.href = `/reader/series/${folderId}/chapters/${newChapterId}`;
     }
   });
 
@@ -302,12 +306,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     return nextChapterId;
   }
   var jumpToChapter = (newChapterId) => {
-    if (newChapterId !== chapterId) {
-      window.location.href = `/reader/series/${seriesId}/chapters/${newChapterId}`;
+    if (newChapterId && newChapterId !== chapterId) {
+      window.location.href = `/reader/series/${folderId}/chapters/${newChapterId}`;
     }
   }
+  const exitToLibrary = () => window.location.href = `/library/folder/${folderId}`;
 
-  modalExitBtn.addEventListener('click', () => window.location.href = `/series/${seriesId}`);
+  modalExitBtn.addEventListener('click', exitToLibrary);
   modalPrevBtn.addEventListener('click', () => {
     const newChapterId = genPrevChapterId();
     jumpToChapter(newChapterId);
@@ -325,9 +330,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const newChapterId = genNextChapterId();
     jumpToChapter(newChapterId);
   });
-  footerExitBtn.addEventListener('click', () => {
-    window.location.href = `/series/${seriesId}`;
-  });
+  footerExitBtn.addEventListener('click', exitToLibrary);
 
   // markReadBtn.addEventListener('click', () => {
   //   updateProgress(100, true);
@@ -338,7 +341,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // --- Initialization ---
   const init = async () => {
     await fetchInitialData();
-    document.title = `${state.seriesData.title} - Mango Reader`;
+    document.title = `${state.folderData.name} - Mango Reader`;
     await findNeighboringChapters();
     applyPageMargin();
     renderPages();

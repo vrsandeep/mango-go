@@ -6,18 +6,7 @@
     <title>Subscription Manager - Mango</title>
     <link rel="stylesheet" href="https://unpkg.com/phosphor-icons@1.4.2/src/css/icons.css">
     <link rel="stylesheet" href="/static/css/library_grid.css">
-    <style>
-        .container { max-width: 1200px; }
-        .manager-controls { display: flex; gap: 1rem; margin-bottom: 1.5rem;  flex-wrap: wrap; justify-content: flex-start; }
-        .manager-controls select { padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 5px; background-color: var(--card-bg); color: var(--text-color); }
-        .manager-controls select option { background-color: var(--card-bg); color: var(--text-color); }
-        #provider-select { padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 5px; background-color: var(--bg-color); color: var(--text-color); }
-        .sub-table { width: 100%; border-collapse: collapse; }
-        .sub-table th, .sub-table td { padding: 0.75rem; text-align: left; border-bottom: 1px solid var(--border-color); background-color: var(--card-bg); }
-        .sub-table th { background-color: var(--header-bg); }
-        .sub-table td { position: relative; }
-        .actions-cell button { background: none; border: none; color: var(--text-color); font-size: 1.2rem; cursor: pointer; padding: 0.25rem; }
-    </style>
+    <link rel="stylesheet" href="/static/css/subscription_manager.css">
 </head>
 <body>
     <header class="main-header">
@@ -71,7 +60,6 @@
     </main>
     <footer class="main-footer"><span id="version-footer"></span></footer>
     <script src="/static/js/header.js"></script>
-    <script src="/static/js/auth.js"></script>
     <script src="/static/js/subscription_manager.js"></script>
 </body>
 </html>
