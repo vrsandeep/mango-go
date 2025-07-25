@@ -35,7 +35,7 @@ The recommended way to run Mango-Go in production is using Docker and Docker Com
 
 #### Quick Start
 
-1. **docker-compose:**
+1. ⚙️ **docker-compose:**
    ```yaml
    services:
       mango:
@@ -54,22 +54,12 @@ The recommended way to run Mango-Go in production is using Docker and Docker Com
             - ./manga:/manga # 👈  This is safe. This project does not modify the manga folder.
    ```
 
-2. ⚙️ **Configure Your Library:**
-   Open the `docker-compose.yml` file and find the `volumes` section. Change the line:
-   ```yml
-   - ./manga:/manga
-   ```
-   to point to the actual location of your manga library on your computer. For example:
-   ```yml
-   - /home/user/comics:/manga
-   ```
-
-3. **Start the Application:**
+2. **Start the Application:**
    ```sh
    docker-compose up -d
    ```
 
-4. **First Run (Admin User):**
+3. **First Run (Admin User):**
    The first time you start the application, it will create a default `admin` user. Check the container logs to get the randomly generated password:
    ```sh
    docker-compose logs
@@ -81,7 +71,7 @@ The recommended way to run Mango-Go in production is using Docker and Docker Com
    Password: <randomly_generated_password>
    ```
 
-5. **Access Mango-Go:**
+4. **Access Mango-Go:**
    Open your web browser and navigate to `http://localhost:8080`. Log in with the admin credentials and change the password immediately via the Admin > User Management page.
 
 ### Option 2: Standalone Binary
