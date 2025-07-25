@@ -35,16 +35,29 @@ The recommended way to run Mango-Go in production is using Docker and Docker Com
 
 #### Quick Start
 
-1. **Clone the Repository:**
-   ```sh
-   git clone https://github.com/vrsandeep/mango-go.git
-   cd mango-go
+1. **docker-compose:**
+   ```yaml
+   services:
+      mango:
+         image: ghcr.io/vrsandeep/mango-go
+         container_name: mango
+         restart: unless-stopped
+         ports:
+            - "8080:8080"
+         environment:
+            - MANGO_DATABASE_PATH=/app/data/mango.db
+            - MANGO_LIBRARY_PATH=/manga
+         volumes:
+            # This will store the SQLite database
+            - ./data:/app/data
+            # Mount your actual manga library on your host machine to /manga inside the container.
+            - ./manga:/manga # 👈  This is safe. This project does not modify the manga folder.
    ```
 
 2. ⚙️ **Configure Your Library:**
    Open the `docker-compose.yml` file and find the `volumes` section. Change the line:
    ```yml
-   - ./manga:/manga # 👈  This is safe. This project does not modify the manga folder.
+   - ./manga:/manga
    ```
    to point to the actual location of your manga library on your computer. For example:
    ```yml

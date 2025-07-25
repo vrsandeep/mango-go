@@ -20,7 +20,8 @@ RUN npm install -g esbuild
 # -o /mango-go: Specifies the output binary name.
 # -ldflags "-w -s": Strips debugging information, reducing the binary size.
 # CGO_ENABLED=1: Required for the go-sqlite3 driver.
-RUN make build
+# GIN_MODE=release: Sets Gin to production mode for better performance.
+RUN GIN_MODE=release make build
 
 # Use alpine as the base image. It's lightweight but contains the necessary
 # runtime libraries (like musl libc) that our binary depends on.

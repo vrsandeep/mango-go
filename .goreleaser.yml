@@ -1,37 +1,21 @@
 version: 2
 
-# before:
-#   hooks:
-#     - cmd: make assets
-#       env:
-#         CGO_ENABLED: 1
-
 builds:
   - env:
       - CGO_ENABLED=1
     main: .
     goos:
       - linux
-      - darwin
-      - windows
     goarch:
       - amd64
-      - arm64
     binary: mango-go
     ldflags:
       - -s -w
       - -X main.version={{ .Version }}
       - -X main.commit={{ .Commit }}
       - -X main.date={{ .Date }}
-    ignore:
-      - goos: darwin
-        goarch: arm64
-        goarm: 7
-      - goos: windows
-        goarch: arm64
     hooks:
       pre: make assets
-
 
 archives:
   - formats: ['tar.gz']
@@ -41,9 +25,6 @@ archives:
       {{- if eq .Arch "amd64" }}x86_64
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
-    format_overrides:
-      - goos: windows
-        formats: ['zip']
     files:
       - README.md
       - LICENSE
@@ -66,18 +47,6 @@ changelog:
       - Merge pull request
       - Merge branch
   use: github-native
-
-dockers:
-  - image_templates:
-      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}:{{ .Version }}"
-      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY }}:latest"
-    dockerfile: Dockerfile
-    use: buildx
-    build_flag_templates:
-      - "--platform=linux/amd64"
-      - "--platform=linux/arm64"
-    extra_files:
-      - Dockerfile
 
 release:
   draft: false
