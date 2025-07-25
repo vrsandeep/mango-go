@@ -17,18 +17,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     const statusClass = `status-${item.status.replace(' ', '_').toLowerCase()}`;
     row.innerHTML = `
-                    <td title="${item.chapter_title}">${item.chapter_title}</td>
-                    <td title="${item.series_title}">${item.series_title}</td>
-                    <td>
-                        <div class="progress-bar-container">
-                            <div class="progress-bar" style="width: ${item.progress}%;">${item.progress}%</div>
-                        </div>
-                    </td>
-                    <td>${new Date(item.created_at).toLocaleString()}</td>
-                    <td><span class="${statusClass}">${item.status}</span></td>
-                    <td>${item.provider_id}</td>
-                    <td><!-- Per-item action icons can be added here --></td>
-                `;
+      <td title="${item.chapter_title}">${item.chapter_title}</td>
+      <td title="${item.series_title}">${item.series_title}</td>
+      <td>
+          <div class="progress-bar-container">
+              <div class="progress-bar" style="width: ${item.progress}%;">${item.progress}%</div>
+          </div>
+      </td>
+      <td>${new Date(item.created_at).toLocaleString()}</td>
+      <td><span class="${statusClass}">${item.status}</span></td>
+      <td>${item.provider_id}</td>
+      <td><!-- Per-item action icons can be added here --></td>
+    `;
     return row;
   };
 
