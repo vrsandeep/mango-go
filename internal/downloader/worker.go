@@ -26,6 +26,7 @@ var (
 	isPaused   bool
 	mu         sync.Mutex
 	numWorkers = int(math.Min(4, float64(runtime.NumCPU()))) // Number of concurrent downloads
+	ErrDownloadPaused   = fmt.Errorf("download paused by user")
 )
 
 // StartWorkerPool initializes and starts the download workers.
@@ -72,6 +73,12 @@ func worker(id int, app *core.App, st *store.Store) {
 		st.UpdateQueueItemStatus(job.ID, "in_progress", "Starting download...")
 		err := processDownload(app, st, job)
 		if err != nil {
+			// Check if this is a pause error
+			if err == ErrDownloadPaused {
+				log.Printf("Download paused for item %d", job.ID)
+				// Don't change the status as it's already set to "paused" by the API
+				continue
+			}
 			errMsg := fmt.Sprintf("Download failed: %v", err)
 			log.Println(errMsg)
 			st.UpdateQueueItemStatus(job.ID, "failed", errMsg)
@@ -106,6 +113,13 @@ func processDownload(app *core.App, st *store.Store, job *models.DownloadQueueIt
 
 	total := len(pageURLs)
 	for i, pageURL := range pageURLs {
+		// Check if the item has been paused before starting each page download
+		currentItem, err := st.GetDownloadQueueItem(job.ID)
+		if err == nil && currentItem != nil && currentItem.Status == "paused" {
+			log.Printf("Download paused for item %d at page %d/%d", job.ID, i+1, total)
+			return ErrDownloadPaused
+		}
+
 		// Respectful delay between page downloads
 		time.Sleep(250 * time.Millisecond)
 
@@ -144,14 +158,7 @@ func processDownload(app *core.App, st *store.Store, job *models.DownloadQueueIt
 		}
 
 		// Broadcast progress update via WebSocket
-		app.WsHub().BroadcastJSON(models.ProgressUpdate{
-			JobID:    "downloader",
-			Message:  fmt.Sprintf("Downloaded page %d of %d", i+1, total),
-			Progress: float64(progress),
-			ItemID:   job.ID,
-			Status:   status,
-			Done:     done,
-		})
+		sendDownloaderProgressUpdate(app, job.ID, fmt.Sprintf("Downloaded page %d of %d", i+1, total), status, float64(progress), done)
 	}
 
 	if err := zipWriter.Close(); err != nil {
@@ -182,3 +189,55 @@ func ResumeDownloads() {
 	log.Println("Download queue resumed.")
 }
 func IsPaused() bool { mu.Lock(); defer mu.Unlock(); return isPaused }
+
+// PauseQueueItem pauses a specific item and broadcasts the status change
+func PauseQueueItem(app *core.App, st *store.Store, itemID int64) error {
+	err := st.PauseQueueItem(itemID)
+	if err != nil {
+		return err
+	}
+
+	// Get current item to preserve progress
+	currentItem, getErr := st.GetDownloadQueueItem(itemID)
+	progress := 0.0
+	if getErr == nil && currentItem != nil {
+		progress = float64(currentItem.Progress)
+	}
+
+	// Broadcast pause status update
+	sendDownloaderProgressUpdate(app, itemID, "Download paused by user", "paused", progress, false)
+
+	return nil
+}
+
+// ResumeQueueItem resumes a specific item and broadcasts the status change
+func ResumeQueueItem(app *core.App, st *store.Store, itemID int64) error {
+	err := st.ResumeQueueItem(itemID)
+	if err != nil {
+		return err
+	}
+
+	// Get current item to preserve progress
+	currentItem, getErr := st.GetDownloadQueueItem(itemID)
+	progress := 0.0
+	if getErr == nil && currentItem != nil {
+		progress = float64(currentItem.Progress)
+	}
+
+	// Broadcast resume status update
+	sendDownloaderProgressUpdate(app, itemID, "Download resumed by user", "queued", progress, false)
+
+	return nil
+}
+
+
+func sendDownloaderProgressUpdate(app *core.App, itemID int64, message string, status string, progress float64, done bool) {
+	app.WsHub().BroadcastJSON(models.ProgressUpdate{
+		JobID:    "downloader",
+		Message:  message,
+		Progress: progress,
+		ItemID:   itemID,
+		Status:   status,
+		Done:     done,
+	})
+}

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/vrsandeep/mango-go/internal/downloader"
@@ -123,5 +124,40 @@ func (s *Server) handleQueueAction(w http.ResponseWriter, r *http.Request) {
 		RespondWithError(w, http.StatusBadRequest, "Invalid action")
 		return
 	}
+	RespondWithJSON(w, http.StatusOK, map[string]string{"status": "success"})
+}
+
+func (s *Server) handleQueueItemAction(w http.ResponseWriter, r *http.Request) {
+	itemID, err := strconv.ParseInt(chi.URLParam(r, "itemID"), 10, 64)
+	if err != nil {
+		RespondWithError(w, http.StatusBadRequest, "Invalid item ID")
+		return
+	}
+
+	var payload struct {
+		Action string `json:"action"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+
+	switch payload.Action {
+	case "delete":
+		err = s.store.DeleteQueueItem(itemID)
+	case "pause":
+		err = downloader.PauseQueueItem(s.app, s.store, itemID)
+	case "resume":
+		err = downloader.ResumeQueueItem(s.app, s.store, itemID)
+	default:
+		RespondWithError(w, http.StatusBadRequest, "Invalid action")
+		return
+	}
+
+	if err != nil {
+		RespondWithError(w, http.StatusInternalServerError, "Failed to perform action")
+		return
+	}
+
 	RespondWithJSON(w, http.StatusOK, map[string]string{"status": "success"})
 }

@@ -5,6 +5,7 @@ package store
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/vrsandeep/mango-go/internal/models"
@@ -125,6 +126,22 @@ func (s *Store) GetQueuedDownloadItems(limit int) ([]*models.DownloadQueueItem, 
 	return items, nil
 }
 
+// GetDownloadQueueItem retrieves a single item from the download queue by ID.
+func (s *Store) GetDownloadQueueItem(id int64) (*models.DownloadQueueItem, error) {
+	query := `
+        SELECT id, series_title, chapter_title, chapter_identifier, provider_id, status, progress, message, created_at
+        FROM download_queue WHERE id = ?
+    `
+	var item models.DownloadQueueItem
+	var msg sql.NullString
+	err := s.db.QueryRow(query, id).Scan(&item.ID, &item.SeriesTitle, &item.ChapterTitle, &item.ChapterIdentifier, &item.ProviderID, &item.Status, &item.Progress, &msg, &item.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	item.Message = msg.String
+	return &item, nil
+}
+
 // UpdateQueueItemStatus changes an item's status and message.
 func (s *Store) UpdateQueueItemStatus(id int64, status, message string) error {
 	query := "UPDATE download_queue SET status = ?, message = ? WHERE id = ?"
@@ -179,6 +196,44 @@ func (s *Store) EmptyQueue() error {
 	query := "DELETE FROM download_queue WHERE status = 'queued' OR status = 'failed' OR status = 'paused'"
 	_, err := s.db.Exec(query)
 	return err
+}
+
+// DeleteQueueItem removes a specific item from the download queue by ID.
+func (s *Store) DeleteQueueItem(id int64) error {
+	_, err := s.db.Exec("DELETE FROM download_queue WHERE id = ?", id)
+	return err
+}
+
+// PauseQueueItem pauses a specific item in the download queue by ID.
+func (s *Store) PauseQueueItem(id int64) error {
+	result, err := s.db.Exec("UPDATE download_queue SET status = 'paused', message = 'Paused by user' WHERE id = ?", id)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("download queue item with ID %d not found", id)
+	}
+	return nil
+}
+
+// ResumeQueueItem resumes a specific item in the download queue by ID.
+func (s *Store) ResumeQueueItem(id int64) error {
+	result, err := s.db.Exec("UPDATE download_queue SET status = 'queued', message = 'Resumed by user' WHERE id = ?", id)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("download queue item with ID %d not found", id)
+	}
+	return nil
 }
 
 // GetAllSubscriptions retrieves all subscriptions, optionally filtered by provider ID.

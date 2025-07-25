@@ -164,3 +164,57 @@ func TestEmptyQueue(t *testing.T) {
 		t.Errorf("Expected 2 items (in_progress, completed) to remain, but count is %d", count)
 	}
 }
+
+func TestGetDownloadQueueItem(t *testing.T) {
+	db := testutil.SetupTestDB(t)
+	s := store.New(db)
+
+	// Add a test item
+	_, err := db.Exec("INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status, progress, message) VALUES ('Test Manga', 'Test Chapter', 'test-id', 'test-provider', ?, 'queued', 0, 'Test message')", time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Get the inserted item ID
+	var itemID int64
+	err = db.QueryRow("SELECT id FROM download_queue WHERE series_title = 'Test Manga'").Scan(&itemID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Test getting the item
+	item, err := s.GetDownloadQueueItem(itemID)
+	if err != nil {
+		t.Fatalf("GetDownloadQueueItem failed: %v", err)
+	}
+
+	if item == nil {
+		t.Fatal("Expected item to be returned, got nil")
+	}
+
+	if item.ID != itemID {
+		t.Errorf("Expected item ID %d, got %d", itemID, item.ID)
+	}
+
+	if item.SeriesTitle != "Test Manga" {
+		t.Errorf("Expected series title 'Test Manga', got '%s'", item.SeriesTitle)
+	}
+
+	if item.ChapterTitle != "Test Chapter" {
+		t.Errorf("Expected chapter title 'Test Chapter', got '%s'", item.ChapterTitle)
+	}
+
+	if item.Status != "queued" {
+		t.Errorf("Expected status 'queued', got '%s'", item.Status)
+	}
+
+	if item.Message != "Test message" {
+		t.Errorf("Expected message 'Test message', got '%s'", item.Message)
+	}
+
+	// Test getting non-existent item
+	_, err = s.GetDownloadQueueItem(99999)
+	if err == nil {
+		t.Error("Expected error when getting non-existent item, got nil")
+	}
+}

@@ -105,6 +105,7 @@ func (s *Server) Router() http.Handler {
 			r.Post("/downloads/queue", s.handleAddChaptersToQueue)
 			r.Get("/downloads/queue", s.handleGetDownloadQueue)
 			r.Post("/downloads/action", s.handleQueueAction)
+			r.Post("/downloads/queue/{itemID}/action", s.handleQueueItemAction)
 
 			// Subscription Routes
 			r.Post("/subscriptions", s.handleSubscribeToSeries)

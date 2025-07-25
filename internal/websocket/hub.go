@@ -59,15 +59,3 @@ func (h *Hub) BroadcastJSON(v interface{}) {
 func (h *Hub) Broadcast() <-chan []byte {
 	return h.broadcast
 }
-
-// Close closes the hub and cleans up resources.
-// func (h *Hub) Close() {
-// 	for client := range h.clients {
-// 		client.conn.Close()
-// 		h.unregister <- client
-// 	}
-// 	close(h.broadcast)
-// 	close(h.register)
-// 	close(h.unregister)
-// 	log.Println("WebSocket hub closed")
-// }

@@ -106,3 +106,50 @@
 .status-failed {
     color: #ff4500;
 }
+
+.status-paused {
+    color: #ffa500;
+}
+
+/* Action buttons styling */
+.actions-cell {
+    text-align: center;
+    width: 80px;
+}
+
+.action-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.2rem;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+.action-btn:hover {
+    background-color: var(--accent-color);
+    color: white;
+}
+
+.action-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.action-btn:disabled:hover {
+    background-color: transparent;
+    color: inherit;
+}
+
+.delete-btn:hover {
+    background-color: #ff4500;
+}
+
+.pause-btn:hover {
+    background-color: #ffa500;
+}
+
+.resume-btn:hover {
+    background-color: #32cd32;
+}

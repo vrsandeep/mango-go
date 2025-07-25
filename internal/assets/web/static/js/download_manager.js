@@ -16,6 +16,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       row.id = `item-${item.id}`;
     }
     const statusClass = `status-${item.status.replace(' ', '_').toLowerCase()}`;
+
+    let actionButtons = generateActionCellContent(item.id, item.status);
+
     row.innerHTML = `
       <td title="${item.chapter_title}">${item.chapter_title}</td>
       <td title="${item.series_title}">${item.series_title}</td>
@@ -27,9 +30,22 @@ document.addEventListener('DOMContentLoaded', async () => {
       <td>${new Date(item.created_at).toLocaleString()}</td>
       <td><span class="${statusClass}">${item.status}</span></td>
       <td>${item.provider_id}</td>
-      <td><!-- Per-item action icons can be added here --></td>
+      <td class="actions-cell">${actionButtons}</td>
     `;
     return row;
+  };
+
+  const generateActionCellContent = (itemId, status) => {
+    let actionButtons = '';
+    if (status === 'queued' || status === 'completed' || status === 'failed') {
+      actionButtons = `<button class="action-btn delete-btn" data-action="delete" data-id="${itemId}" title="Delete">🗑️</button>`;
+    } else if (status === 'in_progress') {
+      actionButtons = `<button class="action-btn pause-btn" data-action="pause" data-id="${itemId}" title="Pause">⏸️</button>`;
+    } else if (status === 'paused') {
+      actionButtons = `<button class="action-btn resume-btn" data-action="resume" data-id="${itemId}" title="Resume">▶️</button>`;
+    }
+
+    return actionButtons;
   };
 
   const loadQueue = async () => {
@@ -52,7 +68,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      if (data.job_name !== 'downloader' || !data.item_id) return;
+      console.log("received data:", data);
+      if (data.jobId !== 'downloader' || !data.item_id) return;
 
       let row = document.getElementById(`item-${data.item_id}`);
       if (!row) {
@@ -74,6 +91,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       progressBar.textContent = `${Math.round(data.progress)}%`;
       statusEl.textContent = data.status;
       statusEl.className = `status-${data.status.replace(' ', '_').toLowerCase()}`;
+
+      // Update action buttons based on new status
+      const actionsCell = row.querySelector('.actions-cell');
+      if (!actionsCell) return;
+      actionsCell.innerHTML = generateActionCellContent(data.item_id, data.status);
     };
 
     ws.onclose = () => {
@@ -115,6 +137,42 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
       setTimeout(loadQueue, 500); // Give backend a moment before refreshing
     });
+  });
+
+  // Add event delegation for individual item action buttons
+  queueTableBody.addEventListener('click', async (e) => {
+    const button = e.target.closest('.action-btn');
+    if (!button) return;
+
+    const action = button.dataset.action;
+    const itemId = button.dataset.id;
+
+    if (!itemId) return;
+
+    // Disable button to prevent double-clicks
+    button.disabled = true;
+
+    try {
+      if (action === 'delete') {
+        if (!confirm('Are you sure you want to delete this item from the queue?')) {
+          button.disabled = false;
+          return;
+        }
+      }
+
+      await fetch(`/api/downloads/queue/${itemId}/action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action })
+      });
+
+      // Refresh the queue to show updated status
+      setTimeout(loadQueue, 100);
+    } catch (error) {
+      console.error(`Failed to ${action} item ${itemId}:`, error);
+      alert(`Failed to ${action} item. Please try again.`);
+      button.disabled = false;
+    }
   });
 
   loadQueue();

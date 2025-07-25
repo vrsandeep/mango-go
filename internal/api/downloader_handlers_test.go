@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -322,6 +323,143 @@ func TestHandleQueueAction(t *testing.T) {
 		}{Action: "invalid_action"}
 		body, _ := json.Marshal(payload)
 		req, _ := http.NewRequest("POST", "/api/downloads/action", bytes.NewBuffer(body))
+		req.AddCookie(testutil.CookieForUser(t, server, "testuser", "password", "user"))
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusBadRequest {
+			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusBadRequest)
+		}
+
+		var response map[string]string
+		json.Unmarshal(rr.Body.Bytes(), &response)
+		if response["error"] != "Invalid action" {
+			t.Errorf("Expected error message 'Invalid action', got %s", response["error"])
+		}
+	})
+}
+
+func TestHandleQueueItemAction(t *testing.T) {
+	server, db := SetupTestServerWithProviders(t)
+	router := server.Router()
+
+	t.Run("Test delete item action", func(t *testing.T) {
+		// Add a dummy item to the queue
+		db.Exec("INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at) VALUES ('Test', 'Ch. 1', 'id1', 'mockadex', ?)", time.Now())
+
+		// Get the inserted item ID
+		var itemID int64
+		db.QueryRow("SELECT id FROM download_queue WHERE series_title = 'Test'").Scan(&itemID)
+
+		payload := struct {
+			Action string `json:"action"`
+		}{Action: "delete"}
+		body, _ := json.Marshal(payload)
+		req, _ := http.NewRequest("POST", fmt.Sprintf("/api/downloads/queue/%d/action", itemID), bytes.NewBuffer(body))
+		req.AddCookie(testutil.CookieForUser(t, server, "testuser", "password", "user"))
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusOK {
+			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		}
+
+		var response map[string]string
+		json.Unmarshal(rr.Body.Bytes(), &response)
+		if response["status"] != "success" {
+			t.Errorf("Expected success status, got %s", response["status"])
+		}
+
+		// Verify item was deleted
+		var count int
+		db.QueryRow("SELECT COUNT(*) FROM download_queue WHERE id = ?", itemID).Scan(&count)
+		if count != 0 {
+			t.Errorf("Expected 0 items after deletion, got %d", count)
+		}
+	})
+
+	t.Run("Test pause item action", func(t *testing.T) {
+		// Add a dummy item to the queue
+		db.Exec("INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Test', 'Ch. 2', 'id2', 'mockadex', ?, 'queued')", time.Now())
+
+		// Get the inserted item ID
+		var itemID int64
+		db.QueryRow("SELECT id FROM download_queue WHERE series_title = 'Test' AND chapter_title = 'Ch. 2'").Scan(&itemID)
+
+		payload := struct {
+			Action string `json:"action"`
+		}{Action: "pause"}
+		body, _ := json.Marshal(payload)
+		req, _ := http.NewRequest("POST", fmt.Sprintf("/api/downloads/queue/%d/action", itemID), bytes.NewBuffer(body))
+		req.AddCookie(testutil.CookieForUser(t, server, "testuser", "password", "user"))
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusOK {
+			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		}
+
+		var response map[string]string
+		json.Unmarshal(rr.Body.Bytes(), &response)
+		if response["status"] != "success" {
+			t.Errorf("Expected success status, got %s", response["status"])
+		}
+
+		// Verify item was paused
+		var status string
+		db.QueryRow("SELECT status FROM download_queue WHERE id = ?", itemID).Scan(&status)
+		if status != "paused" {
+			t.Errorf("Expected status 'paused', got %s", status)
+		}
+
+		// Clean up
+		db.Exec("DELETE FROM download_queue WHERE id = ?", itemID)
+	})
+
+	t.Run("Test resume item action", func(t *testing.T) {
+		// Add a paused item to the queue
+		db.Exec("INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Test', 'Ch. 3', 'id3', 'mockadex', ?, 'paused')", time.Now())
+
+		// Get the inserted item ID
+		var itemID int64
+		db.QueryRow("SELECT id FROM download_queue WHERE series_title = 'Test' AND chapter_title = 'Ch. 3'").Scan(&itemID)
+
+		payload := struct {
+			Action string `json:"action"`
+		}{Action: "resume"}
+		body, _ := json.Marshal(payload)
+		req, _ := http.NewRequest("POST", fmt.Sprintf("/api/downloads/queue/%d/action", itemID), bytes.NewBuffer(body))
+		req.AddCookie(testutil.CookieForUser(t, server, "testuser", "password", "user"))
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusOK {
+			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		}
+
+		var response map[string]string
+		json.Unmarshal(rr.Body.Bytes(), &response)
+		if response["status"] != "success" {
+			t.Errorf("Expected success status, got %s", response["status"])
+		}
+
+		// Verify item was resumed
+		var status string
+		db.QueryRow("SELECT status FROM download_queue WHERE id = ?", itemID).Scan(&status)
+		if status != "queued" {
+			t.Errorf("Expected status 'queued', got %s", status)
+		}
+
+		// Clean up
+		db.Exec("DELETE FROM download_queue WHERE id = ?", itemID)
+	})
+
+	t.Run("Test invalid item action", func(t *testing.T) {
+		payload := struct {
+			Action string `json:"action"`
+		}{Action: "invalid_action"}
+		body, _ := json.Marshal(payload)
+		req, _ := http.NewRequest("POST", "/api/downloads/queue/1/action", bytes.NewBuffer(body))
 		req.AddCookie(testutil.CookieForUser(t, server, "testuser", "password", "user"))
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
