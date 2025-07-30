@@ -343,10 +343,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         loadFolderContents(); // Reload to show the new cover
       } else {
         const errorData = await response.json();
-        alert(`Error uploading cover: ${errorData.error}`);
+        toast.error(`Error uploading cover: ${errorData.error}`);
       }
     } catch (err) {
-      alert('An unexpected error occurred during upload.');
+      toast.error('An unexpected error occurred during upload.');
     }
   };
 
@@ -360,7 +360,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (response.ok) {
       loadFolderContents();
     } else {
-      alert('Failed to mark all chapters as read');
+      toast.error('Failed to mark all chapters as read');
     }
   };
   // --- Event Listeners ---

@@ -88,11 +88,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       } else if (action === 'recheck') {
         await fetch(`/api/subscriptions/${id}/recheck`, { method: 'POST' });
-        alert('Re-check initiated. New chapters will be added to the download queue if found.');
+        toast.success('Re-check initiated. New chapters will be added to the download queue if found.');
       }
     } catch (e) {
       console.error(`Action ${action} failed:`, e);
-      alert(`Action ${action} failed.`);
+      toast.error(`Action ${action} failed.`);
     } finally {
       button.disabled = false;
     }

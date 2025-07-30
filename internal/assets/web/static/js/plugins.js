@@ -167,7 +167,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         chapters: selectedChapters
       })
     });
-    alert(`${selectedChapters.length} chapters added to download queue.`);
+    toast.success(`${selectedChapters.length} chapters added to download queue.`);
     clearSelections();
   };
 
@@ -182,7 +182,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         provider_id: state.selectedProvider
       })
     });
-    alert(`Subscribed to ${state.selectedSeries.title}.`);
+    toast.success(`Subscribed to ${state.selectedSeries.title}.`);
   };
 
   // --- UI Logic & Event Listeners ---

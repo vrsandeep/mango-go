@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             renderUsers();
         } catch (e) {
             console.error("Failed to load users:", e);
-            alert("Error: Could not load users.");
+            toast.error("Could not load users.");
         }
     };
 
@@ -82,7 +82,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         if (!isEditing && !payload.password) {
-            alert("Password is required for new users.");
+            toast.error("Password is required for new users.");
             return;
         }
 
@@ -97,10 +97,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 await loadUsers();
             } else {
                 const error = await response.json();
-                alert(`Error: ${error.error}`);
+                toast.error(error.error);
             }
         } catch (e) {
-            alert("An unexpected error occurred.");
+            toast.error("An unexpected error occurred.");
         }
     };
 
@@ -114,10 +114,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 await loadUsers();
             } else {
                 const error = await response.json();
-                alert(`Error: ${error.error}`);
+                toast.error(error.error);
             }
         } catch (e) {
-            alert("An unexpected error occurred.");
+            toast.error("An unexpected error occurred.");
         }
     };
 

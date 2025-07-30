@@ -68,7 +68,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      console.log("received data:", data);
       if (data.jobId !== 'downloader' || !data.item_id) return;
 
       let row = document.getElementById(`item-${data.item_id}`);
@@ -170,7 +169,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       setTimeout(loadQueue, 100);
     } catch (error) {
       console.error(`Failed to ${action} item ${itemId}:`, error);
-      alert(`Failed to ${action} item. Please try again.`);
+      toast.error(`Failed to ${action} item. Please try again.`);
       button.disabled = false;
     }
   });

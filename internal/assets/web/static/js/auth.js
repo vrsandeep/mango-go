@@ -31,7 +31,11 @@ async function checkAuth(requiredRole = null) {
 
         // If a specific role is required, check it.
         if (requiredRole && user.role !== requiredRole) {
-            alert('Access Denied: You do not have permission to view this page.');
+            if (window.toast) {
+                toast.error('Access Denied: You do not have permission to view this page.');
+            } else {
+                alert('Access Denied: You do not have permission to view this page.');
+            }
             window.location.href = '/'; // Redirect to a safe default page
             return null;
         }
