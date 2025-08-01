@@ -28,7 +28,6 @@ archives:
     files:
       - README.md
       - LICENSE
-      - config.yml
     allow_different_binary_count: true
 
 checksum:
@@ -52,3 +51,15 @@ release:
   draft: false
   prerelease: false
   name_template: '{{ .ProjectName }} {{ .Version }}'
+  header: |
+    ## Mango v{{.Version}}
+
+    A self-hosted manga server and web reader written in Go.
+
+
+    ### Installation
+
+    Download the appropriate binary for your platform below.
+
+  footer: |
+    **Full Changelog**: https://github.com/vrsandeep/mango-go/compare/{{.PreviousTag}}...{{.Tag}}

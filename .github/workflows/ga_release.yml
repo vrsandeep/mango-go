@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [linux, darwin]
@@ -27,7 +27,11 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt-get update && sudo apt-get install -y libsqlite3-dev make gcc
+          if [ "${{ matrix.os }}" = "linux" ]; then
+            sudo apt-get update && sudo apt-get install -y libsqlite3-dev make gcc
+          elif [ "${{ matrix.os }}" = "darwin" ]; then
+            brew install sqlite
+          fi
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -40,24 +44,37 @@ jobs:
       - name: Build assets
         run: make assets
 
-      - name: Build binary
+      - name: Build linux binary
         run: |
-          GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} CGO_ENABLED=1 go build \
-            -ldflags="-s -w -X main.version=${{ github.ref_name }} -X main.commit=${{ github.sha }} -X main.date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            -o mango-go-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }} \
-            .
+          mkdir -p build
+          if [ "${{ matrix.os }}" = "linux" ]; then
+            GOOS=linux GOARCH=${{ matrix.arch }} CGO_ENABLED=1 go build \
+              -ldflags="-s -w -X main.version=${{ github.ref_name }} -X main.commit=${{ github.sha }} -X main.date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+              -o build/mango-go-linux-${{ matrix.arch }} \
+              .
+          fi
+
+      - name: Build darwin binary
+        run: |
+          mkdir -p build
+          if [ "${{ matrix.os }}" = "darwin" ]; then
+            GOOS=darwin GOARCH=${{ matrix.arch }} CGO_ENABLED=1 go build \
+              -ldflags="-s -w -X main.version=${{ github.ref_name }} -X main.commit=${{ github.sha }} -X main.date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+              -o build/mango-go-darwin-${{ matrix.arch }} \
+              .
+          fi
 
       - name: Create release archive
         run: |
-          tar -czf mango-go-${{ matrix.os }}-${{ matrix.arch }}.tar.gz \
-            mango-go-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }} \
-            README.md LICENSE config.yml
+          tar -czf build/mango-go-${{ matrix.os }}-${{ matrix.arch }}.tar.gz \
+            build/mango-go-${{ matrix.os }}-${{ matrix.arch }} \
+            README.md LICENSE
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: mango-go-${{ matrix.os }}-${{ matrix.arch }}
-          path: mango-go-${{ matrix.os }}-${{ matrix.arch }}.tar.gz
+          path: build/mango-go-${{ matrix.os }}-${{ matrix.arch }}.tar.gz
 
   release:
     runs-on: ubuntu-latest
