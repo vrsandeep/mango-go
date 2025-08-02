@@ -2,7 +2,7 @@ name: Docker Edge Image publish
 
 on:
   workflow_run:
-    workflows: [ "test" ]
+    workflows: [ "Run tests" ]
     types: [ completed ]
     branches: [ "master" ]
 
