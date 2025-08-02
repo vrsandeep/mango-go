@@ -61,10 +61,10 @@ build-linux-amd64-docker: assets
 		bash -c "GOOS=linux GIN_MODE=release GOARCH=amd64 CGO_ENABLED=1 CC=gcc go build -ldflags='-w -s' -o $(BUILD_DIR)/$(BINARY_NAME)-linux-amd64 ."
 
 # Original target kept for reference but will fail on macOS
-build-linux-amd64: assets
-	@echo "📦 Building for linux/amd64..."
-	@mkdir -p $(BUILD_DIR)
-	@GOOS=linux GIN_MODE=release GOARCH=amd64 CGO_ENABLED=1 go build -ldflags="-w -s" -o $(BUILD_DIR)/$(BINARY_NAME)-linux-amd64 .
+# build-linux-amd64: assets
+# 	@echo "📦 Building for linux/amd64..."
+# 	@mkdir -p $(BUILD_DIR)
+# 	@GOOS=linux GIN_MODE=release GOARCH=amd64 CGO_ENABLED=1 go build -ldflags="-w -s" -o $(BUILD_DIR)/$(BINARY_NAME)-linux-amd64 .
 
 build-macos-amd64: assets
 	@echo "📦 Building for darwin/amd64 (Intel)..."
