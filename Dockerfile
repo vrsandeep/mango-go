@@ -21,7 +21,7 @@ RUN npm install -g esbuild
 # -ldflags "-w -s": Strips debugging information, reducing the binary size.
 # CGO_ENABLED=1: Required for the go-sqlite3 driver.
 # GIN_MODE=release: Sets Gin to production mode for better performance.
-RUN GIN_MODE=release make build
+RUN CGO_ENABLED=1 GIN_MODE=release make build
 
 # Use alpine as the base image. It's lightweight but contains the necessary
 # runtime libraries (like musl libc) that our binary depends on.
@@ -48,7 +48,4 @@ COPY --from=builder /app/mango-go /mango-go
 # Expose the port the application will run on.
 EXPOSE 8080
 
-# Set the entrypoint for the container.
-# Note: Since we are not using a non-root user in this simple setup,
-# the binary will run as root. For enhanced security, a non-root user could be added.
 ENTRYPOINT ["/mango-go"]
