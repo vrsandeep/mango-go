@@ -2,6 +2,8 @@
 
 A self-hosted manga server and web reader written in Go. This is a modern rewrite of the original [Mango](https://github.com/vrsandeep/Mango/) project, offering improved performance, easier deployment, and better maintainability.
 
+[![tests](https://github.com/vrsandeep/mango-go/actions/workflows/test.yml/badge.svg)](https://github.com/vrsandeep/mango-go/actions/workflows/test.yml)
+
 ## ✨ Features
 
 - 📚 **Manga Library Management**: Organize and browse your manga collection
