@@ -34,7 +34,7 @@ WORKDIR /app
 
 # Install runtime dependencies. ca-certificates is needed for making HTTPS requests.
 # sqlite-libs provides the .so files needed by the compiled Go binary.
-RUN apk add --no-cache ca-certificates sqlite-libs
+RUN apk add --no-cache ca-certificates sqlite-dev
 
 RUN mkdir /app/data && chown -R mango:mango /app/data
 RUN chown -R mango:mango /app
@@ -43,7 +43,7 @@ RUN chown -R mango:mango /app
 USER mango
 
 # Copy the compiled binary from the builder stage.
-COPY --from=builder /app/mango-go /mango-go
+COPY --from=builder /app/build/mango-go /mango-go
 
 # Expose the port the application will run on.
 EXPOSE 8080

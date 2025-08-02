@@ -1,12 +1,15 @@
 name: Docker Edge Image publish
 
 on:
-  push:
+  workflow_run:
+    workflows: [ "test" ]
+    types: [ completed ]
     branches: [ "master" ]
 
 jobs:
   release-edge-image:
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
