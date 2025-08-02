@@ -47,6 +47,8 @@ jobs:
         run: go test ./...
 
 
+  # This is used to release the edge version of the app
+  # Run this step only on the master branch
   release-dev:
     runs-on: ubuntu-latest
     needs: test
