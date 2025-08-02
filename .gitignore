@@ -7,3 +7,4 @@ manga/
 data/
 mango-go
 internal/assets/web/dist/
+build/
