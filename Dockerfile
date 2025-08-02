@@ -43,7 +43,7 @@ RUN chown -R mango:mango /app
 USER mango
 
 # Copy the compiled binary from the builder stage.
-COPY --from=builder /app/mango-go /mango-go
+COPY --from=builder /app/build/mango-go /mango-go
 
 # Expose the port the application will run on.
 EXPOSE 8080
