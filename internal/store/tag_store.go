@@ -93,3 +93,12 @@ func (s *Store) RemoveTagFromFolder(folderID, tagID int64) error {
 	_, err := s.db.Exec("DELETE FROM folder_tags WHERE folder_id = ? AND tag_id = ?", folderID, tagID)
 	return err
 }
+
+// DeleteEmptyTags deletes all tags that are not associated with any folders.
+func (s *Store) DeleteEmptyTags() error {
+	_, err := s.db.Exec("DELETE FROM tags WHERE id NOT IN (SELECT tag_id FROM folder_tags)")
+	if err != nil {
+		return err
+	}
+	return nil
+}

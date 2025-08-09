@@ -41,6 +41,19 @@ func NewScanner(cfg *config.Config, db *sql.DB) *Scanner {
 	}
 }
 
+func DeleteEmptyTags(ctx jobs.JobContext) {
+	jobId := "delete-empty-tags"
+	sendProgress(ctx, jobId, "Deleting empty tags...", 0, false)
+	st := store.New(ctx.DB())
+
+	err := st.DeleteEmptyTags()
+	if err != nil {
+		log.Printf("Error deleting empty tags: %v", err)
+	}
+
+	sendProgress(ctx, jobId, "Deleting empty tags...", 100, true)
+}
+
 // RegenerateThumbnails is a new function for the admin job.
 func RegenerateThumbnails(ctx jobs.JobContext) {
 	jobId := "regen-thumbnails"

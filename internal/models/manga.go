@@ -29,8 +29,8 @@ type Folder struct {
 	Chapters   []*Chapter `json:"chapters,omitempty"`
 
 	// Fields calculated by the API, not stored in DB
-	TotalChapters int             `json:"total_chapters,omitempty"`
-	ReadChapters  int             `json:"read_chapters,omitempty"`
+	TotalChapters int `json:"total_chapters,omitempty"`
+	ReadChapters  int `json:"read_chapters,omitempty"`
 	// Settings      *FolderSettings `json:"settings,omitempty"` // Folder-specific settings
 }
 

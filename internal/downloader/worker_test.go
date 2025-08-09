@@ -55,7 +55,6 @@ func TestResumeQueueItem(t *testing.T) {
 	db := app.DB()
 	st := store.New(db)
 
-
 	// Add a paused test item to the queue
 	_, err := db.Exec("INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status, progress) VALUES ('Test Manga', 'Test Chapter', 'test-id', 'test-provider', ?, 'paused', 75)", time.Now())
 	if err != nil {

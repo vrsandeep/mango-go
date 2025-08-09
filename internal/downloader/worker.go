@@ -22,11 +22,11 @@ import (
 )
 
 var (
-	jobQueue   chan *models.DownloadQueueItem
-	isPaused   bool
-	mu         sync.Mutex
-	numWorkers = int(math.Min(4, float64(runtime.NumCPU()))) // Number of concurrent downloads
-	ErrDownloadPaused   = fmt.Errorf("download paused by user")
+	jobQueue          chan *models.DownloadQueueItem
+	isPaused          bool
+	mu                sync.Mutex
+	numWorkers        = int(math.Min(4, float64(runtime.NumCPU()))) // Number of concurrent downloads
+	ErrDownloadPaused = fmt.Errorf("download paused by user")
 )
 
 // StartWorkerPool initializes and starts the download workers.
@@ -229,7 +229,6 @@ func ResumeQueueItem(app *core.App, st *store.Store, itemID int64) error {
 
 	return nil
 }
-
 
 func sendDownloaderProgressUpdate(app *core.App, itemID int64, message string, status string, progress float64, done bool) {
 	app.WsHub().BroadcastJSON(models.ProgressUpdate{

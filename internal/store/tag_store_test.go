@@ -59,4 +59,31 @@ func TestAddTagToFolder(t *testing.T) {
 			t.Errorf("Expected 0 tags in folder_tags, got %d", count)
 		}
 	})
+
+	t.Run("Delete Empty Tags", func(t *testing.T) {
+
+		var count int
+		err := db.QueryRow("SELECT COUNT(*) FROM tags").Scan(&count)
+		if err != nil {
+			t.Fatalf("Failed to get count of tags: %v", err)
+		}
+		if count == 0 {
+			t.Fatalf("Expected tags to exist, got 0")
+		}
+
+		err = s.DeleteEmptyTags()
+		if err != nil {
+			t.Fatalf("Failed to delete empty tags: %v", err)
+		}
+
+		err = db.QueryRow("SELECT COUNT(*) FROM tags").Scan(&count)
+		if err != nil {
+			t.Fatalf("Failed to get count of tags: %v", err)
+		}
+		if count != 0 {
+			t.Errorf("Expected 0 tags, got %d", count)
+		}
+
+	})
+
 }
