@@ -313,7 +313,7 @@ func (s *Store) ListItems(opts ListItemsOptions) (*models.Folder, []*models.Fold
 
 	allArgs := append(folderArgs, opts.UserID)
 	allArgs = append(allArgs, chapterArgs...)
-	if opts.SortBy != "" && opts.SortBy != "auto" {
+	if opts.SortBy != "" && opts.SortBy != "auto" && opts.PerPage > 0 {
 		finalQuery += " LIMIT ? OFFSET ?"
 		offset := (opts.Page - 1) * opts.PerPage
 		allArgs = append(allArgs, opts.PerPage, offset)

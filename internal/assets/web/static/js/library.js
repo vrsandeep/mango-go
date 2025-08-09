@@ -131,6 +131,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     return card;
   };
 
+  const saveFolderSettings = async () => {
+    await fetch(`/api/folders/${state.currentFolderId}/settings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sort_by: state.sortBy, sort_dir: state.sortDir })
+    });
+  };
+
   // Fetch folder settings and update state
   const loadFolderSettings = async () => {
     if (!state.currentFolderId) return;
@@ -414,6 +422,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   sortBySelect.addEventListener('change', () => {
     state.sortBy = sortBySelect.value;
     state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+    saveFolderSettings();
     loadFolderContents();
   });
 
@@ -421,6 +430,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     state.sortBy = sortBySelect.value;
     state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
     sortDirBtn.textContent = state.sortDir === 'asc' ? '▲' : '▼';
+    saveFolderSettings();
     loadFolderContents();
   });
 

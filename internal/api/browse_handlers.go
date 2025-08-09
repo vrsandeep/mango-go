@@ -34,11 +34,6 @@ func (s *Server) handleBrowseFolder(w http.ResponseWriter, r *http.Request) {
 		tagID = &id
 	}
 
-	// save settings to folder if they exist
-	if sortBy != "" || sortDir != "" {
-		s.store.UpdateFolderSettings(folderID, user.ID, sortBy, sortDir)
-	}
-
 	opts := store.ListItemsOptions{
 		UserID:   user.ID,
 		ParentID: &folderID,

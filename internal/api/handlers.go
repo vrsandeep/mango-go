@@ -21,7 +21,7 @@ func getListParams(r *http.Request) (page, perPage int, search, sortBy, sortDir 
 		page = 1
 	}
 	perPage, _ = strconv.Atoi(r.URL.Query().Get("per_page"))
-	if perPage <= 0 || perPage > 100 { // Enforce a max of 100
+	if perPage <= 0 {
 		perPage = 100
 	}
 	search = r.URL.Query().Get("search")

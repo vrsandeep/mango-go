@@ -46,7 +46,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const fetchInitialData = async () => {
     const [chapterRes, folderRes] = await Promise.all([
       fetch(`/api/chapters/${chapterId}`),
-      fetch(`/api/browse?folderId=${folderId}&per_page=9999`) // Fetch all chapters for dropdown
+      fetch(`/api/browse?folderId=${folderId}&page=1&per_page=9999&sort_by=auto&sort_dir=asc`) // Fetch all chapters for dropdown
     ]);
     state.chapterData = await chapterRes.json();
     const folderContents = await folderRes.json();
