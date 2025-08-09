@@ -29,24 +29,15 @@ FROM alpine:latest
 
 # Install runtime dependencies. ca-certificates is needed for making HTTPS requests.
 # sqlite-libs provides the .so files needed by the compiled Go binary.
-RUN apk add --no-cache ca-certificates shadow
-
-# Create user and group with default IDs
-RUN addgroup -S -g 1000 mango && adduser -S -u 1000 mango -G mango
+RUN apk add --no-cache ca-certificates
 
 # Copy the compiled binary from the builder stage.
 COPY --from=builder /app/build/mango-go /mango-go
-COPY entrypoint.sh /entrypoint.sh
-
-# Make the entrypoint script executable
-RUN chmod +x /entrypoint.sh
 
 # Create data directory and set initial ownership
-RUN mkdir -p /app/data && chown -R mango:mango /app
+RUN mkdir -p /app/data
 
 # Expose the port the application will run on.
 EXPOSE 8080
 
-ENTRYPOINT ["/entrypoint.sh"]
-
-CMD ["/mango-go"]
+ENTRYPOINT ["/mango-go"]

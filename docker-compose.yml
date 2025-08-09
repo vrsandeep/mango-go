@@ -12,8 +12,7 @@ services:
       - MANGO_LIBRARY_PATH=/manga # optional
       # You can also override the port, e.g.,
       # - MANGO_PORT=8080
-      - PUID=1000
-      - PGID=1000
+    user: "1000:1000"
     volumes:
       # This will store the SQLite database and any other app data.
       - ./data:/app/data

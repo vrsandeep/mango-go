@@ -49,6 +49,7 @@ The recommended way to run Mango-Go in production is using Docker and Docker Com
          environment:
             - MANGO_DATABASE_PATH=/app/data/mango.db
             - MANGO_LIBRARY_PATH=/manga
+         #user: 1000:1000  # Add this optionally on linux systems
          volumes:
             # This will store the SQLite database
             - ./data:/app/data
