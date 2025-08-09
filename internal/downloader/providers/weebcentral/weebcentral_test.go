@@ -13,7 +13,7 @@ func setupTestServer() *httptest.Server {
 	mux := http.NewServeMux()
 
 	// Mock search endpoint (HTML response)
-	mux.HandleFunc("/search/simple", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/search/simple", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		fmt.Fprint(w, `
 		<div id="quick-search-result">
@@ -28,7 +28,7 @@ func setupTestServer() *httptest.Server {
 	})
 
 	// Mock chapters endpoint (HTML response)
-	mux.HandleFunc("/series/series-1/full-chapter-list", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/series/series-1/full-chapter-list", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		fmt.Fprint(w, `
 		<div class="flex items-center">
@@ -43,7 +43,7 @@ func setupTestServer() *httptest.Server {
 	})
 
 	// Mock pages endpoint (HTML response)
-	mux.HandleFunc("/chapters/chapter-1/images", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/chapters/chapter-1/images", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		fmt.Fprint(w, `
 		<section class="flex-1">
