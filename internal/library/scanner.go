@@ -12,6 +12,7 @@ import (
 	"io/fs"
 	"log"
 	"math"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -119,6 +120,7 @@ func updateChaptersThumbnails(
 func LibrarySync(ctx jobs.JobContext) {
 	jobId := "library-sync"
 	st := store.New(ctx.DB())
+	badFileStore := store.NewBadFileStore(ctx.DB())
 
 	sendProgress(ctx, jobId, "Starting library sync...", 0, false)
 
@@ -154,11 +156,19 @@ func LibrarySync(ctx jobs.JobContext) {
 	sendProgress(ctx, jobId, "Syncing chapters...", 50, false)
 	syncChapters(st, diskItems, dbChapters, dbFolders)
 
-	// 5. Pruning: Remove DB entries for items no longer on disk
+	// 5. Check for bad files during sync
+	sendProgress(ctx, jobId, "Checking for bad files...", 65, false)
+	checkBadFilesDuringSync(badFileStore, diskItems)
+
+	// 6. Pruning: Remove DB entries for items no longer on disk
 	sendProgress(ctx, jobId, "Pruning deleted items...", 75, false)
 	prune(st, diskItems, dbFolders, dbChapters)
 
-	// 6. Thumbnail Generation
+	// 7. Clean up bad file records for deleted files
+	sendProgress(ctx, jobId, "Cleaning up bad file records...", 80, false)
+	cleanupMissingBadFileRecords(badFileStore, diskItems)
+
+	// 8. Thumbnail Generation
 	sendProgress(ctx, jobId, "Updating thumbnails...", 90, false)
 	st.UpdateAllFolderThumbnails()
 
@@ -210,6 +220,9 @@ func syncFolders(st *store.Store, rootPath string, diskItems map[string]diskItem
 
 // syncChapters handles new, moved, and existing chapters.
 func syncChapters(st *store.Store, diskItems map[string]diskItem, dbChapters map[string]store.ChapterInfo, dbFolders map[string]*models.Folder) {
+	// Note: We can't access the database directly from the store in this function
+	// Bad file handling will be done in the main LibrarySync function where we have access to the context
+
 	for path, item := range diskItems {
 		if item.isDir || !IsSupportedArchive(filepath.Base(path)) { // Simplified: assume any archive is a chapter file
 			continue
@@ -307,3 +320,59 @@ func hasMangaArchives(dirPath string) bool {
 	})
 	return hasArchives
 }
+
+// checkBadFilesDuringSync checks for bad files during library sync
+func checkBadFilesDuringSync(badFileStore *store.BadFileStore, diskItems map[string]diskItem) {
+	for path, item := range diskItems {
+		if item.isDir || !IsSupportedArchive(filepath.Base(path)) {
+			continue
+		}
+
+		// Check if file is accessible
+		fileInfo, err := os.Stat(path)
+		if err != nil {
+			log.Printf("File %s is not accessible: %v", path, err)
+			// Record as bad file due to I/O error
+			badFileStore.CreateBadFile(path, string(models.ErrorIOError), 0)
+			continue
+		}
+
+		// Try to parse the archive
+		_, _, parseErr := ParseArchive(path)
+		if parseErr != nil {
+			// File is corrupted or invalid
+			errorMsg := categorizeError(parseErr)
+			err := badFileStore.CreateBadFile(path, errorMsg, fileInfo.Size())
+			if err != nil {
+				log.Printf("Failed to record bad file %s: %v", path, err)
+			} else {
+				log.Printf("Detected bad file during sync: %s - %s", path, errorMsg)
+			}
+		} else {
+			// File parsed successfully, remove from bad files if it was there
+			badFileStore.DeleteBadFileByPath(path)
+		}
+	}
+}
+
+// cleanupMissingBadFileRecords removes bad file records for files that no longer exist on disk
+func cleanupMissingBadFileRecords(badFileStore *store.BadFileStore, diskItems map[string]diskItem) {
+	// Get all bad files from database
+	allBadFiles, err := badFileStore.GetAllBadFiles()
+	if err != nil {
+		log.Printf("Error getting bad files for cleanup: %v", err)
+		return
+	}
+
+	// Check each bad file record
+	for _, badFile := range allBadFiles {
+		// Check if the file still exists on disk
+		if _, exists := diskItems[badFile.Path]; !exists {
+			// File no longer exists, remove the bad file record
+			log.Printf("Removing bad file record for deleted file: %s", badFile.Path)
+			badFileStore.DeleteBadFile(badFile.ID)
+		}
+	}
+}
+
+
