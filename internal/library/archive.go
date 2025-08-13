@@ -142,7 +142,7 @@ func ParseArchive(filePath string) (pages []*models.Page, firstPageData []byte, 
 	case "rar":
 		return parseCBR(filePath)
 	default:
-		return nil, nil, fmt.Errorf("unsupported archive type: %s", filepath.Ext(filePath))
+		return nil, nil, fmt.Errorf("unsupported archive %s: %s", filePath, filepath.Ext(filePath))
 	}
 }
 

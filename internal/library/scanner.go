@@ -154,12 +154,39 @@ func LibrarySync(ctx jobs.JobContext) {
 	log.Println("Job finished:", jobId)
 }
 
+// hasMangaArchives checks if a directory contains any manga archive files
+func hasMangaArchives(dirPath string) bool {
+	hasArchives := false
+	filepath.WalkDir(dirPath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		// Skip the directory itself
+		if path == dirPath {
+			return nil
+		}
+		// If we find a manga archive, mark this directory as non-empty
+		if !d.IsDir() && IsSupportedArchive(d.Name()) {
+			hasArchives = true
+			return filepath.SkipAll // Stop walking once we find an archive
+		}
+		return nil
+	})
+	return hasArchives
+}
+
 // syncFolders ensures the folder structure in the DB matches the disk.
 func syncFolders(st *store.Store, rootPath string, diskItems map[string]diskItem, dbFolders map[string]*models.Folder) {
 	for path, item := range diskItems {
 		if !item.isDir {
 			continue
 		}
+
+		// Skip empty directories (those without manga archives)
+		if !hasMangaArchives(path) {
+			continue
+		}
+
 		if _, exists := dbFolders[path]; !exists {
 			// New folder found, create it
 			parentPath := filepath.Dir(path)
@@ -230,6 +257,12 @@ func prune(st *store.Store, diskItems map[string]diskItem, dbFolders map[string]
 		if _, exists := diskItems[path]; !exists {
 			log.Printf("Pruning deleted folder: %s", path)
 			st.DeleteFolder(folder.ID)
+		} else if diskItems[path].isDir {
+			// Check if the folder still contains manga archives
+			if !hasMangaArchives(path) {
+				log.Printf("Pruning empty folder: %s", path)
+				st.DeleteFolder(folder.ID)
+			}
 		}
 	}
 }

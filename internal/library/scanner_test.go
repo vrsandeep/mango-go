@@ -101,17 +101,19 @@ func TestLibrarySync(t *testing.T) {
 		}
 
 		folders, _ := st.GetAllFoldersByPath()
-		if len(folders) != 3 {
-			t.Fatalf("Expected 3 folders, got %d", len(folders))
-		}
-		if _, ok := folders[filepath.Join(libraryRoot, "Series A")]; !ok {
-			t.Error("Series A folder not created")
+		// After moving the file, only Series B should remain (Series A and Volume 1 become empty)
+		if len(folders) != 1 {
+			t.Fatalf("Expected 1 folder after move (empty folders pruned), got %d", len(folders))
 		}
 		if _, ok := folders[filepath.Join(libraryRoot, "Series B")]; !ok {
 			t.Error("Series B folder not created")
 		}
-		if _, ok := folders[filepath.Join(libraryRoot, "Series A", "Volume 1")]; !ok {
-			t.Error("Volume 1 folder not created")
+		// Series A and Volume 1 should be pruned since they're now empty
+		if _, ok := folders[filepath.Join(libraryRoot, "Series A")]; ok {
+			t.Error("Series A folder should have been pruned since it's empty")
+		}
+		if _, ok := folders[filepath.Join(libraryRoot, "Series A", "Volume 1")]; ok {
+			t.Error("Volume 1 folder should have been pruned since it's empty")
 		}
 	})
 
@@ -130,17 +132,31 @@ func TestLibrarySync(t *testing.T) {
 		}
 
 		folders, _ := st.GetAllFoldersByPath()
-		if len(folders) != 3 {
-			t.Fatalf("Expected 3 folders, got %d", len(folders))
+		// After deleting the last chapter, Series B should also be pruned
+		if len(folders) != 0 {
+			t.Fatalf("Expected 0 folders after pruning all empty folders, got %d", len(folders))
 		}
-		if _, ok := folders[filepath.Join(libraryRoot, "Series A")]; !ok {
-			t.Error("Series A folder not created")
+		// Series B folder should be pruned since it's now empty
+		if _, ok := folders[filepath.Join(libraryRoot, "Series B")]; ok {
+			t.Error("Series B folder should have been pruned since it's empty")
 		}
-		if _, ok := folders[filepath.Join(libraryRoot, "Series B")]; !ok {
-			t.Error("Series B folder not created")
+	})
+
+	// --- Test 4: Empty Directory Ignored ---
+	t.Run("Empty Directory Ignored", func(t *testing.T) {
+		// Create an empty directory
+		emptyDir := filepath.Join(libraryRoot, "Empty Series")
+		os.MkdirAll(emptyDir, 0755)
+
+		library.LibrarySync(app)
+
+		folders, _ := st.GetAllFoldersByPath()
+		// Should still have 0 folders since all previous folders were empty
+		if len(folders) != 0 {
+			t.Fatalf("Expected 0 folders, empty directory should be ignored, got %d", len(folders))
 		}
-		if _, ok := folders[filepath.Join(libraryRoot, "Series A", "Volume 1")]; !ok {
-			t.Error("Volume 1 folder not created")
+		if _, ok := folders[emptyDir]; ok {
+			t.Error("Empty directory should not be created in database")
 		}
 	})
 }
