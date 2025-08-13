@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/vrsandeep/mango-go/internal/library"
@@ -115,7 +116,7 @@ func TestBadFileDetector(t *testing.T) {
 		// Count bad files in the good directory
 		var badFilesInGoodDir int
 		for _, bf := range badFiles {
-			if filepath.HasPrefix(bf.Path, goodDir) {
+			if filepath.Dir(bf.Path) == goodDir || strings.HasPrefix(bf.Path, goodDir+string(filepath.Separator)) {
 				badFilesInGoodDir++
 			}
 		}
@@ -536,7 +537,7 @@ func TestErrorCategorization(t *testing.T) {
 		// Count files by error type
 		errorCounts := make(map[string]int)
 		for _, bf := range badFiles {
-			if filepath.HasPrefix(bf.Path, testDir) {
+			if filepath.Dir(bf.Path) == testDir || strings.HasPrefix(bf.Path, testDir+string(filepath.Separator)) {
 				errorCounts[bf.Error]++
 			}
 		}
