@@ -159,4 +159,65 @@ func TestLibrarySync(t *testing.T) {
 			t.Error("Empty directory should not be created in database")
 		}
 	})
+
+	// --- Test 5: Nested Folder Parent ID Linking ---
+	t.Run("Nested Folder Parent ID Linking", func(t *testing.T) {
+		// Create a nested folder structure with manga archives
+		nestedPath := filepath.Join(libraryRoot, "Nested Series", "Volume 1", "Chapter 1")
+		os.MkdirAll(nestedPath, 0755)
+		testutil.CreateTestCBZ(t, nestedPath, "ch1.cbz", []string{"p1.jpg"})
+
+		library.LibrarySync(app)
+
+		folders, _ := st.GetAllFoldersByPath()
+		// Should have 3 folders: Nested Series, Volume 1, and Chapter 1
+		if len(folders) != 3 {
+			t.Fatalf("Expected 3 folders, got %d", len(folders))
+		}
+
+		// Check that all folders exist
+		nestedSeriesPath := filepath.Join(libraryRoot, "Nested Series")
+		volume1Path := filepath.Join(libraryRoot, "Nested Series", "Volume 1")
+		chapter1Path := filepath.Join(libraryRoot, "Nested Series", "Volume 1", "Chapter 1")
+
+		if _, ok := folders[nestedSeriesPath]; !ok {
+			t.Error("Nested Series folder not created")
+		}
+		if _, ok := folders[volume1Path]; !ok {
+			t.Error("Volume 1 folder not created")
+		}
+		if _, ok := folders[chapter1Path]; !ok {
+			t.Error("Chapter 1 folder not created")
+		}
+
+		// Verify parent-child relationships
+		nestedSeries := folders[nestedSeriesPath]
+		volume1 := folders[volume1Path]
+		chapter1 := folders[chapter1Path]
+
+		// Nested Series should have no parent (root level)
+		if nestedSeries.ParentID != nil {
+			t.Errorf("Nested Series should have no parent, got ParentID: %v", nestedSeries.ParentID)
+		}
+
+		// Volume 1 should have Nested Series as parent
+		if volume1.ParentID == nil {
+			t.Error("Volume 1 should have Nested Series as parent")
+		} else if *volume1.ParentID != nestedSeries.ID {
+			t.Errorf("Volume 1 ParentID should be %d, got %d", nestedSeries.ID, *volume1.ParentID)
+		}
+
+		// Chapter 1 should have Volume 1 as parent
+		if chapter1.ParentID == nil {
+			t.Error("Chapter 1 should have Volume 1 as parent")
+		} else if *chapter1.ParentID != volume1.ID {
+			t.Errorf("Chapter 1 ParentID should be %d, got %d", volume1.ID, *chapter1.ParentID)
+		}
+
+		// Verify chapter was created
+		chapters, _ := st.GetAllChaptersByHash()
+		if len(chapters) != 1 {
+			t.Fatalf("Expected 1 chapter, got %d", len(chapters))
+		}
+	})
 }

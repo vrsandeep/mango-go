@@ -13,6 +13,8 @@ import (
 	"log"
 	"math"
 	"path/filepath"
+	"sort"
+	"strings"
 
 	"github.com/vrsandeep/mango-go/internal/config"
 	"github.com/vrsandeep/mango-go/internal/jobs"
@@ -154,39 +156,31 @@ func LibrarySync(ctx jobs.JobContext) {
 	log.Println("Job finished:", jobId)
 }
 
-// hasMangaArchives checks if a directory contains any manga archive files
-func hasMangaArchives(dirPath string) bool {
-	hasArchives := false
-	filepath.WalkDir(dirPath, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		// Skip the directory itself
-		if path == dirPath {
-			return nil
-		}
-		// If we find a manga archive, mark this directory as non-empty
-		if !d.IsDir() && IsSupportedArchive(d.Name()) {
-			hasArchives = true
-			return filepath.SkipAll // Stop walking once we find an archive
-		}
-		return nil
-	})
-	return hasArchives
-}
 
 // syncFolders ensures the folder structure in the DB matches the disk.
 func syncFolders(st *store.Store, rootPath string, diskItems map[string]diskItem, dbFolders map[string]*models.Folder) {
+	// Collect all directories and sort them by path depth (shorter paths first)
+	var dirPaths []string
 	for path, item := range diskItems {
-		if !item.isDir {
-			continue
+		if item.isDir && hasMangaArchives(path) {
+			dirPaths = append(dirPaths, path)
 		}
+	}
 
-		// Skip empty directories (those without manga archives)
-		if !hasMangaArchives(path) {
-			continue
+	// Sort by path depth (parent folders before child folders)
+	sort.Slice(dirPaths, func(i, j int) bool {
+		// Count path separators to determine depth
+		sepCountI := strings.Count(dirPaths[i], string(filepath.Separator))
+		sepCountJ := strings.Count(dirPaths[j], string(filepath.Separator))
+		if sepCountI != sepCountJ {
+			return sepCountI < sepCountJ
 		}
+		// If same depth, sort alphabetically
+		return dirPaths[i] < dirPaths[j]
+	})
 
+	// Process folders in sorted order
+	for _, path := range dirPaths {
 		if _, exists := dbFolders[path]; !exists {
 			// New folder found, create it
 			parentPath := filepath.Dir(path)
@@ -282,4 +276,25 @@ func sendProgress(ctx jobs.JobContext, jobId string, message string, progress fl
 		Done:     done,
 	}
 	ctx.WsHub().BroadcastJSON(update)
+}
+
+// hasMangaArchives checks if a directory contains any manga archive files
+func hasMangaArchives(dirPath string) bool {
+	hasArchives := false
+	filepath.WalkDir(dirPath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		// Skip the directory itself
+		if path == dirPath {
+			return nil
+		}
+		// If we find a manga archive, mark this directory as non-empty
+		if !d.IsDir() && IsSupportedArchive(d.Name()) {
+			hasArchives = true
+			return filepath.SkipAll // Stop walking once we find an archive
+		}
+		return nil
+	})
+	return hasArchives
 }
