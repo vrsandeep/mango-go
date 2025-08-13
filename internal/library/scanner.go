@@ -77,10 +77,8 @@ func RegenerateThumbnails(ctx jobs.JobContext) {
 		if len(chapters) == 0 {
 			break
 		}
-		updateChaptersThumbnails(st, chapters)
+		updateChaptersThumbnails(ctx, jobId, st, chapters, offset, totalChapters)
 		offset += limit
-		progress := math.Min(float64(offset)/float64(totalChapters), 0.9) * 100
-		sendProgress(ctx, jobId, fmt.Sprintf("Updating chapters thumbnails... (%d/%d)", offset, totalChapters), progress, false)
 	}
 
 	// Set the thumbnail for all folders
@@ -90,11 +88,18 @@ func RegenerateThumbnails(ctx jobs.JobContext) {
 	sendProgress(ctx, jobId, "Thumbnail regeneration complete.", 100, true)
 }
 
-func updateChaptersThumbnails(st *store.Store, chapters []*models.Chapter) {
-	for _, chapter := range chapters {
+func updateChaptersThumbnails(
+	ctx jobs.JobContext,
+	jobId string,
+	st *store.Store,
+	chapters []*models.Chapter,
+	offset,
+	totalChapters int,
+) {
+	for i, chapter := range chapters {
 		_, firstPageData, err := ParseArchive(chapter.Path)
 		if err != nil {
-			log.Printf("Error parsing archive %s: %v", chapter.Path, err)
+			log.Printf("Error parsing archive %s: %v %v", chapter.Path, err, chapter)
 			continue
 		}
 		thumbnail, err := GenerateThumbnail(firstPageData)
@@ -102,6 +107,11 @@ func updateChaptersThumbnails(st *store.Store, chapters []*models.Chapter) {
 			log.Printf("Error generating thumbnail for chapter %d: %v", chapter.ID, err)
 		}
 		st.UpdateChapterThumbnail(chapter.ID, thumbnail)
+
+		// Calculate and send progress for each individual file
+		currentProgress := offset + i + 1
+		progress := math.Min(float64(currentProgress)/float64(totalChapters), 0.9) * 100
+		sendProgress(ctx, jobId, fmt.Sprintf("Updating chapter thumbnail %d/%d: %s", currentProgress, totalChapters, filepath.Base(chapter.Path)), progress, false)
 	}
 }
 
@@ -155,7 +165,6 @@ func LibrarySync(ctx jobs.JobContext) {
 	sendProgress(ctx, jobId, "Library sync completed.", 100, true)
 	log.Println("Job finished:", jobId)
 }
-
 
 // syncFolders ensures the folder structure in the DB matches the disk.
 func syncFolders(st *store.Store, rootPath string, diskItems map[string]diskItem, dbFolders map[string]*models.Folder) {

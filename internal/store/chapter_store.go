@@ -218,7 +218,7 @@ func (s *Store) GetChapterNeighbors(folderID, currentChapterID, userID int64) (m
 }
 
 func (s *Store) GetAllChaptersForThumbnailing(limit int, offset int) ([]*models.Chapter, error) {
-	rows, err := s.db.Query("SELECT id FROM chapters LIMIT ? OFFSET ?", limit, offset)
+	rows, err := s.db.Query("SELECT id, path FROM chapters LIMIT ? OFFSET ?", limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -227,10 +227,11 @@ func (s *Store) GetAllChaptersForThumbnailing(limit int, offset int) ([]*models.
 	var chapters []*models.Chapter
 	for rows.Next() {
 		var id int64
-		if err := rows.Scan(&id); err != nil {
+		var path string
+		if err := rows.Scan(&id, &path); err != nil {
 			return nil, err
 		}
-		chapters = append(chapters, &models.Chapter{ID: id})
+		chapters = append(chapters, &models.Chapter{ID: id, Path: path})
 	}
 
 	return chapters, nil

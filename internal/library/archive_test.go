@@ -96,8 +96,8 @@ func TestArchiveTypeDetection(t *testing.T) {
 
 	// Create test files for different archive types
 	testCases := []struct {
-		name     string
-		filename string
+		name          string
+		filename      string
 		shouldSucceed bool
 	}{
 		{"CBZ file", "test.cbz", true},
@@ -112,7 +112,7 @@ func TestArchiveTypeDetection(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-						if tc.shouldSucceed {
+			if tc.shouldSucceed {
 				// For supported types, create a minimal valid archive
 				if strings.HasSuffix(tc.filename, ".cbz") || strings.HasSuffix(tc.filename, ".zip") {
 					// Create a minimal ZIP archive with at least one image file
