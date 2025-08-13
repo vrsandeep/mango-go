@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bad Files - Mango Admin</title>
+    <link rel="stylesheet" href="https://unpkg.com/phosphor-icons@1.4.2/src/css/icons.css">
+    <link rel="stylesheet" href="/static/css/library_grid.css">
+    <link rel="stylesheet" href="/static/css/admin.css">
+    <link rel="stylesheet" href="/static/css/bad_files.css">
+</head>
+<body>
+    <header class="main-header">
+        <div class="header-left">
+            <button class="menu-toggle" id="menu-toggle-btn"><i class="ph-bold ph-list"></i></button>
+            <nav class="nav-links" id="nav-links">
+                <div class="sidebar-logo">
+                  <img src="/static/images/logo.svg" alt="Mango Logo" class="header-logo">
+                </div>
+                <a href="/">Home</a>
+                <a href="/library">Library</a>
+                <a href="/admin" class="admin-only" style="display: none;">Admin</a>
+                <a href="/tags">Tags</a>
+                <div class="header-dropdown">
+                  <button class="header-dropdown-btn" tabindex="0">Download <i class="ph-bold ph-caret-down"></i></button>
+                <div class="header-dropdown-content">
+                    <a href="/downloads/plugins">Plugins</a>
+                    <hr>
+                    <a href="/downloads/manager">Download Manager</a>
+                    <a href="/downloads/subscriptions">Subscription Manager</a>
+                  </div>
+                </div>
+            </nav>
+        </div>
+        <div class="header-right">
+            <button id="theme-toggle-btn">Theme</button>
+            <button id="logout-btn" class="auth-only" style="display: none;">Logout</button>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="page-header">
+            <h1>Bad Files</h1>
+            <div class="page-actions">
+                <button id="refresh-btn" class="btn btn-primary">
+                    <i class="ph-bold ph-arrow-clockwise"></i> Refresh
+                </button>
+                <button id="download-csv-btn" class="btn btn-secondary" style="display: none;">
+                    <i class="ph-bold ph-download"></i> Download CSV
+                </button>
+            </div>
+        </div>
+
+        <div class="stats-bar">
+            <div class="stat-item">
+                <span class="stat-label">Total Bad Files:</span>
+                <span class="stat-value" id="total-count">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Last Updated:</span>
+                <span class="stat-value" id="last-updated">Never</span>
+            </div>
+        </div>
+
+        <div class="search-bar">
+            <input type="text" id="search-input" placeholder="Search files..." class="search-input">
+            <select id="error-filter" class="error-filter">
+                <option value="">All Errors</option>
+                <option value="corrupted_archive">Corrupted Archive</option>
+                <option value="invalid_format">Invalid Format</option>
+                <option value="password_protected">Password Protected</option>
+                <option value="empty_archive">Empty Archive</option>
+                <option value="unsupported_format">Unsupported Format</option>
+                <option value="io_error">I/O Error</option>
+            </select>
+        </div>
+
+        <div class="bad-files-container">
+            <div id="loading" class="loading">
+                <i class="ph-bold ph-circle-notch ph-spin"></i> Loading bad files...
+            </div>
+
+            <div id="no-files" class="no-files" style="display: none;">
+                <i class="ph-bold ph-check-circle"></i>
+                <h3>No Bad Files Found</h3>
+                <p>All your archive files appear to be valid and accessible.</p>
+            </div>
+
+            <div id="files-table" class="files-table" style="display: none;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>File Name</th>
+                            <th>Path</th>
+                            <th>Error</th>
+                            <th>Size</th>
+                            <th>Detected</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="files-tbody">
+                        <!-- Files will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <footer class="main-footer">
+        <span id="version-footer"></span>
+    </footer>
+
+    <script src="/static/js/header.js"></script>
+    <script src="/static/js/bad_files.js"></script>
+</body>
+</html>

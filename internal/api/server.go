@@ -91,6 +91,12 @@ func (s *Server) Router() http.Handler {
 				r.Get("/jobs/status", s.handleGetAdminJobsStatus)
 				r.Post("/jobs/run", s.handleRunAdminJob)
 
+				// Bad Files Management Routes
+				r.Get("/bad-files", s.handleGetBadFiles)
+				r.Get("/bad-files/count", s.handleGetBadFilesCount)
+				r.Get("/bad-files/download", s.handleDownloadBadFilesCSV)
+				r.Delete("/bad-files", s.handleDeleteBadFile)
+
 				// New User Management Routes
 				r.Get("/users", s.handleAdminListUsers)
 				r.Post("/users", s.handleAdminCreateUser)
@@ -168,6 +174,7 @@ func (s *Server) Router() http.Handler {
 	r.Get("/tags", serveHTML("tags.html"))
 	r.Get("/admin", serveHTML("admin.html"))
 	r.Get("/admin/users", serveHTML("admin_users.html"))
+	r.Get("/admin/bad-files", serveHTML("bad_files.html"))
 	r.Get("/downloads/plugins", serveHTML("plugins.html"))
 	r.Get("/downloads/manager", serveHTML("download_manager.html"))
 	r.Get("/downloads/subscriptions", serveHTML("subscription_manager.html"))

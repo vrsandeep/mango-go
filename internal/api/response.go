@@ -9,7 +9,12 @@ import (
 
 // RespondWithJSON writes a JSON response with the given status code and payload.
 func RespondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
-	response, _ := json.Marshal(payload)
+	response, err := json.Marshal(payload)
+	if err != nil {
+		// If marshaling fails, return an error response
+		RespondWithError(w, http.StatusInternalServerError, "Failed to marshal response")
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	w.Write(response)

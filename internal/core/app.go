@@ -78,6 +78,7 @@ func New() (*App, error) {
 	app.jobManager.Register("library-sync", "Library Sync", library.LibrarySync)
 	app.jobManager.Register("regen-thumbnails", "Regenerate Thumbnails", library.RegenerateThumbnails)
 	app.jobManager.Register("delete-empty-tags", "Delete Empty Tags", library.DeleteEmptyTags)
+	app.jobManager.Register("detect-bad-files", "Detect Bad Files", library.DetectBadFiles)
 	return app, nil
 }
 
