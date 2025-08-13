@@ -154,3 +154,22 @@ func TestNaturalSortLess_Symbols(t *testing.T) {
 		}
 	}
 }
+
+func TestNaturalSortLess_RAR(t *testing.T) {
+	testCases := []struct {
+		s1, s2   string
+		expected bool
+	}{
+		{"file1.jpg", "file10.jpg", true},
+		{"file10.jpg", "file2.jpg", false},
+		{"file1.jpg", "file002.jpg", true},
+		{"file001.jpg", "file002.jpg", true},
+		{"file001.jpg", "file0010.jpg", true},
+		{"file0010.jpg", "file002.jpg", false},
+	}
+	for _, tc := range testCases {
+		if result := NaturalSortLess(tc.s1, tc.s2); result != tc.expected {
+			t.Errorf("NaturalSortLess(%q, %q) = %v; want %v", tc.s1, tc.s2, result, tc.expected)
+		}
+	}
+}

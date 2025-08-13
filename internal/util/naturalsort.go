@@ -28,7 +28,7 @@ func tokenize(s string) []naturalSortToken {
 	return tokens
 }
 
-// Less compares two strings for natural sorting order.
+// NaturalSortLess compares two strings for natural sorting order.
 func NaturalSortLess(s1, s2 string) bool {
 	t1 := tokenize(s1)
 	t2 := tokenize(s2)

@@ -1,14 +1,12 @@
 package api
 
 import (
-	"archive/zip"
 	"encoding/json"
-	"io"
 	"log"
 	"net/http"
 	"path/filepath"
-	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/vrsandeep/mango-go/internal/library"
@@ -62,50 +60,26 @@ func (s *Server) handleGetPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// --- Image Extraction Logic ---
-	// For now, we only support .cbz (zip) files.
-	// Future: This could be expanded to dispatch to a CBR parser.
-	if filepath.Ext(chapter.Path) != ".cbz" {
-		RespondWithError(w, http.StatusUnsupportedMediaType, "Unsupported archive type, only .cbz is supported")
+	// Check if the archive type is supported
+	if !library.IsSupportedArchive(chapter.Path) {
+		RespondWithError(w, http.StatusUnsupportedMediaType, "Unsupported archive type")
 		return
 	}
 
-	zipReader, err := zip.OpenReader(chapter.Path)
+	// Extract the specific page from the archive
+	pageData, fileName, err := library.GetPageFromArchive(chapter.Path, pageIndex)
 	if err != nil {
-		log.Printf("Error opening zip file %s: %v", chapter.Path, err)
-		RespondWithError(w, http.StatusInternalServerError, "Could not open manga archive")
-		return
-	}
-	defer zipReader.Close()
-
-	// Find all image files in the archive and sort them
-	var imageFiles []*zip.File
-	for _, file := range zipReader.File {
-		if !file.FileInfo().IsDir() && library.IsImageFile(file.Name) {
-			imageFiles = append(imageFiles, file)
+		log.Printf("Error extracting page %d from archive %s: %v", pageIndex, chapter.Path, err)
+		if strings.Contains(err.Error(), "out of bounds") {
+			RespondWithError(w, http.StatusNotFound, "Page not found in archive")
+		} else {
+			RespondWithError(w, http.StatusInternalServerError, "Could not read page from archive")
 		}
-	}
-	sort.Slice(imageFiles, func(i, j int) bool {
-		return imageFiles[i].Name < imageFiles[j].Name
-	})
-
-	// Check if the requested page is out of bounds
-	if pageIndex < 0 || pageIndex >= len(imageFiles) {
-		RespondWithError(w, http.StatusNotFound, "Page not found in archive")
 		return
 	}
-
-	// Open the specific image file from the archive
-	imageFile := imageFiles[pageIndex]
-	rc, err := imageFile.Open()
-	if err != nil {
-		log.Printf("Error opening image %s from archive %s: %v", imageFile.Name, chapter.Path, err)
-		RespondWithError(w, http.StatusInternalServerError, "Could not read page from archive")
-		return
-	}
-	defer rc.Close()
 
 	// Set the correct Content-Type header based on image extension
-	ext := filepath.Ext(imageFile.Name)
+	ext := filepath.Ext(fileName)
 	contentType := "application/octet-stream" // fallback
 	switch ext {
 	case ".jpg", ".jpeg":
@@ -119,8 +93,8 @@ func (s *Server) handleGetPage(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", contentType)
 
-	// Stream the file content to the response
-	io.Copy(w, rc)
+	// Write the page data to the response
+	w.Write(pageData)
 }
 
 // handleGetChapterDetails retrieves and returns details for a single chapter.
