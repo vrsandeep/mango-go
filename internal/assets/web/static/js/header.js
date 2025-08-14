@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Theme Logic ---
     const applyTheme = (theme) => {
         document.body.classList.toggle('light-theme', theme === 'light');
+        themeToggleBtn.innerHTML = theme === 'light' ? '<i class="ph-bold ph-moon"></i>' : '<i class="ph-bold ph-sun"></i>';
     };
 
     themeToggleBtn.addEventListener('click', () => {

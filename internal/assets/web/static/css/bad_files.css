@@ -177,8 +177,9 @@
     border-bottom: 1px solid var(--border-color);
 }
 
+/* Update to handle dark theme */
 .files-table th {
-    background: var(--header-bg, #f8f9fa);
+    background: var(--header-bg, var(--card-bg));
     font-weight: 600;
     color: var(--text-color);
     font-size: 0.9rem;
@@ -192,7 +193,7 @@
 }
 
 .files-table tr:hover {
-    background: var(--hover-bg, rgba(0, 0, 0, 0.05));
+    background: var(--hover-bg, var(--card-bg));
 }
 
 .file-name {

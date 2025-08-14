@@ -45,18 +45,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (countResponse.ok) {
                 totalCountEl.textContent = countData.count;
 
-                // Show/hide download button based on count
+                // Replace CSV download button with download from server button
                 if (countData.show_download) {
-                    downloadCsvBtn.style.display = 'inline-flex';
-                } else {
-                    downloadCsvBtn.style.display = 'none';
+                    showError('Only the first 50 files are shown. <a href="/api/admin/bad-files/download">Download Entire List</a>.');
+                    downloadCsvBtn.removeEventListener('click', downloadCSV);
+                    downloadCsvBtn.addEventListener('click', downloadFromServer);
                 }
             }
 
             if (countData.count === 0) {
                 allBadFiles = [];
                 filteredBadFiles = [];
+                downloadCsvBtn.style.display = 'none';
             } else {
+                downloadCsvBtn.style.display = 'inline-flex';
                 // Get all bad files
                 const response = await fetch('/api/admin/bad-files');
                 if (!response.ok) {
@@ -265,5 +267,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+    }
+
+    async function downloadFromServer() {
+        const response = await fetch('/api/admin/bad-files/download');
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `bad_files_${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
     }
 });
