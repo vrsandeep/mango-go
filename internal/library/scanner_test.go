@@ -10,9 +10,81 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/vrsandeep/mango-go/internal/library"
+	"github.com/vrsandeep/mango-go/internal/models"
 	"github.com/vrsandeep/mango-go/internal/store"
 	"github.com/vrsandeep/mango-go/internal/testutil"
 )
+
+// Helper functions to reduce code duplication
+func assertFolderCount(t *testing.T, st *store.Store, expected int, msg string) {
+	folders, _ := st.GetAllFoldersByPath()
+	if len(folders) != expected {
+		t.Fatalf("%s: expected %d folders, got %d", msg, expected, len(folders))
+	}
+}
+
+func assertChapterCount(t *testing.T, st *store.Store, expected int, msg string) {
+	chapters, _ := st.GetAllChaptersByHash()
+	if len(chapters) != expected {
+		t.Fatalf("%s: expected %d chapters, got %d", msg, expected, len(chapters))
+	}
+}
+
+func assertFolderExists(t *testing.T, folders map[string]*models.Folder, path string, shouldExist bool, msg string) {
+	_, exists := folders[path]
+	if shouldExist && !exists {
+		t.Errorf("%s: folder '%s' should exist", msg, path)
+	} else if !shouldExist && exists {
+		t.Errorf("%s: folder '%s' should not exist", msg, path)
+	}
+}
+
+func assertBadFileRecorded(t *testing.T, badFileStore *store.BadFileStore, filePath string, shouldExist bool, msg string) {
+	badFiles, err := badFileStore.GetAllBadFiles()
+	if err != nil {
+		t.Fatalf("Failed to get bad files: %v", err)
+	}
+
+	var found bool
+	for _, bf := range badFiles {
+		if bf.Path == filePath {
+			found = true
+			break
+		}
+	}
+
+	if shouldExist && !found {
+		t.Errorf("%s: bad file '%s' should be recorded", msg, filePath)
+	} else if !shouldExist && found {
+		t.Errorf("%s: bad file '%s' should not be recorded", msg, filePath)
+	}
+}
+
+func assertParentChildRelationship(t *testing.T, parent, child *models.Folder, parentName, childName string) {
+	if child.ParentID == nil {
+		t.Errorf("%s should have %s as parent", childName, parentName)
+	} else if *child.ParentID != parent.ID {
+		t.Errorf("%s ParentID should be %d, got %d", childName, parent.ID, *child.ParentID)
+	}
+}
+
+func assertBadFileCountInDirectory(t *testing.T, badFileStore *store.BadFileStore, dirPath string, expectedCount int, msg string) {
+	badFiles, err := badFileStore.GetAllBadFiles()
+	if err != nil {
+		t.Fatalf("Failed to get bad files: %v", err)
+	}
+
+	var count int
+	for _, badFile := range badFiles {
+		if filepath.Dir(badFile.Path) == dirPath {
+			count++
+		}
+	}
+
+	if count != expectedCount {
+		t.Errorf("%s: expected %d bad files in directory '%s', got %d", msg, expectedCount, dirPath, count)
+	}
+}
 
 // Run the whole test suite as it is a sequential test.
 func TestLibrarySync(t *testing.T) {
@@ -30,35 +102,21 @@ func TestLibrarySync(t *testing.T) {
 
 		// Verify folder structure
 		folders, _ := st.GetAllFoldersByPath()
-		if len(folders) != 2 {
-			t.Fatalf("Expected 2 folders, got %d", len(folders))
-		}
-		if _, ok := folders[filepath.Join(libraryRoot, "Series A")]; !ok {
-			t.Error("Series A folder not created")
-		}
-		if _, ok := folders[filepath.Join(libraryRoot, "Series A", "Volume 1")]; !ok {
-			t.Error("Volume 1 folder not created")
-		}
+		assertFolderCount(t, st, 2, "Initial scan")
+		assertFolderExists(t, folders, filepath.Join(libraryRoot, "Series A"), true, "Initial scan")
+		assertFolderExists(t, folders, filepath.Join(libraryRoot, "Series A", "Volume 1"), true, "Initial scan")
 
 		// Verify chapter
 		chapters, _ := st.GetAllChaptersByHash()
-		if len(chapters) != 1 {
-			t.Fatalf("Expected 1 chapter, got %d", len(chapters))
-		}
+		assertChapterCount(t, st, 1, "Initial scan")
+
+		// Check chapter details
+		var pageCount int
+		var chapterPath string
 		keys := make([]string, 0, len(chapters))
 		for k := range chapters {
 			keys = append(keys, k)
 		}
-		if len(keys) != 1 {
-			t.Fatalf("Expected 1 chapter, got %d", len(keys))
-		}
-		if chapters[keys[0]].Path != filepath.Join(libraryRoot, "Series A", "Volume 1", "ch1.cbz") {
-			t.Errorf("Expected chapter path '%s', got '%s'", filepath.Join(libraryRoot, "Series A", "Volume 1", "ch1.cbz"), chapters[keys[0]].Path)
-		}
-
-		// Check if the chapter was created correctly
-		var pageCount int
-		var chapterPath string
 		err := app.DB().QueryRow("SELECT path, page_count FROM chapters WHERE id = ?", chapters[keys[0]].ID).Scan(&chapterPath, &pageCount)
 		if err != nil {
 			t.Fatalf("Failed to find chapter for 'Series A': %v", err)
@@ -85,36 +143,30 @@ func TestLibrarySync(t *testing.T) {
 
 		library.LibrarySync(app)
 
+		assertChapterCount(t, st, 1, "After file move")
+		assertFolderCount(t, st, 1, "After file move")
+
+		// Verify chapter was moved
 		chapters, _ := st.GetAllChaptersByHash()
-		if len(chapters) != 1 {
-			t.Fatalf("Expected 1 chapter after move, got %d", len(chapters))
-		}
+		assertChapterCount(t, st, 1, "After file move")
 
 		var found bool
 		for _, ch := range chapters {
 			if ch.Path == newPath {
 				found = true
+				break
 			}
 		}
 		if !found {
 			t.Error("Chapter path was not updated after move")
 		}
 
+		// Check folder pruning
 		folders, _ := st.GetAllFoldersByPath()
-		// After moving the file, only Series B should remain (Series A and Volume 1 become empty)
-		if len(folders) != 1 {
-			t.Fatalf("Expected 1 folder after move (empty folders pruned), got %d", len(folders))
-		}
-		if _, ok := folders[filepath.Join(libraryRoot, "Series B")]; !ok {
-			t.Error("Series B folder not created")
-		}
-		// Series A and Volume 1 should be pruned since they're now empty
-		if _, ok := folders[filepath.Join(libraryRoot, "Series A")]; ok {
-			t.Error("Series A folder should have been pruned since it's empty")
-		}
-		if _, ok := folders[filepath.Join(libraryRoot, "Series A", "Volume 1")]; ok {
-			t.Error("Volume 1 folder should have been pruned since it's empty")
-		}
+		assertFolderCount(t, st, 1, "After file move")
+		assertFolderExists(t, folders, filepath.Join(libraryRoot, "Series B"), true, "After file move")
+		assertFolderExists(t, folders, filepath.Join(libraryRoot, "Series A"), false, "After file move")
+		assertFolderExists(t, folders, filepath.Join(libraryRoot, "Series A", "Volume 1"), false, "After file move")
 	})
 
 	// --- Test 3: Pruning ---
@@ -126,20 +178,9 @@ func TestLibrarySync(t *testing.T) {
 
 		library.LibrarySync(app)
 
-		chapters, _ := st.GetAllChaptersByHash()
-		if len(chapters) != 0 {
-			t.Errorf("Expected 0 chapters after pruning, got %d", len(chapters))
-		}
-
-		folders, _ := st.GetAllFoldersByPath()
+		assertChapterCount(t, st, 0, "After pruning")
 		// After deleting the last chapter, Series B should also be pruned
-		if len(folders) != 0 {
-			t.Fatalf("Expected 0 folders after pruning all empty folders, got %d", len(folders))
-		}
-		// Series B folder should be pruned since it's now empty
-		if _, ok := folders[filepath.Join(libraryRoot, "Series B")]; ok {
-			t.Error("Series B folder should have been pruned since it's empty")
-		}
+		assertFolderCount(t, st, 0, "After pruning")
 	})
 
 	// --- Test 4: Empty Directory Ignored ---
@@ -150,14 +191,7 @@ func TestLibrarySync(t *testing.T) {
 
 		library.LibrarySync(app)
 
-		folders, _ := st.GetAllFoldersByPath()
-		// Should still have 0 folders since all previous folders were empty
-		if len(folders) != 0 {
-			t.Fatalf("Expected 0 folders, empty directory should be ignored, got %d", len(folders))
-		}
-		if _, ok := folders[emptyDir]; ok {
-			t.Error("Empty directory should not be created in database")
-		}
+		assertFolderCount(t, st, 0, "Empty directory test")
 	})
 
 	// --- Test 5: Nested Folder Parent ID Linking ---
@@ -170,25 +204,16 @@ func TestLibrarySync(t *testing.T) {
 		library.LibrarySync(app)
 
 		folders, _ := st.GetAllFoldersByPath()
-		// Should have 3 folders: Nested Series, Volume 1, and Chapter 1
-		if len(folders) != 3 {
-			t.Fatalf("Expected 3 folders, got %d", len(folders))
-		}
+		assertFolderCount(t, st, 3, "Nested folder test")
 
 		// Check that all folders exist
 		nestedSeriesPath := filepath.Join(libraryRoot, "Nested Series")
 		volume1Path := filepath.Join(libraryRoot, "Nested Series", "Volume 1")
 		chapter1Path := filepath.Join(libraryRoot, "Nested Series", "Volume 1", "Chapter 1")
 
-		if _, ok := folders[nestedSeriesPath]; !ok {
-			t.Error("Nested Series folder not created")
-		}
-		if _, ok := folders[volume1Path]; !ok {
-			t.Error("Volume 1 folder not created")
-		}
-		if _, ok := folders[chapter1Path]; !ok {
-			t.Error("Chapter 1 folder not created")
-		}
+		assertFolderExists(t, folders, nestedSeriesPath, true, "Nested folder test")
+		assertFolderExists(t, folders, volume1Path, true, "Nested folder test")
+		assertFolderExists(t, folders, chapter1Path, true, "Nested folder test")
 
 		// Verify parent-child relationships
 		nestedSeries := folders[nestedSeriesPath]
@@ -200,25 +225,12 @@ func TestLibrarySync(t *testing.T) {
 			t.Errorf("Nested Series should have no parent, got ParentID: %v", nestedSeries.ParentID)
 		}
 
-		// Volume 1 should have Nested Series as parent
-		if volume1.ParentID == nil {
-			t.Error("Volume 1 should have Nested Series as parent")
-		} else if *volume1.ParentID != nestedSeries.ID {
-			t.Errorf("Volume 1 ParentID should be %d, got %d", nestedSeries.ID, *volume1.ParentID)
-		}
-
-		// Chapter 1 should have Volume 1 as parent
-		if chapter1.ParentID == nil {
-			t.Error("Chapter 1 should have Volume 1 as parent")
-		} else if *chapter1.ParentID != volume1.ID {
-			t.Errorf("Chapter 1 ParentID should be %d, got %d", volume1.ID, *chapter1.ParentID)
-		}
+		// Check parent-child relationships
+		assertParentChildRelationship(t, nestedSeries, volume1, "Nested Series", "Volume 1")
+		assertParentChildRelationship(t, volume1, chapter1, "Volume 1", "Chapter 1")
 
 		// Verify chapter was created
-		chapters, _ := st.GetAllChaptersByHash()
-		if len(chapters) != 1 {
-			t.Fatalf("Expected 1 chapter, got %d", len(chapters))
-		}
+		assertChapterCount(t, st, 1, "Nested folder test")
 	})
 
 	// --- Test 6: Bad Files Detection During Sync ---
@@ -237,36 +249,12 @@ func TestLibrarySync(t *testing.T) {
 
 		// Check that the bad file was recorded
 		badFileStore := store.NewBadFileStore(app.DB())
-		badFiles, err := badFileStore.GetAllBadFiles()
-		if err != nil {
-			t.Fatalf("Failed to get bad files: %v", err)
-		}
-
-		if len(badFiles) == 0 {
-			t.Error("Expected bad files to be detected during sync")
-		}
-
-		// Find our specific bad file
-		var foundBadFile bool
-		for _, badFile := range badFiles {
-			if badFile.Path == badFilePath {
-				foundBadFile = true
-				if badFile.Error == "" {
-					t.Error("Bad file should have an error message")
-				}
-				break
-			}
-		}
-		if !foundBadFile {
-			t.Error("Bad file was not recorded in database")
-		}
+		assertBadFileRecorded(t, badFileStore, badFilePath, true, "Bad file detection")
 
 		// Verify that the bad file directory was created (since folders are processed before chapters)
 		// but the bad file itself was recorded
 		folders, _ := st.GetAllFoldersByPath()
-		if _, ok := folders[filepath.Dir(badFilePath)]; !ok {
-			t.Error("Directory should be created even if it contains bad files")
-		}
+		assertFolderExists(t, folders, filepath.Dir(badFilePath), true, "Bad file directory creation")
 	})
 
 	// --- Test 7: Bad Files Cleanup After Fix ---
@@ -290,32 +278,15 @@ func TestLibrarySync(t *testing.T) {
 		library.LibrarySync(app)
 
 		// Check that the bad file record was removed
-		badFilesAfter, err := badFileStore.GetAllBadFiles()
-		if err != nil {
-			t.Fatalf("Failed to get bad files after fix: %v", err)
-		}
-
-		// The bad file should be removed from the list
-		var stillBad bool
-		for _, badFile := range badFilesAfter {
-			if badFile.Path == badFilePath {
-				stillBad = true
-				break
-			}
-		}
-		if stillBad {
-			t.Error("Bad file record should have been removed after fixing the file")
-		}
+		assertBadFileRecorded(t, badFileStore, badFilePath, false, "Bad file cleanup")
 
 		// Verify that the directory is now properly created
 		folders, _ := st.GetAllFoldersByPath()
 		badSeriesPath := filepath.Join(libraryRoot, "Bad Series")
-		if _, ok := folders[badSeriesPath]; !ok {
-			t.Error("Bad Series folder should now be created after fixing the file")
-		}
+		assertFolderExists(t, folders, badSeriesPath, true, "Folder is not bad anymore. It should be created")
 	})
 
-	// --- Test 8: Bad Files Cleanup for Deleted Files ---
+		// --- Test 8: Bad Files Cleanup for Deleted Files ---
 	t.Run("Bad Files Cleanup for Deleted Files", func(t *testing.T) {
 		// Create a bad file
 		badFilePath := filepath.Join(libraryRoot, "Temp Bad Series", "temp-bad.cbz")
@@ -330,20 +301,7 @@ func TestLibrarySync(t *testing.T) {
 
 		// Verify bad file was recorded
 		badFileStore := store.NewBadFileStore(app.DB())
-		badFiles, err := badFileStore.GetAllBadFiles()
-		if err != nil {
-			t.Fatalf("Failed to get bad files: %v", err)
-		}
-
-		var tempBadFileCount int
-		for _, badFile := range badFiles {
-			if filepath.Dir(badFile.Path) == filepath.Dir(badFilePath) {
-				tempBadFileCount++
-			}
-		}
-		if tempBadFileCount == 0 {
-			t.Fatal("Temporary bad file was not recorded")
-		}
+		assertBadFileCountInDirectory(t, badFileStore, filepath.Dir(badFilePath), 1, "Temporary bad file recording")
 
 		// Delete the bad file and its directory
 		os.RemoveAll(filepath.Dir(badFilePath))
@@ -352,21 +310,7 @@ func TestLibrarySync(t *testing.T) {
 		library.LibrarySync(app)
 
 		// Check that bad file records for deleted files were cleaned up
-		badFilesAfter, err := badFileStore.GetAllBadFiles()
-		if err != nil {
-			t.Fatalf("Failed to get bad files after cleanup: %v", err)
-		}
-
-		// Count remaining bad files in the deleted directory
-		var remainingBadFiles int
-		for _, badFile := range badFilesAfter {
-			if filepath.Dir(badFile.Path) == filepath.Dir(badFilePath) {
-				remainingBadFiles++
-			}
-		}
-		if remainingBadFiles > 0 {
-			t.Errorf("Expected 0 bad files after cleanup, got %d", remainingBadFiles)
-		}
+		assertBadFileCountInDirectory(t, badFileStore, filepath.Dir(badFilePath), 0, "Bad file cleanup")
 	})
 }
 
@@ -396,39 +340,8 @@ func TestBadFiles(t *testing.T) {
 		library.LibrarySync(app)
 
 		// Verify results
-		badFiles, err := badFileStore.GetAllBadFiles()
-		if err != nil {
-			t.Fatalf("Failed to get bad files: %v", err)
-		}
-
-		// Should have at least one bad file
-		if len(badFiles) == 0 {
-			t.Error("Expected bad files to be detected")
-		}
-
-		// Check that the bad file was recorded
-		var foundBadFile bool
-		for _, bf := range badFiles {
-			if bf.Path == badFile {
-				foundBadFile = true
-				break
-			}
-		}
-		if !foundBadFile {
-			t.Error("Bad file was not recorded")
-		}
-
-		// Check that the good file was not recorded as bad
-		var foundGoodFile bool
-		for _, bf := range badFiles {
-			if bf.Path == goodFile {
-				foundGoodFile = true
-				break
-			}
-		}
-		if foundGoodFile {
-			t.Error("Good file should not be recorded as bad")
-		}
+		assertBadFileRecorded(t, badFileStore, badFile, true, "Bad file detection")
+		assertBadFileRecorded(t, badFileStore, goodFile, false, "Good file protection")
 	})
 
 	t.Run("Test cleanupMissingBadFileRecords", func(t *testing.T) {
@@ -440,42 +353,13 @@ func TestBadFiles(t *testing.T) {
 		}
 
 		// Verify it was created
-		badFiles, err := badFileStore.GetAllBadFiles()
-		if err != nil {
-			t.Fatalf("Failed to get bad files: %v", err)
-		}
-
-		var foundNonExistent bool
-		for _, bf := range badFiles {
-			if bf.Path == nonExistentPath {
-				foundNonExistent = true
-				break
-			}
-		}
-		if !foundNonExistent {
-			t.Fatal("Non-existent bad file record was not created")
-		}
+		assertBadFileRecorded(t, badFileStore, nonExistentPath, true, "Bad file creation")
 
 		// Test cleanup through LibrarySync
 		library.LibrarySync(app)
 
 		// Check that the bad file record was cleaned up
-		badFilesAfter, err := badFileStore.GetAllBadFiles()
-		if err != nil {
-			t.Fatalf("Failed to get bad files after cleanup: %v", err)
-		}
-
-		// The non-existent file record should be removed
-		var stillExists bool
-		for _, bf := range badFilesAfter {
-			if bf.Path == nonExistentPath {
-				stillExists = true
-				break
-			}
-		}
-		if stillExists {
-			t.Error("Bad file record for non-existent file should have been cleaned up")
-		}
+		assertBadFileRecorded(t, badFileStore, nonExistentPath, false, "Bad file cleanup")
 	})
 
 	t.Run("Test hasMangaArchives", func(t *testing.T) {
@@ -503,18 +387,53 @@ func TestBadFiles(t *testing.T) {
 		folders, _ := store.New(app.DB()).GetAllFoldersByPath()
 
 		// Directory with archives should be created
-		if _, ok := folders[hasArchivesDir]; !ok {
-			t.Error("Directory with manga archives should be created")
-		}
-
+		assertFolderExists(t, folders, hasArchivesDir, true, "Directory with archives should be created")
 		// Empty directory should not be created
-		if _, ok := folders[emptyDir]; ok {
-			t.Error("Empty directory should not be created")
-		}
-
+		assertFolderExists(t, folders, emptyDir, false, "Empty directory should not be created")
 		// Directory with non-archives should not be created
-		if _, ok := folders[nonArchiveDir]; ok {
-			t.Error("Directory with non-archive files should not be created")
-		}
+		assertFolderExists(t, folders, nonArchiveDir, false, "Directory with non-archive files should not be created")
 	})
+}
+
+// TestCorruptedChaptersPruning tests the enhanced prune function's ability to remove corrupted chapters
+func TestCorruptedChaptersPruning(t *testing.T) {
+	app := testutil.SetupTestApp(t)
+	st := store.New(app.DB())
+	libraryRoot := app.Config().Library.Path
+
+	// Clean up any existing data from previous tests by removing all files
+	os.RemoveAll(libraryRoot)
+	os.MkdirAll(libraryRoot, 0755)
+
+	// Create a valid chapter first
+	validChapterPath := filepath.Join(libraryRoot, "Corruption Test", "valid-chapter.cbz")
+	os.MkdirAll(filepath.Dir(validChapterPath), 0755)
+	testutil.CreateTestCBZ(t, filepath.Dir(validChapterPath), "valid-chapter.cbz", []string{"p1.jpg"})
+
+	// Run sync to create the chapter in the database
+	library.LibrarySync(app)
+
+	// Verify chapter was created
+	assertChapterCount(t, st, 1, "After creating valid chapter")
+
+	// Corrupt the chapter file
+	err := os.WriteFile(validChapterPath, []byte("This is now a corrupted file"), 0644)
+	if err != nil {
+		t.Fatalf("Failed to corrupt chapter file: %v", err)
+	}
+
+	// Run sync again - the corrupted chapter should be pruned
+	library.LibrarySync(app)
+
+	// Verify corrupted chapter was pruned
+	assertChapterCount(t, st, 0, "After pruning corrupted chapter")
+
+	// Verify the folder still exists (since it was created before corruption)
+	folders, _ := st.GetAllFoldersByPath()
+	corruptionTestPath := filepath.Join(libraryRoot, "Corruption Test")
+	assertFolderExists(t, folders, corruptionTestPath, true, "Corruption test folder should still exist")
+
+	// Verify bad file was recorded
+	badFileStore := store.NewBadFileStore(app.DB())
+	assertBadFileRecorded(t, badFileStore, validChapterPath, true, "Corrupted chapter should be recorded as bad file")
 }

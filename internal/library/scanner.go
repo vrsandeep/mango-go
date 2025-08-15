@@ -154,15 +154,15 @@ func LibrarySync(ctx jobs.JobContext) {
 
 	// 4. Reconcile Chapters
 	sendProgress(ctx, jobId, "Syncing chapters...", 50, false)
-	syncChapters(st, diskItems, dbChapters, dbFolders)
+	parsingErrors := syncChapters(st, diskItems, dbChapters, dbFolders)
 
 	// 5. Check for bad files during sync
 	sendProgress(ctx, jobId, "Checking for bad files...", 65, false)
-	checkBadFilesDuringSync(badFileStore, diskItems)
+	checkBadFilesDuringSync(badFileStore, diskItems, parsingErrors)
 
-	// 6. Pruning: Remove DB entries for items no longer on disk
-	sendProgress(ctx, jobId, "Pruning deleted items...", 75, false)
-	prune(st, diskItems, dbFolders, dbChapters)
+	// 6. Pruning: Remove DB entries for items no longer on disk or corrupted
+	sendProgress(ctx, jobId, "Pruning deleted and corrupted items...", 75, false)
+	prune(st, diskItems, dbFolders, dbChapters, parsingErrors)
 
 	// 7. Clean up bad file records for deleted files
 	sendProgress(ctx, jobId, "Cleaning up bad file records...", 80, false)
@@ -219,21 +219,26 @@ func syncFolders(st *store.Store, rootPath string, diskItems map[string]diskItem
 }
 
 // syncChapters handles new, moved, and existing chapters.
-func syncChapters(st *store.Store, diskItems map[string]diskItem, dbChapters map[string]store.ChapterInfo, dbFolders map[string]*models.Folder) {
-	// Note: We can't access the database directly from the store in this function
-	// Bad file handling will be done in the main LibrarySync function where we have access to the context
+func syncChapters(st *store.Store, diskItems map[string]diskItem, dbChapters map[string]store.ChapterInfo, dbFolders map[string]*models.Folder) map[string]error {
+
+	// Track parsing errors to avoid re-parsing in checkBadFilesDuringSync
+	parsingErrors := make(map[string]error)
 
 	for path, item := range diskItems {
 		if item.isDir || !IsSupportedArchive(filepath.Base(path)) { // Simplified: assume any archive is a chapter file
 			continue
 		}
 
+		// First check if the archive can be parsed successfully
 		pages, firstPageData, err := ParseArchive(path)
 		if err != nil {
-			log.Printf("Could not parse archive %s: %v", path, err)
+			// Skip corrupted chapters - don't save them to the database
+			log.Printf("Skipping corrupted archive %s: %v", path, err)
+			parsingErrors[path] = err
 			continue
 		}
 
+		// Only proceed with valid archives
 		hash := generateContentHash(firstPageData, filepath.Base(path))
 
 		if existingChapter, ok := dbChapters[hash]; ok {
@@ -246,7 +251,7 @@ func syncChapters(st *store.Store, diskItems map[string]diskItem, dbChapters map
 				}
 			}
 		} else {
-			// New chapter
+			// New chapter - only create for valid archives
 			parentFolder, ok := dbFolders[filepath.Dir(path)]
 			if ok {
 				var thumb string
@@ -257,17 +262,29 @@ func syncChapters(st *store.Store, diskItems map[string]diskItem, dbChapters map
 			}
 		}
 	}
+
+	return parsingErrors
 }
 
-// prune removes items from the DB that are no longer on disk.
-func prune(st *store.Store, diskItems map[string]diskItem, dbFolders map[string]*models.Folder, dbChapters map[string]store.ChapterInfo) {
-	// Prune chapters
+// prune removes items from the DB that are no longer on disk or are corrupted.
+func prune(st *store.Store, diskItems map[string]diskItem, dbFolders map[string]*models.Folder, dbChapters map[string]store.ChapterInfo, parsingErrors map[string]error) {
+	// Prune chapters that are deleted or corrupted
 	for hash, chapInfo := range dbChapters {
+		// Check if chapter file no longer exists on disk
 		if _, exists := diskItems[chapInfo.Path]; !exists {
 			log.Printf("Pruning deleted chapter: %s", chapInfo.Path)
 			st.DeleteChapterByHash(hash)
+			continue
+		}
+
+		// Check if chapter file is corrupted
+		if parseErr, isCorrupted := parsingErrors[chapInfo.Path]; isCorrupted {
+			log.Printf("Pruning corrupted chapter: %s - %v", chapInfo.Path, parseErr)
+			st.DeleteChapterByHash(hash)
+			continue
 		}
 	}
+
 	// Prune folders
 	for path, folder := range dbFolders {
 		if _, exists := diskItems[path]; !exists {
@@ -322,7 +339,7 @@ func hasMangaArchives(dirPath string) bool {
 }
 
 // checkBadFilesDuringSync checks for bad files during library sync
-func checkBadFilesDuringSync(badFileStore *store.BadFileStore, diskItems map[string]diskItem) {
+func checkBadFilesDuringSync(badFileStore *store.BadFileStore, diskItems map[string]diskItem, parsingErrors map[string]error) {
 	for path, item := range diskItems {
 		if item.isDir || !IsSupportedArchive(filepath.Base(path)) {
 			continue
@@ -337,9 +354,8 @@ func checkBadFilesDuringSync(badFileStore *store.BadFileStore, diskItems map[str
 			continue
 		}
 
-		// Try to parse the archive
-		_, _, parseErr := ParseArchive(path)
-		if parseErr != nil {
+		// Check if we already know this file has parsing errors from syncChapters
+		if parseErr, exists := parsingErrors[path]; exists {
 			// File is corrupted or invalid
 			errorMsg := categorizeError(parseErr)
 			err := badFileStore.CreateBadFile(path, errorMsg, fileInfo.Size())
@@ -349,7 +365,7 @@ func checkBadFilesDuringSync(badFileStore *store.BadFileStore, diskItems map[str
 				log.Printf("Detected bad file during sync: %s - %s", path, errorMsg)
 			}
 		} else {
-			// File parsed successfully, remove from bad files if it was there
+			// File parsed successfully in syncChapters, remove from bad files if it was there
 			badFileStore.DeleteBadFileByPath(path)
 		}
 	}
