@@ -8,10 +8,8 @@ import (
 	"crypto/sha1"
 	"database/sql"
 	"encoding/hex"
-	"fmt"
 	"io/fs"
 	"log"
-	"math"
 	"os"
 	"path/filepath"
 	"sort"
@@ -44,77 +42,7 @@ func NewScanner(cfg *config.Config, db *sql.DB) *Scanner {
 	}
 }
 
-func DeleteEmptyTags(ctx jobs.JobContext) {
-	jobId := "delete-empty-tags"
-	sendProgress(ctx, jobId, "Deleting empty tags...", 0, false)
-	st := store.New(ctx.DB())
 
-	err := st.DeleteEmptyTags()
-	if err != nil {
-		log.Printf("Error deleting empty tags: %v", err)
-	}
-
-	sendProgress(ctx, jobId, "Deleting empty tags...", 100, true)
-}
-
-// RegenerateThumbnails is a new function for the admin job.
-func RegenerateThumbnails(ctx jobs.JobContext) {
-	jobId := "regen-thumbnails"
-	sendProgress(ctx, jobId, "Regenerating thumbnails...", 0, false)
-	st := store.New(ctx.DB())
-
-	// Set the thumbnail for all chapters
-	limit := 1000
-	offset := 0
-	totalChapters, err := st.GetTotalChaptersForThumbnailing()
-	if err != nil {
-		log.Printf("Error getting total chapters for thumbnails: %v", err)
-	}
-	for {
-		chapters, err := st.GetAllChaptersForThumbnailing(limit, offset)
-		if err != nil {
-			log.Printf("Error updating chapters thumbnails: %v", err)
-		}
-		if len(chapters) == 0 {
-			break
-		}
-		updateChaptersThumbnails(ctx, jobId, st, chapters, offset, totalChapters)
-		offset += limit
-	}
-
-	// Set the thumbnail for all folders
-	sendProgress(ctx, jobId, "Updating folders thumbnails...", 90, false)
-	st.UpdateAllFolderThumbnails()
-
-	sendProgress(ctx, jobId, "Thumbnail regeneration complete.", 100, true)
-}
-
-func updateChaptersThumbnails(
-	ctx jobs.JobContext,
-	jobId string,
-	st *store.Store,
-	chapters []*models.Chapter,
-	offset,
-	totalChapters int,
-) {
-	for i, chapter := range chapters {
-		_, firstPageData, err := ParseArchive(chapter.Path)
-		if err != nil {
-			log.Printf("Error parsing archive %s: %v %v", chapter.Path, err, chapter)
-			continue
-		}
-		thumbnail, err := GenerateThumbnail(firstPageData)
-		if err != nil {
-			log.Printf("Error generating thumbnail for chapter %d: %v", chapter.ID, err)
-		}
-		st.UpdateChapterThumbnail(chapter.ID, thumbnail)
-
-		// Calculate and send progress for each individual file
-		currentProgress := offset + i + 1
-		progress := math.Min(float64(currentProgress)/float64(totalChapters), 0.9) * 100
-		sendProgress(ctx, jobId, fmt.Sprintf("Updating chapter thumbnail %d/%d: %s", currentProgress, totalChapters, filepath.Base(chapter.Path)), progress, false)
-	}
-}
 
 // LibrarySync performs a full synchronization between the filesystem and the database.
 func LibrarySync(ctx jobs.JobContext) {
@@ -307,15 +235,6 @@ func generateContentHash(data []byte, filename string) string {
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
-func sendProgress(ctx jobs.JobContext, jobId string, message string, progress float64, done bool) {
-	update := models.ProgressUpdate{
-		JobID:    jobId,
-		Message:  message,
-		Progress: progress,
-		Done:     done,
-	}
-	ctx.WsHub().BroadcastJSON(update)
-}
 
 // hasMangaArchives checks if a directory contains any manga archive files
 func hasMangaArchives(dirPath string) bool {
