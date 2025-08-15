@@ -46,12 +46,42 @@ document.addEventListener('DOMContentLoaded', async () => {
   const fetchInitialData = async () => {
     const [chapterRes, folderRes] = await Promise.all([
       fetch(`/api/chapters/${chapterId}`),
-      fetch(`/api/browse?folderId=${folderId}&page=1&per_page=9999&sort_by=auto&sort_dir=asc`) // Fetch all chapters for dropdown
+      fetch(`/api/browse?folderId=${folderId}&page=1&per_page=9999&sort_by=auto&sort_dir=asc`),
     ]);
     state.chapterData = await chapterRes.json();
     const folderContents = await folderRes.json();
     state.folderData = folderContents.current_folder;
     state.allChapters = folderContents.chapters;
+  };
+
+  const waitForImagesToLoad = () => {
+    return new Promise((resolve) => {
+      // update to select those that do not have display:none
+      const images = document.querySelectorAll('.page-image:not([style*="display: none"])');
+      if (images.length === 0) {
+        resolve();
+        return;
+      }
+
+      let loadedCount = 0;
+      const totalImages = images.length;
+
+      const checkAllLoaded = () => {
+        loadedCount++;
+        if (loadedCount === totalImages) {
+          resolve();
+        }
+      };
+
+      images.forEach(img => {
+        if (img.complete) {
+          checkAllLoaded();
+        } else {
+          img.addEventListener('load', checkAllLoaded);
+          img.addEventListener('error', checkAllLoaded); // Handle errors too
+        }
+      });
+    });
   };
 
   const updateProgress = (progressPercent, isRead) => {
@@ -346,23 +376,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     applyPageMargin();
     renderPages();
     populateModal();
-    // Restore scroll position after images have loaded
-    setTimeout(() => {
-      const savedProgress = state.chapterData.progress_percent || 0;
-      if (state.readingMode === 'continuous') {
-        const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
-        window.scrollTo(0, (scrollableHeight * savedProgress) / 100);
-      } else {
-        var pageNum = Math.ceil((savedProgress / 100) * state.chapterData.page_count) || 1;
-        jumpToPageSelect.value = pageNum;
-        state.currentPage = pageNum;
-        updateSinglePageView();
-      }
-      calculateAndUpdateProgress(); // Initial calculation
-    }, 500); // Delay to allow images to start rendering
+
+    // Wait for all images to load before restoring scroll position
+    await waitForImagesToLoad();
+
+    const savedProgress = state.chapterData.progress_percent || 0;
+    if (state.readingMode === 'continuous') {
+      const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
+      window.scrollTo(0, (scrollableHeight * savedProgress) / 100);
+    } else {
+      var pageNum = Math.ceil((savedProgress / 100) * state.chapterData.page_count) || 1;
+      jumpToPageSelect.value = pageNum;
+      state.currentPage = pageNum;
+      updateSinglePageView();
+    }
+    calculateAndUpdateProgress(); // Initial calculation
 
     updateProgressText();
-
   };
 
   init();
