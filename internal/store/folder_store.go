@@ -89,7 +89,7 @@ func (s *Store) GetFolder(id int64) (*models.Folder, error) {
 
 // GetAllFoldersByPath retrieves all folders and maps them by their full path for efficient lookup.
 func (s *Store) GetAllFoldersByPath() (map[string]*models.Folder, error) {
-	rows, err := s.db.Query("SELECT id, path, name, parent_id FROM folders")
+	rows, err := s.db.Query("SELECT id, path, name, parent_id, thumbnail FROM folders")
 	if err != nil {
 		return nil, err
 	}
@@ -99,12 +99,14 @@ func (s *Store) GetAllFoldersByPath() (map[string]*models.Folder, error) {
 	for rows.Next() {
 		var folder models.Folder
 		var parentID sql.NullInt64
-		if err := rows.Scan(&folder.ID, &folder.Path, &folder.Name, &parentID); err != nil {
+		var thumbnail sql.NullString
+		if err := rows.Scan(&folder.ID, &folder.Path, &folder.Name, &parentID, &thumbnail); err != nil {
 			return nil, err
 		}
 		if parentID.Valid {
 			folder.ParentID = &parentID.Int64
 		}
+		folder.Thumbnail = thumbnail.String
 		folderMap[folder.Path] = &folder
 	}
 	return folderMap, nil
@@ -119,7 +121,6 @@ func (s *Store) DeleteFolder(id int64) error {
 // UpdateAllFolderThumbnails recursively finds the first chapter in a folder's subtree
 // and sets its thumbnail as the folder's thumbnail.
 func (s *Store) UpdateAllFolderThumbnails() error {
-	// This is a complex operation. A simplified approach:
 	// 1. Get all chapters with their folder IDs and thumbnails.
 	// 2. Group them by folder ID.
 	// 3. For each folder, find the "first" chapter via natural sort.
