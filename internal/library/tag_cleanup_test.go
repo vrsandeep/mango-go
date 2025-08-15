@@ -64,19 +64,19 @@ func TestDeleteEmptyTags(t *testing.T) {
 	// Check that tags with folder associations remain
 	var foundTag1, foundTag2 bool
 	for _, tag := range tags {
-		if tag.Name == "Action" && tag.FolderCount > 0 {
+		if tag.Name == "action" && tag.FolderCount > 0 {
 			foundTag1 = true
 		}
-		if tag.Name == "Adventure" && tag.FolderCount > 0 {
+		if tag.Name == "adventure" && tag.FolderCount > 0 {
 			foundTag2 = true
 		}
 	}
 
 	if !foundTag1 {
-		t.Error("Tag 'Action' should remain after cleanup since it's associated with a folder")
+		t.Error("Tag 'action' should remain after cleanup since it's associated with a folder")
 	}
 	if !foundTag2 {
-		t.Error("Tag 'Adventure' should remain after cleanup since it's associated with a folder")
+		t.Error("Tag 'adventure' should remain after cleanup since it's associated with a folder")
 	}
 }
 
