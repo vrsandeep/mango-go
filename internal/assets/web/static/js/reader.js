@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     currentPage: 1,
     readingMode: localStorage.getItem('readingMode') || 'continuous',
     pageMargin: localStorage.getItem('pageMargin') || '10',
+    fitMode: localStorage.getItem('fitMode') || 'fit-height',
   };
 
   let nextChapterId = null;
@@ -37,6 +38,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const modalNextBtn = document.getElementById('modal-next-btn');
   const modalExitBtn = document.getElementById('modal-exit-btn');
   const modalCloseBtn = document.getElementById('modal-close-btn');
+  const fitModeSelect = document.getElementById('fit-mode-select');
 
   const footerPrevBtn = document.getElementById('footer-prev-chapter-btn');
   const footerNextBtn = document.getElementById('footer-next-chapter-btn');
@@ -175,6 +177,42 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.documentElement.style.setProperty('--page-margin', `${state.pageMargin}px`);
   };
 
+  const applyFitMode = () => {
+    localStorage.setItem('fitMode', state.fitMode);
+    const images = document.querySelectorAll('.page-image');
+
+    images.forEach(img => {
+      // Reset all styles first to ensure clean state
+      img.style.width = '';
+      img.style.height = '';
+      img.style.maxWidth = '';
+      img.style.maxHeight = '';
+      img.style.objectFit = '';
+
+      switch (state.fitMode) {
+        case 'fit-width':
+          img.style.width = '100%';
+          img.style.maxWidth = 'none';
+          img.style.height = 'auto';
+          break;
+        case 'fit-height':
+          img.style.width = 'auto';
+          img.style.maxWidth = 'none';
+          img.style.height = '100vh';
+          img.style.maxHeight = '100vh';
+          img.style.objectFit = 'contain';
+          break;
+        case 'fit-original':
+          img.style.width = 'auto';
+          img.style.height = 'auto';
+          img.style.maxWidth = 'none';
+          img.style.maxHeight = 'none';
+          img.style.objectFit = 'contain';
+          break;
+      }
+    });
+  };
+
   const populateModal = () => {
     const chapter = state.chapterData;
     const folder = state.folderData;
@@ -205,6 +243,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     modeSelect.value = state.readingMode;
     marginSlider.value = state.pageMargin;
+    fitModeSelect.value = state.fitMode;
   };
 
   const calculateAndUpdateProgress = () => {
@@ -296,6 +335,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     state.pageMargin = e.target.value;
     applyPageMargin();
   });
+  fitModeSelect.addEventListener('change', (e) => {
+    state.fitMode = e.target.value;
+    applyFitMode();
+  });
   jumpToPageSelect.addEventListener('change', (e) => {
     const pageNum = parseInt(e.target.value, 10);
     if (state.readingMode === 'single_page') {
@@ -375,6 +418,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await findNeighboringChapters();
     applyPageMargin();
     renderPages();
+    applyFitMode();
     populateModal();
 
     // Wait for all images to load before restoring scroll position

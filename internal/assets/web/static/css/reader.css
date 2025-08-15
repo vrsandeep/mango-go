@@ -27,9 +27,9 @@ body {
 }
 
 .page-image {
-    max-width: 850px;
+    /* max-width: 850px; */
     /* Restrict width for consistent experience */
-    width: 100%;
+    /* width: 100%; */
     height: auto;
     display: block;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
