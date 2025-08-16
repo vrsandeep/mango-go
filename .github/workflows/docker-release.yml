@@ -1,11 +1,17 @@
 name: Docker Image publish on release
 
 on:
-  release:
-    types: [published]
+  workflow_run:
+    workflows:
+      - release
+    types:
+      - completed
+    branches:
+      - master
 
 jobs:
   release-tag-image:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
