@@ -132,7 +132,7 @@ func (s *Server) handleGetBadFilesCount(w http.ResponseWriter, r *http.Request) 
 	}
 
 	RespondWithJSON(w, http.StatusOK, map[string]interface{}{
-		"count": count,
+		"count":         count,
 		"show_download": count > 50,
 	})
 }

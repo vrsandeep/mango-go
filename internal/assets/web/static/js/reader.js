@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     currentPage: 1,
     readingMode: localStorage.getItem('readingMode') || 'continuous',
     pageMargin: localStorage.getItem('pageMargin') || '10',
-    fitMode: localStorage.getItem('fitMode') || 'fit-height',
+    fitMode: localStorage.getItem('fitMode') || 'fit-original',
   };
 
   let nextChapterId = null;

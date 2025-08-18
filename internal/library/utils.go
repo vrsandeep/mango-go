@@ -32,6 +32,6 @@ func isTestEnvironment() bool {
 	// or if the executable name contains "test"
 	executable := os.Args[0]
 	return strings.Contains(executable, "test") ||
-		   strings.Contains(executable, "Test") ||
-		   os.Getenv("GO_TEST") != ""
+		strings.Contains(executable, "Test") ||
+		os.Getenv("GO_TEST") != ""
 }

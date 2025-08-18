@@ -42,8 +42,6 @@ func NewScanner(cfg *config.Config, db *sql.DB) *Scanner {
 	}
 }
 
-
-
 // LibrarySync performs a full synchronization between the filesystem and the database.
 func LibrarySync(ctx jobs.JobContext) {
 	jobId := "library-sync"
@@ -235,7 +233,6 @@ func generateContentHash(data []byte, filename string) string {
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
-
 // hasMangaArchives checks if a directory contains any manga archive files
 func hasMangaArchives(dirPath string) bool {
 	hasArchives := false
@@ -309,5 +306,3 @@ func cleanupMissingBadFileRecords(badFileStore *store.BadFileStore, diskItems ma
 		}
 	}
 }
-
-

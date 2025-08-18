@@ -207,3 +207,81 @@ func TestErrorConstants(t *testing.T) {
 		t.Errorf("Expected error message '%s', got '%s'", expectedMsg, downloader.ErrDownloadPaused.Error())
 	}
 }
+
+func TestSanitizeFilename(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "normal filename",
+			input:    "Chapter 1 - The Beginning",
+			expected: "Chapter 1 - The Beginning",
+		},
+		{
+			name:     "filename with invalid characters",
+			input:    "Chapter 1: The Beginning?",
+			expected: "Chapter 1- The Beginning-",
+		},
+		{
+			name:     "filename with backslashes and slashes",
+			input:    "Chapter 1\\The Beginning/Part A",
+			expected: "Chapter 1-The Beginning-Part A",
+		},
+		{
+			name:     "filename with quotes and angle brackets",
+			input:    "Chapter 1 \"The Beginning\" <Part A>",
+			expected: "Chapter 1 -The Beginning- -Part A-",
+		},
+		{
+			name:     "filename with asterisk and pipe",
+			input:    "Chapter 1*The Beginning|Part A",
+			expected: "Chapter 1-The Beginning-Part A",
+		},
+		{
+			name:     "filename with null bytes",
+			input:    "Chapter 1\x00The Beginning",
+			expected: "Chapter 1-The Beginning",
+		},
+		{
+			name:     "filename starting with dot",
+			input:    ".Chapter 1",
+			expected: "Chapter 1",
+		},
+		{
+			name:     "filename starting with hyphen",
+			input:    "-Chapter 1",
+			expected: "Chapter 1",
+		},
+		{
+			name:     "filename starting with multiple dots and hyphens",
+			input:    "...---Chapter 1",
+			expected: "Chapter 1",
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: "untitled",
+		},
+		{
+			name:     "only invalid characters",
+			input:    "\\/:*?\"<>|",
+			expected: "untitled",
+		},
+		{
+			name:     "mixed valid and invalid characters",
+			input:    "Chapter 1: \"The Beginning\" <Part A> | Section B",
+			expected: "Chapter 1- -The Beginning- -Part A- - Section B",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := downloader.SanitizeFilename(tt.input)
+			if result != tt.expected {
+				t.Errorf("SanitizeFilename(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}

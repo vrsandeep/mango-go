@@ -19,12 +19,12 @@ type BadFile struct {
 type BadFileError string
 
 const (
-	ErrorCorruptedArchive BadFileError = "corrupted_archive"
-	ErrorInvalidFormat    BadFileError = "invalid_format"
+	ErrorCorruptedArchive  BadFileError = "corrupted_archive"
+	ErrorInvalidFormat     BadFileError = "invalid_format"
 	ErrorPasswordProtected BadFileError = "password_protected"
-	ErrorEmptyArchive     BadFileError = "empty_archive"
+	ErrorEmptyArchive      BadFileError = "empty_archive"
 	ErrorUnsupportedFormat BadFileError = "unsupported_format"
-	ErrorIOError          BadFileError = "io_error"
+	ErrorIOError           BadFileError = "io_error"
 )
 
 // String returns the human-readable error description

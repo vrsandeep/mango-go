@@ -450,7 +450,7 @@ func TestErrorCategorization(t *testing.T) {
 				found = true
 				// Should be categorized as invalid format (default for unknown errors)
 				if bf.Error != string(models.ErrorInvalidFormat) &&
-				   bf.Error != string(models.ErrorCorruptedArchive) {
+					bf.Error != string(models.ErrorCorruptedArchive) {
 					t.Errorf("Expected error %s or %s, got %s",
 						models.ErrorInvalidFormat, models.ErrorCorruptedArchive, bf.Error)
 				}
@@ -469,9 +469,9 @@ func TestErrorCategorization(t *testing.T) {
 
 		// Create files that should trigger different error types
 		testFiles := map[string]string{
-			"corrupted.zip": string(models.ErrorCorruptedArchive),
-			"unsupported.cbz": string(models.ErrorUnsupportedFormat),
-			"empty.zip": string(models.ErrorEmptyArchive),
+			"corrupted.zip":    string(models.ErrorCorruptedArchive),
+			"unsupported.cbz":  string(models.ErrorUnsupportedFormat),
+			"empty.zip":        string(models.ErrorEmptyArchive),
 			"inaccessible.cbz": string(models.ErrorIOError),
 		}
 

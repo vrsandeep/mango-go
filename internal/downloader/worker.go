@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync"
@@ -171,13 +172,28 @@ func processDownload(app *core.App, st *store.Store, job *models.DownloadQueueIt
 		return fmt.Errorf("failed to create series directory: %w", err)
 	}
 	// Sanitize chapter title to use as filename
-	safeChapterTitle := strings.ReplaceAll(job.ChapterTitle, "/", "-")
+	safeChapterTitle := SanitizeFilename(job.ChapterTitle)
+
 	cbzPath := filepath.Join(seriesDir, fmt.Sprintf("%s.cbz", safeChapterTitle))
 	if err := os.WriteFile(cbzPath, buf.Bytes(), 0644); err != nil {
 		return fmt.Errorf("failed to save CBZ file: %w", err)
 	}
 
 	return nil
+}
+
+func SanitizeFilename(filename string) string {
+	re := regexp.MustCompile(`[\x00\\/:*?"<>|]`)
+	safeChapterTitle := re.ReplaceAllString(filename, "-")
+	safeChapterTitle = strings.ReplaceAll(safeChapterTitle, "\x00", "-")
+
+	for strings.HasPrefix(safeChapterTitle, ".") || strings.HasPrefix(safeChapterTitle, "-") {
+		safeChapterTitle = safeChapterTitle[1:]
+	}
+	if safeChapterTitle == "" {
+		safeChapterTitle = "untitled"
+	}
+	return safeChapterTitle
 }
 
 // Control functions for the download queue
