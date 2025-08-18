@@ -41,7 +41,7 @@ The recommended way to run Mango-Go in production is using Docker and Docker Com
    ```yaml
    services:
       mango:
-         image: ghcr.io/vrsandeep/mango-go
+         image: ghcr.io/vrsandeep/mango-go:dev
          container_name: mango
          restart: unless-stopped
          ports:
