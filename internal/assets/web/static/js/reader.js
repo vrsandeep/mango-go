@@ -209,6 +209,13 @@ document.addEventListener('DOMContentLoaded', async () => {
           img.style.maxHeight = 'none';
           img.style.objectFit = 'contain';
           break;
+        case 'fit-specific':
+          img.style.width = '100%';
+          img.style.height = 'auto';
+          img.style.maxWidth = '850px';
+          img.style.maxHeight = 'auto';
+          img.style.objectFit = 'contain';
+          break;
       }
     });
   };
