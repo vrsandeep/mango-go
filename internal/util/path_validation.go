@@ -113,14 +113,31 @@ func SanitizeFolderPath(folderPath string) string {
 		return ""
 	}
 
+	// Remove control characters and null bytes
+	cleanPath := strings.Map(func(r rune) rune {
+		if r < 32 || r == 127 { // Control characters
+			return -1 // Remove
+		}
+		return r
+	}, folderPath)
+
 	// Clean the path
-	cleanPath := filepath.Clean(folderPath)
+	cleanPath = filepath.Clean(cleanPath)
 
 	// Remove any leading/trailing slashes
 	cleanPath = strings.Trim(cleanPath, "/\\")
 
 	// Replace backslashes with forward slashes for consistency
 	cleanPath = strings.ReplaceAll(cleanPath, "\\", "/")
+
+	// Remove any remaining invalid characters
+	cleanPath = strings.ReplaceAll(cleanPath, "<", "")
+	cleanPath = strings.ReplaceAll(cleanPath, ">", "")
+	cleanPath = strings.ReplaceAll(cleanPath, ":", "")
+	cleanPath = strings.ReplaceAll(cleanPath, "\"", "")
+	cleanPath = strings.ReplaceAll(cleanPath, "|", "")
+	cleanPath = strings.ReplaceAll(cleanPath, "?", "")
+	cleanPath = strings.ReplaceAll(cleanPath, "*", "")
 
 	return cleanPath
 }
