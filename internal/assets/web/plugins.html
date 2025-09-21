@@ -61,7 +61,14 @@
                 <button id="clear-selections-btn">Clear Selections</button>
                 <button id="download-selected-btn" disabled>Download Selected</button>
                 <button id="filter-toggle-btn">Filters</button>
-                <button id="subscribe-btn">Subscribe</button>
+                <div class="subscribe-section">
+                    <select id="folder-select" style="margin-right: 10px;">
+                        <option value="">Default folder (series name)</option>
+                        <option value="__manual__">Custom path...</option>
+                    </select>
+                    <input type="text" id="custom-folder-path" placeholder="Enter custom folder path..." style="display: none; margin-right: 10px; padding: 5px; border: 1px solid #ccc; border-radius: 4px;">
+                    <button id="subscribe-btn">Subscribe</button>
+                </div>
             </div>
             <div class="filter-panel" id="filter-panel" style="display: none;">
                 <div class="filter-grid">
@@ -96,6 +103,7 @@
     </footer>
     <script src="/static/js/header.js"></script>
     <script src="/static/js/toast.js"></script>
+    <script src="/static/js/path-utils.js"></script>
     <script src="/static/js/plugins.js"></script>
 </body>
 

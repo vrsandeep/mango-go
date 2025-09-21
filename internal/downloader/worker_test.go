@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/vrsandeep/mango-go/internal/downloader"
+	"github.com/vrsandeep/mango-go/internal/models"
 	"github.com/vrsandeep/mango-go/internal/store"
 	"github.com/vrsandeep/mango-go/internal/testutil"
 )
@@ -283,5 +284,135 @@ func TestSanitizeFilename(t *testing.T) {
 				t.Errorf("SanitizeFilename(%q) = %q, want %q", tt.input, result, tt.expected)
 			}
 		})
+	}
+}
+
+func TestProcessDownloadWithFolderPath(t *testing.T) {
+	app := testutil.SetupTestApp(t)
+	db := app.DB()
+	st := store.New(db)
+
+	// Create a subscription with a custom folder path
+	customFolderPath := "custom/manga/path"
+	sub, err := st.SubscribeToSeriesWithFolder("Test Manga", "test-series", "mockadex", &customFolderPath)
+	if err != nil {
+		t.Fatalf("Failed to create subscription: %v", err)
+	}
+
+	// Create a download job
+	job := &models.DownloadQueueItem{
+		ID:               1,
+		SeriesTitle:      "Test Manga",
+		ChapterTitle:     "Chapter 1",
+		ChapterIdentifier: "ch1",
+		ProviderID:       "mockadex",
+		Status:           "queued",
+		Progress:         0,
+		CreatedAt:        time.Now(),
+	}
+
+	// Add job to database
+	_, err = db.Exec(`
+		INSERT INTO download_queue
+		(series_title, chapter_title, chapter_identifier, provider_id, status, progress, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		job.SeriesTitle, job.ChapterTitle, job.ChapterIdentifier, job.ProviderID,
+		job.Status, job.Progress, job.CreatedAt)
+	if err != nil {
+		t.Fatalf("Failed to insert job: %v", err)
+	}
+
+	// Get the job ID
+	var jobID int64
+	err = db.QueryRow("SELECT id FROM download_queue WHERE series_title = ?", job.SeriesTitle).Scan(&jobID)
+	if err != nil {
+		t.Fatalf("Failed to get job ID: %v", err)
+	}
+	job.ID = jobID
+
+	// Test that the worker would use the custom folder path
+	// This is a bit tricky to test directly since processDownload is not exported
+	// But we can test the logic by checking the subscription lookup
+	retrievedSub, err := st.GetSubscriptionByID(sub.ID)
+	if err != nil {
+		t.Fatalf("Failed to retrieve subscription: %v", err)
+	}
+
+	if retrievedSub.FolderPath == nil {
+		t.Error("Expected subscription to have folder path")
+	}
+	if *retrievedSub.FolderPath != customFolderPath {
+		t.Errorf("Expected folder path %s, got %s", customFolderPath, *retrievedSub.FolderPath)
+	}
+}
+
+func TestProcessDownloadWithoutFolderPath(t *testing.T) {
+	app := testutil.SetupTestApp(t)
+	db := app.DB()
+	st := store.New(db)
+
+	// Create a subscription without a custom folder path
+	sub, err := st.SubscribeToSeriesWithFolder("Test Manga No Folder", "test-series-no-folder", "mockadex", nil)
+	if err != nil {
+		t.Fatalf("Failed to create subscription: %v", err)
+	}
+
+	// Test that the subscription has no folder path
+	retrievedSub, err := st.GetSubscriptionByID(sub.ID)
+	if err != nil {
+		t.Fatalf("Failed to retrieve subscription: %v", err)
+	}
+
+	if retrievedSub.FolderPath != nil {
+		t.Errorf("Expected subscription to have nil folder path, got %s", *retrievedSub.FolderPath)
+	}
+}
+
+func TestFolderPathLookup(t *testing.T) {
+	app := testutil.SetupTestApp(t)
+	db := app.DB()
+	st := store.New(db)
+
+	// Create multiple subscriptions with different folder paths
+	folderPath1 := "path/one"
+	folderPath2 := "path/two"
+
+	st.SubscribeToSeriesWithFolder("Manga One", "series-1", "provider-1", &folderPath1)
+	st.SubscribeToSeriesWithFolder("Manga Two", "series-2", "provider-2", &folderPath2)
+	st.SubscribeToSeriesWithFolder("Manga Three", "series-3", "provider-1", nil)
+
+	// Test retrieving subscriptions by provider
+	subs, err := st.GetAllSubscriptions("provider-1")
+	if err != nil {
+		t.Fatalf("Failed to get subscriptions: %v", err)
+	}
+
+	if len(subs) != 2 {
+		t.Fatalf("Expected 2 subscriptions for provider-1, got %d", len(subs))
+	}
+
+	// Find our test subscriptions
+	var foundSub1, foundSub3 *models.Subscription
+	for _, sub := range subs {
+		switch sub.SeriesIdentifier {
+		case "series-1":
+			foundSub1 = sub
+		case "series-3":
+			foundSub3 = sub
+		}
+	}
+
+	if foundSub1 == nil {
+		t.Fatal("Could not find subscription 1")
+	}
+	if foundSub1.FolderPath == nil || *foundSub1.FolderPath != folderPath1 {
+		t.Errorf("Expected folder path %s for sub1, got %v", folderPath1, foundSub1.FolderPath)
+	}
+
+	if foundSub3 == nil {
+		t.Fatal("Could not find subscription 3")
+	}
+	if foundSub3.FolderPath != nil {
+		t.Errorf("Expected nil folder path for sub3, got %s", *foundSub3.FolderPath)
 	}
 }

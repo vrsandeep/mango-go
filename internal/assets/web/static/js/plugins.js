@@ -28,6 +28,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const chapterTableBody = document.querySelector('#chapter-table tbody');
   const chapterTableHeaders = document.querySelectorAll('#chapter-table th');
   const downloadSelectedBtn = document.getElementById('download-selected-btn');
+  const folderSelect = document.getElementById('folder-select');
+  const customFolderPath = document.getElementById('custom-folder-path');
   const subscribeBtn = document.getElementById('subscribe-btn');
   const filterToggleBtn = document.getElementById('filter-toggle-btn');
   const filterPanel = document.getElementById('filter-panel');
@@ -171,18 +173,78 @@ document.addEventListener('DOMContentLoaded', async () => {
     clearSelections();
   };
 
+
+  const loadFolders = async () => {
+    try {
+      const response = await fetch('/api/folders');
+      const folders = await response.json();
+
+      // Clear existing options except the default and manual option
+      folderSelect.innerHTML = '<option value="">Default folder (series name)</option><option value="__manual__">Custom path...</option>';
+
+      // Add folder options
+      folders.forEach(folder => {
+        const option = document.createElement('option');
+        option.value = folder.path;
+        option.textContent = folder.name;
+        folderSelect.appendChild(option);
+      });
+    } catch (error) {
+      console.error('Failed to load folders:', error);
+    }
+  };
+
+  const handleFolderSelectChange = () => {
+    if (folderSelect.value === '__manual__') {
+      customFolderPath.style.display = 'inline-block';
+      // Pre-fill with library path if not already set
+      window.PathUtils.prefillCustomPath(customFolderPath);
+      customFolderPath.focus();
+    } else {
+      customFolderPath.style.display = 'none';
+      customFolderPath.value = '';
+    }
+  };
+
+
   const handleSubscribe = async () => {
     if (!state.selectedSeries) return;
+
+    let folderPath = null;
+
+    if (folderSelect.value === '__manual__') {
+      // Use custom path if manual option is selected and input has value
+      const customPath = customFolderPath.value.trim();
+      if (customPath) {
+        folderPath = window.PathUtils.sanitizePath(customPath);
+        if (!folderPath) {
+          toast.error('Invalid folder path. Please check for invalid characters.');
+          return;
+        }
+      }
+    } else if (folderSelect.value) {
+      // Use selected folder path
+      folderPath = folderSelect.value;
+    }
+
     await fetch('/api/subscriptions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         series_title: state.selectedSeries.title,
         series_identifier: state.selectedSeries.identifier,
-        provider_id: state.selectedProvider
+        provider_id: state.selectedProvider,
+        folder_path: folderPath
       })
     });
-    toast.success(`Subscribed to ${state.selectedSeries.title}.`);
+
+    const folderText = folderPath ? ` in folder "${folderPath}"` : '';
+    toast.success(`Subscribed to ${state.selectedSeries.title}${folderText}.`);
+
+    // Reset form
+    folderSelect.value = '';
+    customFolderPath.style.display = 'none';
+    customFolderPath.value = '';
   };
 
   // --- UI Logic & Event Listeners ---
@@ -236,6 +298,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   clearSelectionsBtn.addEventListener('click', clearSelections);
   downloadSelectedBtn.addEventListener('click', handleDownloadSelected);
   subscribeBtn.addEventListener('click', handleSubscribe);
+  folderSelect.addEventListener('change', handleFolderSelectChange);
 
   // Sorting listener
   chapterTableHeaders.forEach(th => {
@@ -292,4 +355,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // --- Initialization ---
   loadProviders();
+  window.PathUtils.loadLibraryPath();
+  loadFolders();
 });

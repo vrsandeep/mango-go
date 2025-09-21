@@ -52,6 +52,7 @@ func (s *Server) Router() http.Handler {
 	// API routes
 	r.Post("/api/users/login", s.handleLogin)
 	r.Get("/api/version", s.handleGetVersion)
+	r.Get("/api/config", s.handleGetConfig)
 	r.Group(func(r chi.Router) {
 		r.Use(s.AuthMiddleware)
 
@@ -64,6 +65,7 @@ func (s *Server) Router() http.Handler {
 			// Browse Routes
 			r.Get("/browse", s.handleBrowseFolder)
 			r.Get("/browse/breadcrumb", s.handleGetBreadcrumb)
+			r.Get("/folders", s.handleListAllFolders)
 
 			r.Get("/folders/{folderID}/settings", s.handleGetFolderSettings)
 			r.Post("/folders/{folderID}/settings", s.handleUpdateFolderSettings)
@@ -116,6 +118,7 @@ func (s *Server) Router() http.Handler {
 			// Subscription Routes
 			r.Post("/subscriptions", s.handleSubscribeToSeries)
 			r.Get("/subscriptions", s.handleListSubscriptions)
+			r.Put("/subscriptions/{subID}/folder-path", s.handleUpdateSubscriptionFolderPath)
 			r.Post("/subscriptions/{subID}/recheck", s.handleRecheckSubscription)
 			r.Delete("/subscriptions/{subID}", s.handleDeleteSubscription)
 		})

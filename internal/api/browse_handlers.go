@@ -223,3 +223,24 @@ func (s *Server) handleUploadFolderCover(w http.ResponseWriter, r *http.Request)
 
 	RespondWithJSON(w, http.StatusOK, map[string]string{"message": "Cover updated successfully."})
 }
+
+// handleListAllFolders returns a simple list of all folders for subscription folder selection
+func (s *Server) handleListAllFolders(w http.ResponseWriter, r *http.Request) {
+	folders, err := s.store.GetAllFoldersByPath()
+	if err != nil {
+		RespondWithError(w, http.StatusInternalServerError, "Failed to retrieve folders")
+		return
+	}
+
+	// Convert to a simple list format
+	var folderList []map[string]interface{}
+	for _, folder := range folders {
+		folderList = append(folderList, map[string]interface{}{
+			"id":   folder.ID,
+			"path": folder.Path,
+			"name": folder.Name,
+		})
+	}
+
+	RespondWithJSON(w, http.StatusOK, folderList)
+}

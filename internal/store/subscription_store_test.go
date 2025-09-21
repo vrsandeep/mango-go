@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrsandeep/mango-go/internal/models"
 	"github.com/vrsandeep/mango-go/internal/store"
 	"github.com/vrsandeep/mango-go/internal/testutil"
 )
@@ -91,6 +92,96 @@ func TestSubscriptionStore(t *testing.T) {
 		}
 		if len(ids) != 2 {
 			t.Errorf("Expected 2 identifiers, got %d", len(ids))
+		}
+	})
+
+	t.Run("Subscribe with folder path", func(t *testing.T) {
+		folderPath := "custom/manga/path"
+		sub, err := s.SubscribeToSeriesWithFolder("Manga with Folder", "id-folder", "p1", &folderPath)
+		if err != nil {
+			t.Fatalf("SubscribeToSeriesWithFolder failed: %v", err)
+		}
+		if sub.FolderPath == nil || *sub.FolderPath != folderPath {
+			t.Errorf("Expected folder path %s, got %v", folderPath, sub.FolderPath)
+		}
+	})
+
+	t.Run("Subscribe with null folder path", func(t *testing.T) {
+		sub, err := s.SubscribeToSeriesWithFolder("Manga without Folder", "id-no-folder", "p1", nil)
+		if err != nil {
+			t.Fatalf("SubscribeToSeriesWithFolder with nil folder path failed: %v", err)
+		}
+		if sub.FolderPath != nil {
+			t.Errorf("Expected folder path to be nil, got %v", sub.FolderPath)
+		}
+	})
+
+	t.Run("Get subscription with folder path", func(t *testing.T) {
+		folderPath := "another/custom/path"
+		sub, _ := s.SubscribeToSeriesWithFolder("Manga for Get Test", "id-get-test", "p1", &folderPath)
+
+		retrievedSub, err := s.GetSubscriptionByID(sub.ID)
+		if err != nil {
+			t.Fatalf("GetSubscriptionByID failed: %v", err)
+		}
+		if retrievedSub.FolderPath == nil || *retrievedSub.FolderPath != folderPath {
+			t.Errorf("Expected folder path %s, got %v", folderPath, retrievedSub.FolderPath)
+		}
+	})
+
+	t.Run("Update folder path", func(t *testing.T) {
+		// Create subscription without folder path
+		sub, _ := s.SubscribeToSeriesWithFolder("Manga for Update", "id-update", "p1", nil)
+
+		// Update with folder path
+		newFolderPath := "updated/custom/path"
+		err := s.UpdateSubscriptionFolderPath(sub.ID, &newFolderPath)
+		if err != nil {
+			t.Fatalf("UpdateSubscriptionFolderPath failed: %v", err)
+		}
+
+		// Verify update
+		updatedSub, _ := s.GetSubscriptionByID(sub.ID)
+		if updatedSub.FolderPath == nil || *updatedSub.FolderPath != newFolderPath {
+			t.Errorf("Expected folder path %s, got %v", newFolderPath, updatedSub.FolderPath)
+		}
+
+		// Update to null
+		err = s.UpdateSubscriptionFolderPath(sub.ID, nil)
+		if err != nil {
+			t.Fatalf("UpdateSubscriptionFolderPath to nil failed: %v", err)
+		}
+
+		// Verify null update
+		updatedSub, _ = s.GetSubscriptionByID(sub.ID)
+		if updatedSub.FolderPath != nil {
+			t.Errorf("Expected folder path to be nil after update, got %v", updatedSub.FolderPath)
+		}
+	})
+
+	t.Run("Get all subscriptions includes folder path", func(t *testing.T) {
+		folderPath := "test/folder/path"
+		s.SubscribeToSeriesWithFolder("Manga for GetAll", "id-getall", "p1", &folderPath)
+
+		subs, err := s.GetAllSubscriptions("p1")
+		if err != nil {
+			t.Fatalf("GetAllSubscriptions failed: %v", err)
+		}
+
+		// Find our test subscription
+		var foundSub *models.Subscription
+		for _, sub := range subs {
+			if sub.SeriesIdentifier == "id-getall" {
+				foundSub = sub
+				break
+			}
+		}
+
+		if foundSub == nil {
+			t.Fatal("Could not find test subscription")
+		}
+		if foundSub.FolderPath == nil || *foundSub.FolderPath != folderPath {
+			t.Errorf("Expected folder path %s, got %v", folderPath, foundSub.FolderPath)
 		}
 	})
 }

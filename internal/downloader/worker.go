@@ -167,7 +167,24 @@ func processDownload(app *core.App, st *store.Store, job *models.DownloadQueueIt
 	}
 
 	// Save the CBZ file
-	seriesDir := filepath.Join(app.Config().Library.Path, job.SeriesTitle)
+	// Check if there's a subscription with a custom folder path
+	var seriesDir string
+	subscriptions, err := st.GetAllSubscriptions(job.ProviderID)
+	if err == nil {
+		for _, sub := range subscriptions {
+			if sub.SeriesTitle == job.SeriesTitle && sub.FolderPath != nil {
+				// Use the custom folder path from subscription
+				seriesDir = filepath.Join(app.Config().Library.Path, *sub.FolderPath)
+				break
+			}
+		}
+	}
+
+	// Fall back to default series title if no custom folder path found
+	if seriesDir == "" {
+		seriesDir = filepath.Join(app.Config().Library.Path, job.SeriesTitle)
+	}
+
 	if err := os.MkdirAll(seriesDir, os.ModePerm); err != nil {
 		return fmt.Errorf("failed to create series directory: %w", err)
 	}
