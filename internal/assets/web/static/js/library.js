@@ -42,6 +42,119 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // --- Core Functions ---
 
+  // AniList API integration
+  const fetchAniListData = async (title) => {
+    if (!title) return null;
+
+    try {
+      // Clean up the title for better search results
+      const cleanTitle = title.replace(/[^\w\s-]/g, '').trim();
+      if (!cleanTitle) return null;
+
+      const query = `
+        query ($search: String) {
+          Media(search: $search, type: MANGA) {
+            id
+            title {
+              romaji
+              english
+            }
+            coverImage {
+              large
+            }
+            siteUrl
+          }
+        }
+      `;
+
+      const variables = { search: cleanTitle };
+
+      const response = await fetch('https://graphql.anilist.co', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          query: query,
+          variables: variables,
+        }),
+      });
+
+      if (!response.ok) {
+        console.error(`AniList API error: ${response.status} ${response.statusText}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.errors) {
+        console.warn('AniList API returned errors:', data.errors);
+        return null;
+      }
+
+      return data.data?.Media || null;
+    } catch (error) {
+      console.error('Error fetching AniList data for title:', title, error);
+      return null;
+    }
+  };
+
+  // Async AniList button loader - runs after page load without blocking
+  const loadAniListButtonsAsync = () => {
+    // Use setTimeout to ensure this runs after the main rendering is complete
+    setTimeout(async () => {
+      const pageTitle = document.getElementById('page-title');
+      if (!pageTitle) return;
+
+      // Skip if button already exists
+      if (document.querySelector('.anilist-button')) return;
+
+      const title = pageTitle.textContent.trim();
+      if (!title || title === 'Library') return; // Skip for generic library page
+
+      try {
+        const anilistData = await fetchAniListData(title);
+        if (anilistData?.siteUrl) {
+          addAniListButtonToHeader(anilistData.siteUrl);
+        }
+      } catch (error) {
+        console.warn('Failed to load AniList data for:', title, error);
+      }
+    }, 100); // Small delay to ensure DOM is ready
+  };
+
+  // Helper function to add AniList button to page header
+  const addAniListButtonToHeader = (anilistUrl) => {
+    const pageTitle = document.getElementById('page-title');
+    if (!pageTitle) return;
+
+    // Create a container div for the title and button
+    const titleContainer = document.createElement('div');
+    titleContainer.className = 'title-container';
+
+    // Move the title into the container
+    pageTitle.parentNode.insertBefore(titleContainer, pageTitle);
+    titleContainer.appendChild(pageTitle);
+
+    // Create the AniList button with icon
+    const button = document.createElement('a');
+    button.href = anilistUrl;
+    button.target = '_blank';
+    button.className = 'anilist-button';
+
+    // Create icon element
+    const icon = document.createElement('img');
+    icon.src = '/static/images/anilist-icon.svg';
+    icon.alt = 'AniList';
+    icon.className = 'anilist-icon';
+
+    button.appendChild(icon);
+
+    // Add button to the title container
+    titleContainer.appendChild(button);
+  };
+
   // Get the current folder ID from the URL path.
   const getFolderIdFromUrl = () => {
     const parts = window.location.pathname.split('/folder/');
@@ -91,6 +204,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       cardsGrid.insertAdjacentHTML('beforeend', '<h3 class="grid-section-header">Chapters</h3>');
       data.chapters.forEach(chapter => cardsGrid.appendChild(createChapterCard(chapter)));
     }
+
+    // Load AniList buttons asynchronously after rendering
+    loadAniListButtonsAsync();
   };
 
   // Creates an HTML card for a folder.
@@ -166,50 +282,62 @@ document.addEventListener('DOMContentLoaded', async () => {
     state.isLoading = true;
     cardsGrid.innerHTML = '<p>Loading...</p>';
 
-    await renderBreadcrumb();
-    await loadFolderSettings();
+    try {
+      await renderBreadcrumb();
+      await loadFolderSettings();
 
-    const params = new URLSearchParams({
-      page: state.currentPage,
-      per_page: state.perPage,
-      search: state.search,
-      sort_by: state.sortBy,
-      sort_dir: state.sortDir
-    });
-    if (state.currentFolderId) {
-      params.set('folderId', state.currentFolderId);
+      const params = new URLSearchParams({
+        page: state.currentPage,
+        per_page: state.perPage,
+        search: state.search,
+        sort_by: state.sortBy,
+        sort_dir: state.sortDir
+      });
+      if (state.currentFolderId) {
+        params.set('folderId', state.currentFolderId);
+      }
+      if (state.currentTagId) {
+        params.set('tagId', state.currentTagId);
+      }
+
+      const response = await fetch(`/api/browse?${params.toString()}`);
+
+      if (!response.ok) {
+        console.error(`Browse API error: ${response.status} ${response.statusText}`);
+        throw new Error(`Browse API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.current_folder) {
+        pageTitleEl.textContent = data.current_folder.name;
+      } else if (state.currentTagId) {
+        const tagName = await getTagNameFromId(state.currentTagId);
+        pageTitleEl.textContent = `Tag: ${tagName}`;
+        document.title = `Tag: ${tagName} - Mango`;
+      } else {
+        pageTitleEl.textContent = 'Library';
+      }
+      document.title = `${pageTitleEl.textContent} - Mango`;
+      folderThumb.src = data.current_folder ? data.current_folder.thumbnail : '';
+      folderThumb.style.display = data.current_folder ? 'block' : 'none';
+
+      // Show the Edit button only when viewing a specific folder
+      editFolderBtn.style.display = data.current_folder ? 'block' : 'none';
+      renderTags(data.current_folder ? data.current_folder.tags : []);
+
+      renderGrid(data);
+
+      state.totalItems = parseInt(response.headers.get('X-Total-Count') || '0', 10);
+      totalCountEl.textContent = `${state.totalItems}`;
+      renderPagination();
+
+    } catch (error) {
+      console.error('Error loading folder contents:', error);
+      cardsGrid.innerHTML = '<p>Error loading content. Please try again.</p>';
+    } finally {
+      state.isLoading = false;
     }
-    if (state.currentTagId) {
-      params.set('tagId', state.currentTagId);
-    }
-
-    const response = await fetch(`/api/browse?${params.toString()}`);
-    const data = await response.json();
-
-    if (data.current_folder) {
-      pageTitleEl.textContent = data.current_folder.name;
-    } else if (state.currentTagId) {
-      const tagName = await getTagNameFromId(state.currentTagId);
-      pageTitleEl.textContent = `Tag: ${tagName}`;
-      document.title = `Tag: ${tagName} - Mango`;
-    } else {
-      pageTitleEl.textContent = 'Library';
-    }
-    document.title = `${pageTitleEl.textContent} - Mango`;
-    folderThumb.src = data.current_folder ? data.current_folder.thumbnail : '';
-    folderThumb.style.display = data.current_folder ? 'block' : 'none';
-
-    // Show the Edit button only when viewing a specific folder
-    editFolderBtn.style.display = data.current_folder ? 'block' : 'none';
-    renderTags(data.current_folder ? data.current_folder.tags : []);
-
-    renderGrid(data);
-
-    state.totalItems = parseInt(response.headers.get('X-Total-Count') || '0', 10);
-    totalCountEl.textContent = `${state.totalItems}`;
-    renderPagination();
-
-    state.isLoading = false;
   };
 
   const renderPagination = () => {

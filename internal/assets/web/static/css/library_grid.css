@@ -129,6 +129,7 @@ a {
   display: flex;
   flex-direction: column;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  position: relative;
 }
 .item-card:hover .thumbnail {
   transform: scale(1.05);
@@ -170,6 +171,51 @@ a {
   background-color: var(--accent-color);
   border-radius: 3px;
   transition: width 0.3s ease;
+}
+.title-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.anilist-button {
+  background-color: #1a1a1a;
+  border: none;
+  padding: 0.3rem;
+  margin: 0;
+  border-radius: 8px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.9;
+  width: 36px;
+  height: 36px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.anilist-button:hover {
+  opacity: 1;
+  transform: scale(1.05);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.anilist-button:active {
+  transform: scale(0.95);
+}
+
+.anilist-icon {
+  width: 24px;
+  height: 24px;
+  filter: none;
+  transition: none;
+}
+
+.anilist-button:hover .anilist-icon {
+  filter: none;
 }
 .pagination-container {
   display: flex;
@@ -434,9 +480,9 @@ a {
     grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
     gap: 0.3rem;
   }
-  .item-title {
-    font-size: 0.89rem;
-  }
+    .item-title {
+      font-size: 0.89rem;
+    }
 }
 .header-dropdown-content {
   touch-action: manipulation;
