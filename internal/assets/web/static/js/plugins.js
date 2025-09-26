@@ -121,6 +121,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const response = await fetch(`/api/providers/${state.selectedProvider}/series/${encodeURIComponent(series.identifier)}`);
     state.chapters = await response.json();
     state.filteredChapters = [...state.chapters];
+    populateLanguageFilter();
     applyFiltersAndSort();
   };
 
@@ -163,13 +164,64 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateTableHeaderIcons();
   };
 
+  const populateLanguageFilter = () => {
+    // Get unique languages from chapters
+    const languages = [...new Set(state.chapters.map(ch => ch.language))].sort();
+
+    // Clear existing options except "All Languages"
+    const languageSelect = document.getElementById('filter-language');
+    languageSelect.innerHTML = '<option value="">All Languages</option>';
+
+    // Add language options
+    languages.forEach(lang => {
+      const option = document.createElement('option');
+      option.value = lang;
+      option.textContent = lang;
+      languageSelect.appendChild(option);
+    });
+  };
+
   const applyFiltersAndSort = () => {
     // Apply Filters
     const titleFilter = document.querySelector('[data-filter="title"]').value;
     const langFilter = document.querySelector('[data-filter="language"]').value;
+    const volumeMin = document.querySelector('[data-filter="volume-min"]').value;
+    const volumeMax = document.querySelector('[data-filter="volume-max"]').value;
+    const chapterMin = document.querySelector('[data-filter="chapter-min"]').value;
+    const chapterMax = document.querySelector('[data-filter="chapter-max"]').value;
+
     state.filteredChapters = state.chapters.filter(ch => {
       const fullTitle = (ch.title || `Vol. ${ch.volume} Ch. ${ch.chapter}`).toLowerCase();
-      return fullTitle.includes(titleFilter.toLowerCase()) && ch.language.toLowerCase().includes(langFilter.toLowerCase());
+
+      // Title filter
+      if (titleFilter && !fullTitle.includes(titleFilter.toLowerCase())) {
+        return false;
+      }
+
+      // Language filter
+      if (langFilter && ch.language !== langFilter) {
+        return false;
+      }
+
+      // Volume range filter
+      const volume = parseFloat(ch.volume) || 0;
+      if (volumeMin && volume < parseFloat(volumeMin)) {
+        return false;
+      }
+      if (volumeMax && volume > parseFloat(volumeMax)) {
+        return false;
+      }
+
+      // Chapter range filter
+      const chapter = parseFloat(ch.chapter) || 0;
+      if (chapterMin && chapter < parseFloat(chapterMin)) {
+        return false;
+      }
+      if (chapterMax && chapter > parseFloat(chapterMax)) {
+        return false;
+      }
+
+      return true;
     });
 
     // Apply Sort
@@ -198,23 +250,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     chapterCountEl.textContent = `${state.filteredChapters.length} of ${state.chapters.length} chapters found`;
     renderChapterTable();
-  };
-
-  const handleDownloadSelected = async () => {
-    const selectedChapters = state.chapters.filter(ch => state.selectedChapterRows.has(ch.identifier));
-    if (selectedChapters.length === 0) return;
-
-    await fetch('/api/downloads/queue', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        series_title: state.selectedSeries.title,
-        provider_id: state.selectedProvider,
-        chapters: selectedChapters
-      })
-    });
-    toast.success(`${selectedChapters.length} chapters added to download queue.`);
-    clearSelections();
+    updateFilterBadge();
+    closePanel(filtersPanel);
   };
 
 
@@ -336,42 +373,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   };
 
-  const applyFilters = () => {
-    const filters = {
-      title: filterTitle.value.trim(),
-      language: filterLanguage.value,
-      volumeMin: filterVolumeMin.value ? parseInt(filterVolumeMin.value) : null,
-      volumeMax: filterVolumeMax.value ? parseInt(filterVolumeMax.value) : null,
-      chapterMin: filterChapterMin.value ? parseInt(filterChapterMin.value) : null,
-      chapterMax: filterChapterMax.value ? parseInt(filterChapterMax.value) : null
-    };
-
-    state.filteredChapters = state.chapters.filter(chapter => {
-      if (filters.title && !chapter.title.toLowerCase().includes(filters.title.toLowerCase())) {
-        return false;
-      }
-      if (filters.language && chapter.language !== filters.language) {
-        return false;
-      }
-      if (filters.volumeMin && chapter.volume < filters.volumeMin) {
-        return false;
-      }
-      if (filters.volumeMax && chapter.volume > filters.volumeMax) {
-        return false;
-      }
-      if (filters.chapterMin && chapter.chapter < filters.chapterMin) {
-        return false;
-      }
-      if (filters.chapterMax && chapter.chapter > filters.chapterMax) {
-        return false;
-      }
-      return true;
-    });
-
-    renderChapterTable();
-    updateFilterBadge();
-    closePanel(filtersPanel);
-  };
+  // Removed duplicate function - using applyFiltersAndSort instead
 
   const clearFilters = () => {
     filterTitle.value = '';
@@ -505,7 +507,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateDownloadButtonState();
   });
   clearSelectionsBtn.addEventListener('click', clearSelections);
-  downloadSelectedBtn.addEventListener('click', handleDownloadSelected);
+  downloadSelectedBtn.addEventListener('click', downloadSelectedChapters);
   subscribeBtn.addEventListener('click', handleSubscribe);
 
   // Sorting listener
@@ -588,8 +590,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     input.addEventListener('input', updateFilterBadge);
   });
 
-  // Filter buttons
-  applyFiltersBtn.addEventListener('click', applyFilters);
+  // Filter buttons (applyFilters handled by applyFiltersAndSort above)
   clearFiltersBtn.addEventListener('click', clearFilters);
 
   // Folder path radio buttons
@@ -639,13 +640,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     'f': () => openPanel(filtersPanel),
     's': () => openPanel(settingsPanel),
 
-    // Action shortcuts
-    'Enter': () => {
-      if (searchInput === document.activeElement) {
-        searchInput.blur();
-        performSearch();
-      }
-    },
+    // Action shortcuts (handled in the main Enter key below)
 
     // Selection shortcuts
     'a': (e) => {
@@ -663,9 +658,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Download shortcut
     'Enter': (e) => {
-      if (e.ctrlKey || e.metaKey && state.selectedChapterRows.size > 0) {
-        e.preventDefault();
-        downloadSelectedChapters();
+      if (e.ctrlKey || e.metaKey) {
+        if (state.selectedChapterRows.size > 0) {
+          e.preventDefault();
+          downloadSelectedChapters();
+        }
+      } else if (searchInput === document.activeElement) {
+        searchInput.blur();
+        performSearch();
       }
     }
   };
@@ -730,12 +730,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Add keyboard shortcut indicators to buttons
-    const filterBtn = document.querySelector('[data-panel="filters"]');
-    if (filterBtn) {
-      filterBtn.title = 'Open Filters (F)';
+    if (filtersBtn) {
+      filtersBtn.title = 'Open Filters (F)';
     }
 
-    const settingsBtn = document.querySelector('[data-panel="settings"]');
     if (settingsBtn) {
       settingsBtn.title = 'Open Settings (S)';
     }
