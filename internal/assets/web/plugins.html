@@ -39,64 +39,194 @@
             <button id="logout-btn" class="auth-only" style="display: none;">Logout</button>
         </div>
     </header>
-    <main class="container">
-        <h1>Download with Plugins</h1>
-        <div class="search-container">
-            <input type="search" id="search-input" placeholder="Search for a manga...">
-            <select id="provider-select"></select>
-        </div>
-
-        <div id="search-results-container" style="display: none;">
-            <div class="results-summary" id="search-summary">
-                <span id="search-count"></span> <span id="search-toggle-icon">▼</span>
+    <main class="spa-container">
+        <!-- Top Bar -->
+        <div class="top-bar">
+            <div class="search-area">
+                <div class="search-input-group">
+                    <i class="ph-bold ph-magnifying-glass search-icon"></i>
+                    <input type="search" id="search-input" placeholder="Search for a manga...">
+                    <button id="clear-search-btn" class="clear-btn" style="display: none;">
+                        <i class="ph-bold ph-x"></i>
+                    </button>
+                </div>
+                <select id="provider-select" class="provider-select">
+                    <option value="">Select Provider</option>
+                </select>
             </div>
-            <div class="search-results-grid" id="search-results-grid"></div>
+            <div class="quick-actions">
+                <button class="action-btn" id="filters-btn">
+                    <i class="ph-bold ph-funnel"></i>
+                    <span>Filters</span>
+                    <span class="badge" id="filter-badge" style="display: none;">0</span>
+                </button>
+                <button class="action-btn" id="settings-btn">
+                    <i class="ph-bold ph-gear"></i>
+                    <span>Settings</span>
+                </button>
+            </div>
         </div>
 
-        <div class="chapter-view" id="chapter-view">
-            <h2 id="chapter-series-title"></h2>
-            <div id="chapter-count"></div>
-            <div class="action-bar">
-                <button id="select-all-btn">Select All</button>
-                <button id="clear-selections-btn">Clear Selections</button>
-                <button id="download-selected-btn" disabled>Download Selected</button>
-                <button id="filter-toggle-btn">Filters</button>
-                <div class="subscribe-section">
-                    <select id="folder-select" style="margin-right: 10px;">
-                        <option value="">Default folder (series name)</option>
-                        <option value="__manual__">Custom path...</option>
+        <!-- Content Area -->
+        <div class="content-area">
+            <!-- Search Results Section -->
+            <div class="results-section" id="results-section">
+                <div class="section-header">
+                    <h2>Search Results</h2>
+                    <div class="results-summary" id="search-summary" style="display: none;">
+                        <span id="search-count"></span> chapters found
+                        <button id="search-toggle-btn" class="toggle-btn">
+                            <i class="ph-bold ph-caret-down" id="search-toggle-icon"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="search-results-grid" id="search-results-grid"></div>
+            </div>
+
+            <!-- Chapters Section -->
+            <div class="chapters-section" id="chapters-section" style="display: none;">
+                <div class="chapters-header">
+                    <div class="series-info">
+                        <h2 id="chapter-series-title"></h2>
+                        <div class="series-meta">
+                            <span id="chapter-count"></span>
+                            <span class="provider-badge" id="provider-badge"></span>
+                        </div>
+                    </div>
+                    <div class="chapter-actions">
+                        <button id="select-all-btn" class="btn-secondary">
+                            <i class="ph-bold ph-check-square"></i>
+                            Select All
+                        </button>
+                        <button id="clear-selections-btn" class="btn-secondary">
+                            <i class="ph-bold ph-square"></i>
+                            Clear
+                        </button>
+                        <button id="download-selected-btn" class="btn-primary" disabled>
+                            <i class="ph-bold ph-download"></i>
+                            Download Selected
+                            <span class="selection-count" id="selection-count">0</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="chapter-table" id="chapter-table">
+                        <thead>
+                            <tr>
+                                <th data-sort="title">
+                                    <span>Title</span>
+                                    <i class="ph-bold ph-sort-ascending sort-icon"></i>
+                                </th>
+                                <th data-sort="pages">
+                                    <span>Pages</span>
+                                    <i class="ph-bold ph-sort-ascending sort-icon"></i>
+                                </th>
+                                <th data-sort="volume">
+                                    <span>Volume</span>
+                                    <i class="ph-bold ph-sort-ascending sort-icon"></i>
+                                </th>
+                                <th data-sort="chapter">
+                                    <span>Chapter</span>
+                                    <i class="ph-bold ph-sort-ascending sort-icon"></i>
+                                </th>
+                                <th data-sort="language">
+                                    <span>Language</span>
+                                    <i class="ph-bold ph-sort-ascending sort-icon"></i>
+                                </th>
+                                <th data-sort="published_at">
+                                    <span>Published</span>
+                                    <i class="ph-bold ph-sort-ascending sort-icon"></i>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Floating Panels -->
+        <div class="floating-panel" id="filters-panel">
+            <div class="panel-header">
+                <h3>Filters</h3>
+                <button class="panel-close" id="filters-close">
+                    <i class="ph-bold ph-x"></i>
+                </button>
+            </div>
+            <div class="panel-content">
+                <div class="filter-group">
+                    <label for="filter-title">Title</label>
+                    <input type="text" id="filter-title" data-filter="title" placeholder="Filter by title...">
+                </div>
+                <div class="filter-group">
+                    <label for="filter-language">Language</label>
+                    <select id="filter-language" data-filter="language">
+                        <option value="">All Languages</option>
                     </select>
-                    <input type="text" id="custom-folder-path" placeholder="Enter custom folder path..." style="display: none; margin-right: 10px; padding: 5px; border: 1px solid #ccc; border-radius: 4px;">
-                    <button id="subscribe-btn">Subscribe</button>
+                </div>
+                <div class="filter-group">
+                    <label for="filter-volume-min">Volume Range</label>
+                    <div class="range-inputs">
+                        <input type="number" id="filter-volume-min" data-filter="volume-min" placeholder="Min">
+                        <span>to</span>
+                        <input type="number" id="filter-volume-max" data-filter="volume-max" placeholder="Max">
+                    </div>
+                </div>
+                <div class="filter-group">
+                    <label for="filter-chapter-min">Chapter Range</label>
+                    <div class="range-inputs">
+                        <input type="number" id="filter-chapter-min" data-filter="chapter-min" placeholder="Min">
+                        <span>to</span>
+                        <input type="number" id="filter-chapter-max" data-filter="chapter-max" placeholder="Max">
+                    </div>
                 </div>
             </div>
-            <div class="filter-panel" id="filter-panel" style="display: none;">
-                <div class="filter-grid">
-                    <input type="text" data-filter="title" placeholder="Filter by title...">
-                    <input type="text" data-filter="language" placeholder="Filter by language...">
-                    <!-- Add more filters as needed -->
-                </div>
-                <div style="margin-top: 1rem;">
-                    <button id="apply-filters-btn">Apply</button>
-                    <button id="clear-filters-btn">Clear</button>
-                </div>
-            </div>
-            <div class="table-container">
-                <table class="chapter-table" id="chapter-table">
-                    <thead>
-                        <tr>
-                            <th data-sort="title">Title</th>
-                            <th data-sort="pages">Pages</th>
-                            <th data-sort="volume">Volume</th>
-                            <th data-sort="chapter">Chapter</th>
-                            <th data-sort="language">Language</th>
-                            <th data-sort="published_at">Published</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
+            <div class="panel-footer">
+                <button id="apply-filters-btn" class="btn-primary">Apply Filters</button>
+                <button id="clear-filters-btn" class="btn-secondary">Clear All</button>
             </div>
         </div>
+
+        <div class="floating-panel" id="settings-panel">
+            <div class="panel-header">
+                <h3>Download Settings</h3>
+                <button class="panel-close" id="settings-close">
+                    <i class="ph-bold ph-x"></i>
+                </button>
+            </div>
+            <div class="panel-content">
+                <div class="settings-group">
+                    <h4>Folder Path</h4>
+                    <div class="folder-selection-group">
+                        <div class="radio-group">
+                            <label class="radio-option">
+                                <input type="radio" name="folder-path" value="default" checked>
+                                <span>Default (series name)</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="folder-path" value="custom">
+                                <span>Custom path</span>
+                            </label>
+                        </div>
+                        <input type="text" id="custom-folder-path" placeholder="e.g., My Manga/One Piece" style="display: none;">
+                        <div class="path-preview" id="path-preview" style="display: none;">
+                            <small>Preview: <span id="preview-text"></span></small>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-group">
+                    <h4>Subscription</h4>
+                    <button id="subscribe-btn" class="btn-primary">
+                        <i class="ph-bold ph-plus"></i>
+                        Subscribe to Series
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Overlay for floating panels -->
+        <div class="panel-overlay" id="panel-overlay"></div>
     </main>
     <footer class="main-footer">
         <span id="version-footer"></span>
