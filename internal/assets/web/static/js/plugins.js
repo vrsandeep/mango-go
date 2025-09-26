@@ -41,8 +41,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const settingsBtn = document.getElementById('settings-btn');
   const filtersPanel = document.getElementById('filters-panel');
   const settingsPanel = document.getElementById('settings-panel');
+  const helpPanel = document.getElementById('help-panel');
   const filtersClose = document.getElementById('filters-close');
   const settingsClose = document.getElementById('settings-close');
+  const helpClose = document.getElementById('help-close');
   const panelOverlay = document.getElementById('panel-overlay');
   const filterBadge = document.getElementById('filter-badge');
 
@@ -350,6 +352,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const closeAllPanels = () => {
     closePanel(filtersPanel);
     closePanel(settingsPanel);
+    closePanel(helpPanel);
   };
 
   // --- Filter Functions ---
@@ -582,6 +585,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   filtersClose.addEventListener('click', () => closePanel(filtersPanel));
   settingsClose.addEventListener('click', () => closePanel(settingsPanel));
 
+  // Help panel close button
+  if (helpClose) {
+    helpClose.addEventListener('click', () => closePanel(document.getElementById('help-panel')));
+  }
+
   // Panel overlay
   panelOverlay.addEventListener('click', closeAllPanels);
 
@@ -741,109 +749,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Show keyboard shortcuts help
   function showKeyboardHelp() {
-    // Create help panel similar to filters/settings panels
-    const helpPanel = document.createElement('div');
-    helpPanel.className = 'floating-panel';
-    helpPanel.id = 'help-panel';
-    helpPanel.innerHTML = `
-      <div class="panel-header">
-        <h3>Keyboard Shortcuts</h3>
-        <button class="panel-close" id="help-close">&times;</button>
-      </div>
-      <div class="panel-content">
-        <div class="shortcuts-list">
-          <div class="shortcut-group">
-            <h4>Navigation</h4>
-            <div class="shortcut-item">
-              <kbd>/</kbd> Focus search
-            </div>
-            <div class="shortcut-item">
-              <kbd>Esc</kbd> Clear search or close panels
-            </div>
-          </div>
-          <div class="shortcut-group">
-            <h4>Panels</h4>
-            <div class="shortcut-item">
-              <kbd>F</kbd> Open filters
-            </div>
-            <div class="shortcut-item">
-              <kbd>S</kbd> Open settings
-            </div>
-          </div>
-          <div class="shortcut-group">
-            <h4>Selection</h4>
-            <div class="shortcut-item">
-              <kbd>Ctrl+A</kbd> Select all chapters
-            </div>
-            <div class="shortcut-item">
-              <kbd>Ctrl+D</kbd> Deselect all chapters
-            </div>
-          </div>
-          <div class="shortcut-group">
-            <h4>Actions</h4>
-            <div class="shortcut-item">
-              <kbd>Ctrl+Enter</kbd> Download selected chapters
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-
-    document.body.appendChild(helpPanel);
-
-    // Add styles for the shortcuts list
-    const style = document.createElement('style');
-    style.textContent = `
-      .shortcuts-list {
-        display: flex;
-        flex-direction: column;
-        gap: 1.5rem;
-      }
-      .shortcut-group h4 {
-        margin: 0 0 0.75rem 0;
-        color: var(--text-color);
-        font-size: 1rem;
-        border-bottom: 1px solid var(--border-color);
-        padding-bottom: 0.5rem;
-      }
-      .shortcut-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0.5rem 0;
-        border-bottom: 1px solid var(--border-color);
-      }
-      .shortcut-item:last-child {
-        border-bottom: none;
-      }
-      kbd {
-        background-color: var(--border-color);
-        color: var(--text-color);
-        padding: 0.25rem 0.5rem;
-        border-radius: 4px;
-        font-family: monospace;
-        font-size: 0.85rem;
-        border: 1px solid var(--subtle-text-color);
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-      }
-    `;
-    document.head.appendChild(style);
-
-    // Open the help panel
+    const helpPanel = document.getElementById('help-panel');
     openPanel(helpPanel);
-
-    // Add event listener for close button
-    const helpClose = document.getElementById('help-close');
-    helpClose.addEventListener('click', () => {
-      closePanel(helpPanel);
-      helpPanel.remove();
-    });
-
-    // Close on overlay click
-    panelOverlay.addEventListener('click', () => {
-      closePanel(helpPanel);
-      helpPanel.remove();
-    });
   }
 
   // Add help button to show keyboard shortcuts

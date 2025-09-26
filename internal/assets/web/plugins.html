@@ -228,6 +228,52 @@
         <!-- Overlay for floating panels -->
         <div class="panel-overlay" id="panel-overlay"></div>
     </main>
+
+    <!-- Help Panel (hidden by default) -->
+    <div id="help-panel" class="floating-panel">
+        <div class="panel-header">
+            <h3>Keyboard Shortcuts</h3>
+            <button class="panel-close" id="help-close">&times;</button>
+        </div>
+        <div class="panel-content">
+            <div class="shortcuts-list">
+                <div class="shortcut-group">
+                    <h4>Navigation</h4>
+                    <div class="shortcut-item">
+                        <kbd>/</kbd> Focus search
+                    </div>
+                    <div class="shortcut-item">
+                        <kbd>Esc</kbd> Clear search or close panels
+                    </div>
+                </div>
+                <div class="shortcut-group">
+                    <h4>Panels</h4>
+                    <div class="shortcut-item">
+                        <kbd>F</kbd> Open filters
+                    </div>
+                    <div class="shortcut-item">
+                        <kbd>S</kbd> Open settings
+                    </div>
+                </div>
+                <div class="shortcut-group">
+                    <h4>Selection</h4>
+                    <div class="shortcut-item">
+                        <kbd>Ctrl+A</kbd> Select all chapters
+                    </div>
+                    <div class="shortcut-item">
+                        <kbd>Ctrl+D</kbd> Deselect all chapters
+                    </div>
+                </div>
+                <div class="shortcut-group">
+                    <h4>Actions</h4>
+                    <div class="shortcut-item">
+                        <kbd>Ctrl+Enter</kbd> Download selected chapters
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <footer class="main-footer">
         <span id="version-footer"></span>
     </footer>
