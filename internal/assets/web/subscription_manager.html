@@ -52,8 +52,9 @@
                     <tr>
                         <th>Name</th>
                         <th>Provider</th>
+                        <th>Folder Path</th>
                         <th>Subscribed</th>
-                        <th>Last Checked</th>
+                        <th>Last checked at</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -61,9 +62,54 @@
             </table>
         </div>
     </main>
+
+    <!-- Folder Path Edit Modal -->
+    <div id="folder-path-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">Edit Folder Path</h3>
+                <button class="modal-close" id="modal-close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="modal-series-name">Series:</label>
+                    <input type="text" id="modal-series-name" readonly>
+                </div>
+
+                <div class="form-group">
+                    <label for="modal-current-path">Current Path:</label>
+                    <div id="modal-current-path-display" class="path-display"></div>
+                    <small class="path-help">Library path: <span id="modal-library-path"></span></small>
+                </div>
+
+                <div class="form-group">
+                    <label for="modal-folder-select">Folder:</label>
+                    <select id="modal-folder-select">
+                        <option value="">Default (series name)</option>
+                        <option value="__manual__">Custom path...</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="modal-custom-path-group" style="display: none;">
+                    <label for="modal-custom-path">Custom Path (relative to library):</label>
+                    <input type="text" id="modal-custom-path" placeholder="e.g., My Manga/One Piece or just One Piece">
+                    <div class="path-preview">
+                        <strong>Full Path:</strong> <span id="modal-path-preview"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="modal-reset-btn" class="btn btn-secondary">Reset to Default</button>
+                <button id="modal-cancel-btn" class="btn btn-secondary">Cancel</button>
+                <button id="modal-save-btn" class="btn btn-primary">Save</button>
+            </div>
+        </div>
+    </div>
+
     <footer class="main-footer"><span id="version-footer"></span></footer>
     <script src="/static/js/header.js"></script>
     <script src="/static/js/toast.js"></script>
+    <script src="/static/js/path-utils.js"></script>
     <script src="/static/js/subscription_manager.js"></script>
 </body>
 

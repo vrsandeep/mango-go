@@ -1,62 +1,463 @@
- .container {
-     max-width: 1200px;
- }
+.container {
+    max-width: 1200px;
+    padding: 0 1rem;
+}
 
- .manager-controls {
-     display: flex;
-     gap: 1rem;
-     margin-bottom: 1.5rem;
-     flex-wrap: wrap;
-     justify-content: flex-start;
- }
+.manager-controls {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+}
 
- .manager-controls select {
-     padding: 0.5rem;
-     border: 1px solid var(--border-color);
-     border-radius: 5px;
-     background-color: var(--card-bg);
-     color: var(--text-color);
- }
+.manager-controls select {
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    background-color: var(--card-bg);
+    color: var(--text-color);
+}
 
- .manager-controls select option {
-     background-color: var(--card-bg);
-     color: var(--text-color);
- }
+.manager-controls select option {
+    background-color: var(--card-bg);
+    color: var(--text-color);
+}
 
- #provider-select {
-     padding: 0.5rem;
-     border: 1px solid var(--border-color);
-     border-radius: 5px;
-     background-color: var(--bg-color);
-     color: var(--text-color);
- }
+#provider-select {
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
 
- .sub-table {
-     width: 100%;
-     border-collapse: collapse;
- }
+/* Table container with horizontal scroll for mobile */
+.table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
 
- .sub-table th,
- .sub-table td {
-     padding: 0.75rem;
-     text-align: left;
-     border-bottom: 1px solid var(--border-color);
-     background-color: var(--card-bg);
- }
+.sub-table {
+    width: 100%;
+    min-width: 800px;
+    /* Minimum width to prevent cramping */
+    border-collapse: collapse;
+}
 
- .sub-table th {
-     background-color: var(--header-bg);
- }
+.sub-table th,
+.sub-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--card-bg);
+    vertical-align: top;
+}
 
- .sub-table td {
-     position: relative;
- }
+.sub-table th {
+    background-color: var(--header-bg);
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    height: auto;
+    /* Header height should be natural */
+    min-height: auto;
+}
 
- .actions-cell button {
-     background: none;
-     border: none;
-     color: var(--text-color);
-     font-size: 1.2rem;
-     cursor: pointer;
-     padding: 0.25rem;
- }
+.sub-table td {
+    position: relative;
+}
+
+/* Column width distribution */
+.sub-table th:nth-child(1),
+.sub-table td:nth-child(1) {
+    width: 25%;
+    /* Name */
+}
+
+.sub-table th:nth-child(2),
+.sub-table td:nth-child(2) {
+    width: 15%;
+    /* Provider */
+}
+
+.sub-table th:nth-child(3),
+.sub-table td:nth-child(3) {
+    width: 25%;
+    /* Folder Path */
+}
+
+.sub-table th:nth-child(4),
+.sub-table td:nth-child(4) {
+    width: 15%;
+    /* Subscribed */
+}
+
+.sub-table th:nth-child(5),
+.sub-table td:nth-child(5) {
+    width: 15%;
+    /* Last Checked */
+}
+
+.sub-table th:nth-child(6),
+.sub-table td:nth-child(6) {
+    width: 5%;
+    /* Actions */
+}
+
+.actions-cell {
+    text-align: center;
+    white-space: nowrap;
+    background-color: var(--card-bg) !important;
+}
+
+.actions-cell button {
+    background: transparent !important;
+    border: none !important;
+    color: var(--text-color);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0.25rem;
+    margin: 0 2px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+    vertical-align: middle;
+}
+
+.actions-cell button:hover {
+    background-color: var(--border-color) !important;
+}
+
+/* Ensure all buttons in actions cell have consistent styling */
+.sub-table .actions-cell button {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    border-width: 0 !important;
+    color: var(--text-color) !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+/* Folder path column styling */
+.folder-path-cell {
+    width: 100%;
+    max-width: 0;
+    /* This helps with text truncation */
+}
+
+.folder-path-display {
+    display: block;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+/* Mobile responsive design */
+@media (max-width: 768px) {
+    .container {
+        padding: 0 0.5rem;
+    }
+
+    .manager-controls {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .manager-controls select {
+        width: 100%;
+    }
+
+    .sub-table {
+        min-width: 600px;
+        /* Smaller minimum width for mobile */
+        font-size: 0.9rem;
+    }
+
+    .sub-table th,
+    .sub-table td {
+        padding: 0.5rem;
+    }
+
+    .sub-table th {
+        height: auto;
+        /* Header height should be natural */
+        min-height: auto;
+    }
+
+    /* Adjust column widths for mobile */
+    .sub-table th:nth-child(1),
+    .sub-table td:nth-child(1) {
+        width: 25%;
+        /* Name */
+    }
+
+    .sub-table th:nth-child(2),
+    .sub-table td:nth-child(2) {
+        width: 15%;
+        /* Provider */
+    }
+
+    .sub-table th:nth-child(3),
+    .sub-table td:nth-child(3) {
+        width: 25%;
+        /* Folder Path */
+    }
+
+    .sub-table th:nth-child(4),
+    .sub-table td:nth-child(4) {
+        width: 15%;
+        /* Subscribed */
+    }
+
+    .sub-table th:nth-child(5),
+    .sub-table td:nth-child(5) {
+        width: 15%;
+        /* Last Checked */
+    }
+
+    .sub-table th:nth-child(6),
+    .sub-table td:nth-child(6) {
+        width: 5%;
+        /* Actions */
+    }
+
+    /* Ensure date columns have enough space and proper text wrapping */
+    .sub-table td:nth-child(4),
+    .sub-table td:nth-child(5) {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: 0.8rem;
+    }
+
+    .actions-cell {
+        background-color: var(--card-bg) !important;
+    }
+
+    .actions-cell button {
+        background: transparent !important;
+        border: none !important;
+        font-size: 1rem;
+        padding: 0.2rem;
+    }
+
+}
+
+@media (max-width: 480px) {
+    .sub-table {
+        min-width: 500px;
+        font-size: 0.8rem;
+    }
+
+    .sub-table th,
+    .sub-table td {
+        padding: 0.4rem;
+    }
+
+    .sub-table th {
+        height: auto;
+        /* Header height should be natural */
+        min-height: auto;
+    }
+
+    .actions-cell {
+        background-color: var(--card-bg) !important;
+    }
+
+    .actions-cell button {
+        background: transparent !important;
+        border: none !important;
+        font-size: 0.9rem;
+        padding: 0.15rem;
+        margin: 0 1px;
+    }
+}
+
+/* Modal Styles */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background-color: var(--card-bg);
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    width: 90%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: var(--text-color);
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--text-color);
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.modal-close:hover {
+    background-color: var(--border-color);
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    font-size: 1rem;
+    box-sizing: border-box;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: var(--primary-color, #007bff);
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.form-group input[readonly] {
+    background-color: var(--bg-color);
+    color: var(--text-muted, #666);
+}
+
+.path-display {
+    padding: 0.5rem;
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-family: monospace;
+    color: var(--text-color);
+    word-break: break-all;
+}
+
+.path-preview {
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-family: monospace;
+    color: var(--text-color);
+    word-break: break-all;
+}
+
+.path-help {
+    display: block;
+    margin-top: 0.25rem;
+    color: var(--text-muted, #666);
+    font-size: 0.875rem;
+    font-family: monospace;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.btn {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background-color 0.2s;
+}
+
+.btn-primary {
+    background-color: var(--primary-color, #007bff);
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-hover, #0056b3);
+}
+
+.btn-secondary {
+    background-color: var(--border-color);
+    color: var(--text-color);
+}
+
+.btn-secondary:hover {
+    background-color: var(--text-muted, #666);
+}
+
+/* Mobile responsive modal */
+@media (max-width: 768px) {
+    .modal-content {
+        width: 95%;
+        margin: 1rem;
+    }
+
+    .modal-header,
+    .modal-body,
+    .modal-footer {
+        padding: 1rem;
+    }
+
+    .modal-footer {
+        flex-direction: column;
+    }
+
+    .btn {
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+}

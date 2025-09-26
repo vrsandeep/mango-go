@@ -81,4 +81,30 @@ func TestAdminHandlers(t *testing.T) {
 			t.Fatalf("handler returned wrong status code: got %v want %v %s", status, http.StatusOK, rr.Body.String())
 		}
 	})
+
+	t.Run("Get Config", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/api/config", nil)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+		if status := rr.Code; status != http.StatusOK {
+			t.Fatalf("handler returned wrong status code: got %v want %v %s", status, http.StatusOK, rr.Body.String())
+		}
+
+		var config map[string]interface{}
+		if err := json.NewDecoder(rr.Body).Decode(&config); err != nil {
+			t.Fatalf("failed to decode response body: %v", err)
+		}
+
+		// Check that library_path is present
+		if _, exists := config["library_path"]; !exists {
+			t.Fatalf("config response missing library_path field")
+		}
+
+		// Check that library_path is a string
+		if libraryPath, ok := config["library_path"].(string); !ok {
+			t.Fatalf("library_path should be a string, got %T", config["library_path"])
+		} else if libraryPath == "" {
+			t.Fatalf("library_path should not be empty")
+		}
+	})
 }

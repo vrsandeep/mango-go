@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/vrsandeep/mango-go/internal/library"
@@ -222,4 +223,33 @@ func (s *Server) handleUploadFolderCover(w http.ResponseWriter, r *http.Request)
 	}
 
 	RespondWithJSON(w, http.StatusOK, map[string]string{"message": "Cover updated successfully."})
+}
+
+// handleListAllFolders returns a simple list of all folders for subscription folder selection
+func (s *Server) handleListAllFolders(w http.ResponseWriter, r *http.Request) {
+	folders, err := s.store.GetAllFoldersByPath()
+	if err != nil {
+		RespondWithError(w, http.StatusInternalServerError, "Failed to retrieve folders")
+		return
+	}
+
+	// Convert to a simple list format with relative paths
+	libraryPath := s.app.Config().Library.Path
+	var folderList []map[string]interface{}
+	for _, folder := range folders {
+		// Convert full path to relative path
+		relativePath := folder.Path
+		if strings.HasPrefix(folder.Path, libraryPath) {
+			relativePath = strings.TrimPrefix(folder.Path, libraryPath)
+			relativePath = strings.TrimPrefix(relativePath, "/")
+		}
+
+		folderList = append(folderList, map[string]interface{}{
+			"id":   folder.ID,
+			"path": relativePath,
+			"name": folder.Name,
+		})
+	}
+
+	RespondWithJSON(w, http.StatusOK, folderList)
 }

@@ -343,3 +343,67 @@ func TestUpdateFolderSettings(t *testing.T) {
 		t.Fatalf("Non-existent folder: expected status 500, got %d", status)
 	}
 }
+
+func TestHandleListAllFolders(t *testing.T) {
+	_, router, cookie, _, _, _ := setupTestData(t)
+
+	t.Run("Success", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/api/folders", nil)
+		req.AddCookie(cookie)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusOK {
+			t.Fatalf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		}
+
+		var folders []struct {
+			ID   int64  `json:"id"`
+			Name string `json:"name"`
+			Path string `json:"path"`
+		}
+		json.Unmarshal(rr.Body.Bytes(), &folders)
+
+		// Should have at least the folders we created in setupTestData
+		if len(folders) < 2 {
+			t.Fatalf("Expected at least 2 folders, got %d", len(folders))
+		}
+
+		// Check that we have the expected folders
+		folderNames := make(map[string]bool)
+		for _, folder := range folders {
+			folderNames[folder.Name] = true
+		}
+
+		if !folderNames["Folder A"] {
+			t.Error("Expected to find 'Folder A' in folders list")
+		}
+		if !folderNames["Folder C"] {
+			t.Error("Expected to find 'Folder C' in folders list")
+		}
+
+		// Check that each folder has the required fields
+		for _, folder := range folders {
+			if folder.ID == 0 {
+				t.Error("Folder ID should not be zero")
+			}
+			if folder.Name == "" {
+				t.Error("Folder name should not be empty")
+			}
+			if folder.Path == "" {
+				t.Error("Folder path should not be empty")
+			}
+		}
+	})
+
+	t.Run("Unauthorized Access", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/api/folders", nil)
+		// No cookie
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusUnauthorized {
+			t.Fatalf("Expected status 401 for unauthorized access, got %d", status)
+		}
+	})
+}

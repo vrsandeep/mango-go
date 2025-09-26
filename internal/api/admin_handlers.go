@@ -15,6 +15,13 @@ func (s *Server) handleGetVersion(w http.ResponseWriter, r *http.Request) {
 	RespondWithJSON(w, http.StatusOK, map[string]string{"version": s.app.Version})
 }
 
+func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
+	config := s.app.Config()
+	RespondWithJSON(w, http.StatusOK, map[string]interface{}{
+		"library_path": config.Library.Path,
+	})
+}
+
 func (s *Server) handleRunAdminJob(w http.ResponseWriter, r *http.Request) {
 	var payload struct {
 		JobID string `json:"job_id"`

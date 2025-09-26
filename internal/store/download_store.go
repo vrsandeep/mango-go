@@ -51,24 +51,29 @@ func (s *Store) AddChaptersToQueue(seriesTitle, providerID string, chapters []mo
 
 // SubscribeToSeries adds a series to the subscriptions table.
 func (s *Store) SubscribeToSeries(seriesTitle, seriesIdentifier, providerID string) (*models.Subscription, error) {
+	return s.SubscribeToSeriesWithFolder(seriesTitle, seriesIdentifier, providerID, nil)
+}
+
+// SubscribeToSeriesWithFolder adds a series to the subscriptions table with a custom folder path.
+func (s *Store) SubscribeToSeriesWithFolder(seriesTitle, seriesIdentifier, providerID string, folderPath *string) (*models.Subscription, error) {
 	var sub models.Subscription
 	query := `
-        INSERT INTO subscriptions (series_title, series_identifier, provider_id, created_at, last_checked_at)
-        VALUES (?, ?, ?, ?, NULL)
+        INSERT INTO subscriptions (series_title, series_identifier, provider_id, folder_path, created_at, last_checked_at)
+        VALUES (?, ?, ?, ?, ?, NULL)
         ON CONFLICT(series_identifier, provider_id) DO NOTHING
-        RETURNING id, series_title, series_identifier, provider_id, created_at;
+        RETURNING id, series_title, series_identifier, provider_id, folder_path, created_at;
     `
-	err := s.db.QueryRow(query, seriesTitle, seriesIdentifier, providerID, time.Now()).Scan(
-		&sub.ID, &sub.SeriesTitle, &sub.SeriesIdentifier, &sub.ProviderID, &sub.CreatedAt,
+	err := s.db.QueryRow(query, seriesTitle, seriesIdentifier, providerID, folderPath, time.Now()).Scan(
+		&sub.ID, &sub.SeriesTitle, &sub.SeriesIdentifier, &sub.ProviderID, &sub.FolderPath, &sub.CreatedAt,
 	)
 	if err == sql.ErrNoRows {
 		// This means the subscription already existed, which is not an error.
 		// We can fetch the existing one to return it.
 		err = s.db.QueryRow(`
-			SELECT id, series_title, series_identifier, provider_id, created_at
+			SELECT id, series_title, series_identifier, provider_id, folder_path, created_at
 			FROM subscriptions
         	WHERE series_identifier = ? AND provider_id = ?`, seriesIdentifier, providerID).Scan(
-			&sub.ID, &sub.SeriesTitle, &sub.SeriesIdentifier, &sub.ProviderID, &sub.CreatedAt,
+			&sub.ID, &sub.SeriesTitle, &sub.SeriesIdentifier, &sub.ProviderID, &sub.FolderPath, &sub.CreatedAt,
 		)
 	}
 	if err != nil {
@@ -238,7 +243,7 @@ func (s *Store) ResumeQueueItem(id int64) error {
 
 // GetAllSubscriptions retrieves all subscriptions, optionally filtered by provider ID.
 func (s *Store) GetAllSubscriptions(providerIDFilter string) ([]*models.Subscription, error) {
-	query := "SELECT id, series_title, series_identifier, provider_id, created_at, last_checked_at FROM subscriptions"
+	query := "SELECT id, series_title, series_identifier, provider_id, folder_path, created_at, last_checked_at FROM subscriptions"
 	args := []interface{}{}
 	if providerIDFilter != "" {
 		query += " WHERE provider_id = ?"
@@ -257,12 +262,16 @@ func (s *Store) GetAllSubscriptions(providerIDFilter string) ([]*models.Subscrip
 		var sub models.Subscription
 		var createdAt time.Time
 		var lastCheckedAt sql.NullTime
-		if err := rows.Scan(&sub.ID, &sub.SeriesTitle, &sub.SeriesIdentifier, &sub.ProviderID, &createdAt, &lastCheckedAt); err != nil {
+		var folderPath sql.NullString
+		if err := rows.Scan(&sub.ID, &sub.SeriesTitle, &sub.SeriesIdentifier, &sub.ProviderID, &folderPath, &createdAt, &lastCheckedAt); err != nil {
 			return nil, err
 		}
 		sub.CreatedAt = createdAt
 		if lastCheckedAt.Valid {
 			sub.LastCheckedAt = &lastCheckedAt.Time
+		}
+		if folderPath.Valid {
+			sub.FolderPath = &folderPath.String
 		}
 		subs = append(subs, &sub)
 	}
@@ -274,8 +283,9 @@ func (s *Store) GetSubscriptionByID(id int64) (*models.Subscription, error) {
 	var sub models.Subscription
 	var createdAt time.Time
 	var lastCheckedAt sql.NullTime
-	query := "SELECT id, series_title, series_identifier, provider_id, created_at, last_checked_at FROM subscriptions WHERE id = ?"
-	err := s.db.QueryRow(query, id).Scan(&sub.ID, &sub.SeriesTitle, &sub.SeriesIdentifier, &sub.ProviderID, &createdAt, &lastCheckedAt)
+	var folderPath sql.NullString
+	query := "SELECT id, series_title, series_identifier, provider_id, folder_path, created_at, last_checked_at FROM subscriptions WHERE id = ?"
+	err := s.db.QueryRow(query, id).Scan(&sub.ID, &sub.SeriesTitle, &sub.SeriesIdentifier, &sub.ProviderID, &folderPath, &createdAt, &lastCheckedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -283,7 +293,29 @@ func (s *Store) GetSubscriptionByID(id int64) (*models.Subscription, error) {
 	if lastCheckedAt.Valid {
 		sub.LastCheckedAt = &lastCheckedAt.Time
 	}
+	if folderPath.Valid {
+		sub.FolderPath = &folderPath.String
+	}
 	return &sub, nil
+}
+
+// UpdateSubscriptionFolderPath updates the folder path for a subscription.
+func (s *Store) UpdateSubscriptionFolderPath(id int64, folderPath *string) error {
+	result, err := s.db.Exec("UPDATE subscriptions SET folder_path = ? WHERE id = ?", folderPath, id)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("subscription with id %d not found", id)
+	}
+
+	return nil
 }
 
 // DeleteSubscription removes a subscription from the database.
