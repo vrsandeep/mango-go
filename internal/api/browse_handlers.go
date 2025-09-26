@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/vrsandeep/mango-go/internal/library"
@@ -232,12 +233,20 @@ func (s *Server) handleListAllFolders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Convert to a simple list format
+	// Convert to a simple list format with relative paths
+	libraryPath := s.app.Config().Library.Path
 	var folderList []map[string]interface{}
 	for _, folder := range folders {
+		// Convert full path to relative path
+		relativePath := folder.Path
+		if strings.HasPrefix(folder.Path, libraryPath) {
+			relativePath = strings.TrimPrefix(folder.Path, libraryPath)
+			relativePath = strings.TrimPrefix(relativePath, "/")
+		}
+
 		folderList = append(folderList, map[string]interface{}{
 			"id":   folder.ID,
-			"path": folder.Path,
+			"path": relativePath,
 			"name": folder.Name,
 		})
 	}

@@ -33,14 +33,14 @@ func (s *Server) handleSubscribeToSeries(w http.ResponseWriter, r *http.Request)
 			return
 		}
 
-		// Validate the folder path
+		// Validate the folder path by combining with library path
 		basePath := s.app.Config().Library.Path
 		if err := util.ValidateFolderPath(sanitizedPath, basePath); err != nil {
 			RespondWithError(w, http.StatusBadRequest, fmt.Sprintf("Invalid folder path: %v", err))
 			return
 		}
 
-		// Update the payload with the sanitized path
+		// Store the relative path (not the full path)
 		payload.FolderPath = &sanitizedPath
 	}
 
@@ -60,6 +60,19 @@ func (s *Server) handleListSubscriptions(w http.ResponseWriter, r *http.Request)
 		RespondWithError(w, http.StatusInternalServerError, "Failed to retrieve subscriptions")
 		return
 	}
+
+	// Convert any full paths to relative paths for consistency
+	libraryPath := s.app.Config().Library.Path
+	for _, sub := range subs {
+		if sub.FolderPath != nil && *sub.FolderPath != "" {
+			if strings.HasPrefix(*sub.FolderPath, libraryPath) {
+				relativePath := strings.TrimPrefix(*sub.FolderPath, libraryPath)
+				relativePath = strings.TrimPrefix(relativePath, "/")
+				sub.FolderPath = &relativePath
+			}
+		}
+	}
+
 	RespondWithJSON(w, http.StatusOK, subs)
 }
 
@@ -92,7 +105,7 @@ func (s *Server) handleUpdateSubscriptionFolderPath(w http.ResponseWriter, r *ht
 			return
 		}
 
-		// Validate the folder path
+		// Validate the folder path by combining with library path
 		basePath := s.app.Config().Library.Path
 		if err := util.ValidateFolderPath(sanitizedPath, basePath); err != nil {
 			RespondWithError(w, http.StatusBadRequest, fmt.Sprintf("Invalid folder path: %v", err))

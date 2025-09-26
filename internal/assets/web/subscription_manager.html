@@ -79,6 +79,7 @@
                 <div class="form-group">
                     <label for="modal-current-path">Current Path:</label>
                     <div id="modal-current-path-display" class="path-display"></div>
+                    <small class="path-help">Library path: <span id="modal-library-path"></span></small>
                 </div>
 
                 <div class="form-group">
@@ -90,10 +91,10 @@
                 </div>
 
                 <div class="form-group" id="modal-custom-path-group" style="display: none;">
-                    <label for="modal-custom-path">Custom Path:</label>
-                    <input type="text" id="modal-custom-path" placeholder="Enter custom folder path...">
+                    <label for="modal-custom-path">Custom Path (relative to library):</label>
+                    <input type="text" id="modal-custom-path" placeholder="e.g., My Manga/One Piece or just One Piece">
                     <div class="path-preview">
-                        <strong>Preview:</strong> <span id="modal-path-preview"></span>
+                        <strong>Full Path:</strong> <span id="modal-path-preview"></span>
                     </div>
                 </div>
             </div>

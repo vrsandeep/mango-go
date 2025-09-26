@@ -126,6 +126,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const currentPath = subData.folder_path || defaultPath;
     currentPathDisplay.textContent = currentPath;
 
+    // Set library path display
+    document.getElementById('modal-library-path').textContent = window.PathUtils.getLibraryPath();
+
     // Populate folder select with available folders
     const folderSelect = document.getElementById('modal-folder-select');
     folderSelect.innerHTML = `
@@ -145,7 +148,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         folderSelect.value = subData.folder_path;
       } else {
         folderSelect.value = '__manual__';
-        document.getElementById('modal-custom-path').value = subData.folder_path;
+        // Extract relative path from the stored folder_path
+        const libraryPath = window.PathUtils.getLibraryPath();
+        const relativePath = subData.folder_path.startsWith(libraryPath)
+          ? subData.folder_path.substring(libraryPath.length)
+          : subData.folder_path;
+        document.getElementById('modal-custom-path').value = relativePath;
       }
     } else {
       folderSelect.value = '';
@@ -187,7 +195,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (folderSelect.value === '__manual__') {
       const customPath = customPathInput.value.trim();
       if (customPath) {
-        previewPath = window.PathUtils.sanitizePath(customPath) || customPath;
+        // For custom paths, show the relative path + library path
+        const sanitizedPath = window.PathUtils.sanitizePath(customPath) || customPath;
+        const libraryPath = window.PathUtils.getLibraryPath();
+        previewPath = `${libraryPath}${sanitizedPath}`;
       } else {
         previewPath = window.PathUtils.getDefaultFolderPath(subData.series_title);
       }
@@ -223,11 +234,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Use manual input if custom option is selected
       const customPath = customPathInput.value.trim();
       if (customPath) {
+        // Sanitize the relative path
         folderPath = window.PathUtils.sanitizePath(customPath);
         if (!folderPath) {
           toast.error('Invalid folder path. Please check for invalid characters.');
           return;
         }
+        // The API expects the relative path, not the full path
+        // The server will combine it with the library path
       }
     } else if (folderSelect.value) {
       // Use selected folder path

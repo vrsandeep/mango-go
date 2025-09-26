@@ -501,6 +501,13 @@
     word-break: break-all;
 }
 
+.path-help {
+    display: block;
+    margin-top: 0.25rem;
+    color: var(--text-muted, #666);
+    font-size: 0.875rem;
+    font-family: monospace;
+}
 .modal-footer {
     display: flex;
     justify-content: flex-end;
