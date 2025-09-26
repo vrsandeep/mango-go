@@ -56,12 +56,30 @@ const sanitizePath = (path) => {
 };
 
 /**
- * Pre-fills a custom path input with the library path
- * @param {HTMLInputElement} inputElement - The input element to pre-fill
+ * Generates the default folder path (library path + manga name)
+ * @param {string} mangaName - The manga/series name
+ * @returns {string} - The default folder path
  */
-const prefillCustomPath = (inputElement) => {
-  if (inputElement && !inputElement.value) {
-    inputElement.value = libraryPath;
+const getDefaultFolderPath = (mangaName) => {
+  if (!mangaName) return libraryPath;
+  return libraryPath + mangaName;
+};
+
+/**
+ * Pre-fills a custom path input with the appropriate value
+ * @param {HTMLInputElement} inputElement - The input element to pre-fill
+ * @param {string} existingPath - The existing folder path (if any)
+ * @param {string} mangaName - The manga/series name for default path generation
+ */
+const prefillCustomPath = (inputElement, existingPath = null, mangaName = '') => {
+  if (inputElement) {
+    if (existingPath) {
+      // If there's an existing custom path, use it
+      inputElement.value = existingPath;
+    } else {
+      // If no existing path, use default (library path + manga name)
+      inputElement.value = getDefaultFolderPath(mangaName);
+    }
   }
 };
 
@@ -78,5 +96,6 @@ window.PathUtils = {
   loadLibraryPath,
   sanitizePath,
   prefillCustomPath,
-  getLibraryPath
+  getLibraryPath,
+  getDefaultFolderPath
 };

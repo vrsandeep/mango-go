@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const providerSelect = document.getElementById('provider-select');
   const subTableBody = document.getElementById('sub-table-body');
   let availableFolders = [];
+  let currentSubscriptions = []; // Store current subscriptions data
 
   const timeAgo = (date) => {
     if (!date) return 'Never';
@@ -24,6 +25,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     return Math.floor(seconds) + " seconds ago";
   };
 
+  const getSubscriptionData = (subId) => {
+    return currentSubscriptions.find(sub => sub.id == subId);
+  };
+
   const renderTable = (subs) => {
     subTableBody.innerHTML = '';
     if (!subs || subs.length === 0) {
@@ -32,29 +37,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     subs.forEach(sub => {
       const row = document.createElement('tr');
-      const folderPath = sub.folder_path || 'Default (series name)';
+
+      // Determine display text for folder path
+      let folderPathDisplay = 'Default (series name)';
+      if (sub.folder_path) {
+        const defaultPath = window.PathUtils.getDefaultFolderPath(sub.series_title);
+        if (sub.folder_path === defaultPath) {
+          folderPathDisplay = 'Default (series name)';
+        } else {
+          folderPathDisplay = sub.folder_path;
+        }
+      }
+
       row.innerHTML = `
                         <td title="${sub.series_title}">${sub.series_title}</td>
                         <td>${sub.provider_id}</td>
                         <td class="folder-path-cell">
-                            <span class="folder-path-display">${folderPath}</span>
-                            <div class="folder-path-edit" style="display: none;" data-sub-id="${sub.id}">
-                                <select class="folder-path-select" style="margin-bottom: 5px;">
-                                    <option value="">Default (series name)</option>
-                                    <option value="__manual__">Custom path...</option>
-                                    ${availableFolders.map(folder =>
-                                      `<option value="${folder.path}" ${folder.path === sub.folder_path ? 'selected' : ''}>${folder.name}</option>`
-                                    ).join('')}
-                                </select>
-                                <input type="text" class="folder-path-manual" placeholder="Enter custom folder path..." style="display: none; width: 100%; padding: 3px; border: 1px solid #ccc; border-radius: 3px;" value="${sub.folder_path && !availableFolders.some(f => f.path === sub.folder_path) ? sub.folder_path : ''}">
-                            </div>
+                            <span class="folder-path-display">${folderPathDisplay}</span>
                         </td>
                         <td>${timeAgo(new Date(sub.created_at))}</td>
                         <td>${timeAgo(sub.last_checked_at ? new Date(sub.last_checked_at) : null)}</td>
                         <td class="actions-cell">
                             <button data-action="edit-folder" data-id="${sub.id}" title="Edit folder path"><i class="ph-bold ph-pencil-simple"></i></button>
-                            <button data-action="save-folder" data-id="${sub.id}" title="Save folder path" style="display: none;"><i class="ph-bold ph-check"></i></button>
-                            <button data-action="cancel-folder" data-id="${sub.id}" title="Cancel editing" style="display: none;"><i class="ph-bold ph-x"></i></button>
                             <button data-action="recheck" data-id="${sub.id}" title="Re-check for new chapters"><i class="ph-bold ph-arrow-clockwise"></i></button>
                             <button data-action="delete" data-id="${sub.id}" title="Delete subscription"><i class="ph-bold ph-trash"></i></button>
                         </td>
@@ -69,6 +73,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const response = await fetch(url);
       const subs = await response.json();
+      currentSubscriptions = subs; // Store the data for later use
       renderTable(subs);
     } catch (e) {
       console.error("Failed to load subscriptions", e);
@@ -100,54 +105,123 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (e) { console.error("Failed to load providers", e); }
   };
 
-  const handleEditFolder = (subId) => {
-    const row = document.querySelector(`[data-sub-id="${subId}"]`).closest('tr');
-    const display = row.querySelector('.folder-path-display');
-    const editDiv = row.querySelector('.folder-path-edit');
-    const select = row.querySelector('.folder-path-select');
-    const manualInput = row.querySelector('.folder-path-manual');
-    const editBtn = row.querySelector('[data-action="edit-folder"]');
-    const saveBtn = row.querySelector('[data-action="save-folder"]');
-    const cancelBtn = row.querySelector('[data-action="cancel-folder"]');
+  // Modal functionality
+  let currentEditingSubId = null;
 
-    display.style.display = 'none';
-    editDiv.style.display = 'block';
-    editBtn.style.display = 'none';
-    saveBtn.style.display = 'inline-block';
-    cancelBtn.style.display = 'inline-block';
+  const openFolderPathModal = (subId) => {
+    const subData = getSubscriptionData(subId);
+    if (!subData) return;
 
-    // Set up select change handler for this row
-    select.addEventListener('change', () => handleFolderSelectChangeInRow(subId));
+    currentEditingSubId = subId;
+
+    // Set modal title
+    document.getElementById('modal-title').textContent = `Edit Folder Path for "${subData.series_title}"`;
+
+    // Set series name (read-only)
+    document.getElementById('modal-series-name').value = subData.series_title;
+
+    // Set current path display
+    const currentPathDisplay = document.getElementById('modal-current-path-display');
+    const defaultPath = window.PathUtils.getDefaultFolderPath(subData.series_title);
+    const currentPath = subData.folder_path || defaultPath;
+    currentPathDisplay.textContent = currentPath;
+
+    // Populate folder select with available folders
+    const folderSelect = document.getElementById('modal-folder-select');
+    folderSelect.innerHTML = `
+      <option value="">Default (series name)</option>
+      <option value="__manual__">Custom path...</option>
+      ${availableFolders.map(folder =>
+      `<option value="${folder.path}" ${folder.path === subData.folder_path ? 'selected' : ''}>${folder.name}</option>`
+    ).join('')}
+    `;
+
+    // Set initial selection
+    if (subData.folder_path) {
+      const defaultPath = window.PathUtils.getDefaultFolderPath(subData.series_title);
+      if (subData.folder_path === defaultPath) {
+        folderSelect.value = '';
+      } else if (availableFolders.some(f => f.path === subData.folder_path)) {
+        folderSelect.value = subData.folder_path;
+      } else {
+        folderSelect.value = '__manual__';
+        document.getElementById('modal-custom-path').value = subData.folder_path;
+      }
+    } else {
+      folderSelect.value = '';
+    }
+
+    // Show/hide custom path group and update preview
+    updateModalCustomPathGroup();
+
+    // Show modal
+    document.getElementById('folder-path-modal').style.display = 'flex';
   };
 
-  const handleFolderSelectChangeInRow = (subId) => {
-    const row = document.querySelector(`[data-sub-id="${subId}"]`).closest('tr');
-    const select = row.querySelector('.folder-path-select');
-    const manualInput = row.querySelector('.folder-path-manual');
+  const updateModalCustomPathGroup = () => {
+    const folderSelect = document.getElementById('modal-folder-select');
+    const customPathGroup = document.getElementById('modal-custom-path-group');
+    const customPathInput = document.getElementById('modal-custom-path');
+    const pathPreview = document.getElementById('modal-path-preview');
 
-    if (select.value === '__manual__') {
-      manualInput.style.display = 'block';
-      // Pre-fill with library path if not already set
-      window.PathUtils.prefillCustomPath(manualInput);
-      manualInput.focus();
+    if (folderSelect.value === '__manual__') {
+      customPathGroup.style.display = 'block';
+      customPathInput.focus();
+      updatePathPreview();
     } else {
-      manualInput.style.display = 'none';
-      manualInput.value = '';
+      customPathGroup.style.display = 'none';
+      customPathInput.value = '';
     }
   };
 
+  const updatePathPreview = () => {
+    const customPathInput = document.getElementById('modal-custom-path');
+    const pathPreview = document.getElementById('modal-path-preview');
+    const subData = getSubscriptionData(currentEditingSubId);
 
-  const handleSaveFolder = async (subId) => {
-    const row = document.querySelector(`[data-sub-id="${subId}"]`).closest('tr');
-    const select = row.querySelector('.folder-path-select');
-    const manualInput = row.querySelector('.folder-path-manual');
-    const editDiv = row.querySelector('.folder-path-edit');
+    if (!subData) return;
+
+    let previewPath = '';
+    const folderSelect = document.getElementById('modal-folder-select');
+
+    if (folderSelect.value === '__manual__') {
+      const customPath = customPathInput.value.trim();
+      if (customPath) {
+        previewPath = window.PathUtils.sanitizePath(customPath) || customPath;
+      } else {
+        previewPath = window.PathUtils.getDefaultFolderPath(subData.series_title);
+      }
+    } else if (folderSelect.value) {
+      previewPath = folderSelect.value;
+    } else {
+      previewPath = window.PathUtils.getDefaultFolderPath(subData.series_title);
+    }
+
+    pathPreview.textContent = previewPath;
+  };
+
+  const closeModal = () => {
+    document.getElementById('folder-path-modal').style.display = 'none';
+    currentEditingSubId = null;
+
+    // Reset form
+    document.getElementById('modal-folder-select').value = '';
+    document.getElementById('modal-custom-path').value = '';
+    document.getElementById('modal-custom-path-group').style.display = 'none';
+  };
+
+
+  const saveFolderPathFromModal = async () => {
+    if (!currentEditingSubId) return;
+
+    const folderSelect = document.getElementById('modal-folder-select');
+    const customPathInput = document.getElementById('modal-custom-path');
 
     let folderPath = null;
 
-    if (select.value === '__manual__') {
+    if (folderSelect.value === '__manual__') {
       // Use manual input if custom option is selected
-      const customPath = manualInput.value.trim();
+      const customPath = customPathInput.value.trim();
       if (customPath) {
         folderPath = window.PathUtils.sanitizePath(customPath);
         if (!folderPath) {
@@ -155,31 +229,22 @@ document.addEventListener('DOMContentLoaded', async () => {
           return;
         }
       }
-    } else if (select.value) {
+    } else if (folderSelect.value) {
       // Use selected folder path
-      folderPath = select.value;
+      folderPath = folderSelect.value;
     }
 
     try {
-      await fetch(`/api/subscriptions/${subId}/folder-path`, {
+      await fetch(`/api/subscriptions/${currentEditingSubId}/folder-path`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ folder_path: folderPath })
       });
 
-      // Update display and hide editing controls
-      const display = row.querySelector('.folder-path-display');
-      const editBtn = row.querySelector('[data-action="edit-folder"]');
-      const saveBtn = row.querySelector('[data-action="save-folder"]');
-      const cancelBtn = row.querySelector('[data-action="cancel-folder"]');
+      // Reload subscriptions to update the display
+      await loadSubscriptions();
 
-      display.textContent = folderPath || 'Default (series name)';
-      display.style.display = 'block';
-      editDiv.style.display = 'none';
-      editBtn.style.display = 'inline-block';
-      saveBtn.style.display = 'none';
-      cancelBtn.style.display = 'none';
-
+      closeModal();
       toast.success('Folder path updated successfully');
     } catch (error) {
       console.error('Failed to update folder path:', error);
@@ -187,26 +252,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   };
 
-  const handleCancelFolder = (subId) => {
-    const row = document.querySelector(`[data-sub-id="${subId}"]`).closest('tr');
-    const display = row.querySelector('.folder-path-display');
-    const editDiv = row.querySelector('.folder-path-edit');
-    const select = row.querySelector('.folder-path-select');
-    const manualInput = row.querySelector('.folder-path-manual');
-    const editBtn = row.querySelector('[data-action="edit-folder"]');
-    const saveBtn = row.querySelector('[data-action="save-folder"]');
-    const cancelBtn = row.querySelector('[data-action="cancel-folder"]');
-
-    display.style.display = 'block';
-    editDiv.style.display = 'none';
-    editBtn.style.display = 'inline-block';
-    saveBtn.style.display = 'none';
-    cancelBtn.style.display = 'none';
-
-    // Reset form
-    select.value = '';
-    manualInput.style.display = 'none';
-    manualInput.value = '';
+  const resetToDefault = () => {
+    document.getElementById('modal-folder-select').value = '';
+    document.getElementById('modal-custom-path').value = '';
+    updateModalCustomPathGroup();
+    updatePathPreview();
   };
 
   subTableBody.addEventListener('click', async (e) => {
@@ -227,11 +277,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         await fetch(`/api/subscriptions/${id}/recheck`, { method: 'POST' });
         toast.success('Re-check initiated. New chapters will be added to the download queue if found.');
       } else if (action === 'edit-folder') {
-        handleEditFolder(id);
-      } else if (action === 'save-folder') {
-        await handleSaveFolder(id);
-      } else if (action === 'cancel-folder') {
-        handleCancelFolder(id);
+        openFolderPathModal(id);
       }
     } catch (e) {
       console.error(`Action ${action} failed:`, e);
@@ -245,6 +291,35 @@ document.addEventListener('DOMContentLoaded', async () => {
     localStorage.setItem('sub_provider_filter', providerSelect.value);
     loadSubscriptions();
   });
+
+  // Modal event listeners
+  document.getElementById('modal-close-btn').addEventListener('click', closeModal);
+  document.getElementById('modal-cancel-btn').addEventListener('click', closeModal);
+  document.getElementById('modal-save-btn').addEventListener('click', saveFolderPathFromModal);
+  document.getElementById('modal-reset-btn').addEventListener('click', resetToDefault);
+
+  // Close modal when clicking outside
+  document.getElementById('folder-path-modal').addEventListener('click', (e) => {
+    if (e.target.id === 'folder-path-modal') {
+      closeModal();
+    }
+  });
+
+  // Close modal with Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.getElementById('folder-path-modal').style.display === 'flex') {
+      closeModal();
+    }
+  });
+
+  // Update preview when folder select changes
+  document.getElementById('modal-folder-select').addEventListener('change', () => {
+    updateModalCustomPathGroup();
+    updatePathPreview();
+  });
+
+  // Update preview when custom path input changes
+  document.getElementById('modal-custom-path').addEventListener('input', updatePathPreview);
 
   const init = async () => {
     await loadProviders();
