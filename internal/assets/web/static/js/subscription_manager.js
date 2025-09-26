@@ -289,6 +289,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       } else if (action === 'recheck') {
         await fetch(`/api/subscriptions/${id}/recheck`, { method: 'POST' });
+
+        // Update the last checked at value immediately
+        const row = button.closest('tr');
+        const lastCheckedCell = row.querySelector('td:nth-child(5)'); // Last Checked At column
+        if (lastCheckedCell) {
+          const now = new Date();
+          lastCheckedCell.textContent = timeAgo(now);
+        }
+
         toast.success('Re-check initiated. New chapters will be added to the download queue if found.');
       } else if (action === 'edit-folder') {
         openFolderPathModal(id);
