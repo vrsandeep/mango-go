@@ -69,10 +69,6 @@
 
 .sub-table td {
     position: relative;
-    min-height: 60px;
-    /* Ensure sufficient height for edit controls */
-    height: 60px;
-    /* Fixed height to prevent row height changes */
 }
 
 /* Column width distribution */
@@ -133,257 +129,156 @@
 
 .actions-cell button:hover {
     background-color: var(--border-color) !important;
+}
 
-    /* Ensure all buttons in actions cell have consistent styling */
-    .sub-table .actions-cell button,
-    .sub-table .actions-cell button[data-action="edit-folder"],
-    .sub-table .actions-cell button[data-action="save-folder"],
-    .sub-table .actions-cell button[data-action="cancel-folder"],
-    .sub-table .actions-cell button[data-action="recheck"],
-    .sub-table .actions-cell button[data-action="delete"] {
-        background: transparent !important;
-        background-color: transparent !important;
-        border: none !important;
-        border-width: 0 !important;
-        color: var(--text-color) !important;
-        box-shadow: none !important;
-        outline: none !important;
+/* Ensure all buttons in actions cell have consistent styling */
+.sub-table .actions-cell button {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    border-width: 0 !important;
+    color: var(--text-color) !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+/* Folder path column styling */
+.folder-path-cell {
+    width: 100%;
+    max-width: 0;
+    /* This helps with text truncation */
+}
+
+.folder-path-display {
+    display: block;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+/* Mobile responsive design */
+@media (max-width: 768px) {
+    .container {
+        padding: 0 0.5rem;
     }
 
-    /* Additional specificity for delete button */
-    .sub-table tr .actions-cell button[data-action="delete"],
-    .sub-table tbody tr .actions-cell button[data-action="delete"] {
-        background: transparent !important;
-        background-color: transparent !important;
-        border: none !important;
-        color: var(--text-color) !important;
+    .manager-controls {
+        flex-direction: column;
+        gap: 0.5rem;
     }
 
-    /* Additional specificity for recheck button */
-    .sub-table tr .actions-cell button[data-action="recheck"],
-    .sub-table tbody tr .actions-cell button[data-action="recheck"] {
-        background: transparent !important;
-        background-color: transparent !important;
-        border: none !important;
-        color: var(--text-color) !important;
-    }
-
-    /* Folder path column styling to prevent width changes */
-    .folder-path-cell {
+    .manager-controls select {
         width: 100%;
-        max-width: 0;
-        /* This helps with text truncation */
-        height: 60px;
-        /* Match the fixed row height */
-        vertical-align: top;
     }
 
-    .folder-path-display {
-        display: flex;
-        align-items: center;
-        width: 100%;
-        height: 100%;
+    .sub-table {
+        min-width: 600px;
+        /* Smaller minimum width for mobile */
+        font-size: 0.9rem;
+    }
+
+    .sub-table th,
+    .sub-table td {
+        padding: 0.5rem;
+    }
+
+    .sub-table th {
+        height: auto;
+        /* Header height should be natural */
+        min-height: auto;
+    }
+
+    /* Adjust column widths for mobile */
+    .sub-table th:nth-child(1),
+    .sub-table td:nth-child(1) {
+        width: 25%;
+        /* Name */
+    }
+
+    .sub-table th:nth-child(2),
+    .sub-table td:nth-child(2) {
+        width: 15%;
+        /* Provider */
+    }
+
+    .sub-table th:nth-child(3),
+    .sub-table td:nth-child(3) {
+        width: 25%;
+        /* Folder Path */
+    }
+
+    .sub-table th:nth-child(4),
+    .sub-table td:nth-child(4) {
+        width: 15%;
+        /* Subscribed */
+    }
+
+    .sub-table th:nth-child(5),
+    .sub-table td:nth-child(5) {
+        width: 15%;
+        /* Last Checked */
+    }
+
+    .sub-table th:nth-child(6),
+    .sub-table td:nth-child(6) {
+        width: 5%;
+        /* Actions */
+    }
+
+    /* Ensure date columns have enough space and proper text wrapping */
+    .sub-table td:nth-child(4),
+    .sub-table td:nth-child(5) {
+        white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        white-space: nowrap;
-        max-width: 100%;
+        font-size: 0.8rem;
     }
 
-    .folder-path-edit {
-        width: 100%;
-        max-width: 100%;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        gap: 2px;
+    .actions-cell {
+        background-color: var(--card-bg) !important;
     }
 
-    .folder-path-edit .folder-path-select {
-        width: 100%;
-        max-width: 100%;
-        padding: 4px;
-        border: 1px solid var(--border-color);
-        border-radius: 4px;
-        background-color: var(--card-bg);
-        color: var(--text-color);
-        font-size: 0.85rem;
-        box-sizing: border-box;
-        height: 28px;
-        /* Fixed height for select */
+    .actions-cell button {
+        background: transparent !important;
+        border: none !important;
+        font-size: 1rem;
+        padding: 0.2rem;
     }
 
-    .folder-path-edit .folder-path-manual {
-        width: 100%;
-        max-width: 100%;
-        padding: 4px;
-        border: 1px solid var(--border-color);
-        border-radius: 4px;
-        background-color: var(--card-bg);
-        color: var(--text-color);
-        font-size: 0.85rem;
-        box-sizing: border-box;
-        height: 28px;
-        /* Fixed height for input */
+}
+
+@media (max-width: 480px) {
+    .sub-table {
+        min-width: 500px;
+        font-size: 0.8rem;
     }
 
-    /* Mobile responsive design */
-    @media (max-width: 768px) {
-        .container {
-            padding: 0 0.5rem;
-        }
-
-        .manager-controls {
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-
-        .manager-controls select {
-            width: 100%;
-        }
-
-        .sub-table {
-            min-width: 600px;
-            /* Smaller minimum width for mobile */
-            font-size: 0.9rem;
-        }
-
-        .sub-table th,
-        .sub-table td {
-            padding: 0.5rem;
-        }
-
-        .sub-table th {
-            height: auto;
-            /* Header height should be natural */
-            min-height: auto;
-        }
-
-        .sub-table td {
-            min-height: 50px;
-            /* Slightly smaller height for mobile */
-            height: 50px;
-        }
-
-        /* Adjust column widths for mobile */
-        .sub-table th:nth-child(1),
-        .sub-table td:nth-child(1) {
-            width: 25%;
-            /* Name */
-        }
-
-        .sub-table th:nth-child(2),
-        .sub-table td:nth-child(2) {
-            width: 15%;
-            /* Provider */
-        }
-
-        .sub-table th:nth-child(3),
-        .sub-table td:nth-child(3) {
-            width: 25%;
-            /* Folder Path */
-        }
-
-        .sub-table th:nth-child(4),
-        .sub-table td:nth-child(4) {
-            width: 15%;
-            /* Subscribed */
-        }
-
-        .sub-table th:nth-child(5),
-        .sub-table td:nth-child(5) {
-            width: 15%;
-            /* Last Checked */
-        }
-
-        .sub-table th:nth-child(6),
-        .sub-table td:nth-child(6) {
-            width: 5%;
-            /* Actions */
-        }
-
-        /* Ensure date columns have enough space and proper text wrapping */
-        .sub-table td:nth-child(4),
-        .sub-table td:nth-child(5) {
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            font-size: 0.8rem;
-        }
-
-        .actions-cell {
-            background-color: var(--card-bg) !important;
-        }
-
-        .actions-cell button {
-            background: transparent !important;
-            border: none !important;
-            font-size: 1rem;
-            padding: 0.2rem;
-        }
-
-        .folder-path-cell {
-            height: 50px;
-            /* Match mobile row height */
-        }
-
-        .folder-path-edit .folder-path-select,
-        .folder-path-edit .folder-path-manual {
-            font-size: 0.8rem;
-            padding: 3px;
-            height: 24px;
-            /* Smaller height for mobile */
-        }
+    .sub-table th,
+    .sub-table td {
+        padding: 0.4rem;
     }
 
-    @media (max-width: 480px) {
-        .sub-table {
-            min-width: 500px;
-            font-size: 0.8rem;
-        }
+    .sub-table th {
+        height: auto;
+        /* Header height should be natural */
+        min-height: auto;
+    }
 
-        .sub-table th,
-        .sub-table td {
-            padding: 0.4rem;
-        }
+    .actions-cell {
+        background-color: var(--card-bg) !important;
+    }
 
-        .sub-table th {
-            height: auto;
-            /* Header height should be natural */
-            min-height: auto;
-        }
-
-        .sub-table td {
-            min-height: 45px;
-            /* Even smaller height for small mobile */
-            height: 45px;
-        }
-
-        .folder-path-cell {
-            height: 45px;
-            /* Match small mobile row height */
-        }
-
-        .folder-path-edit .folder-path-select,
-        .folder-path-edit .folder-path-manual {
-            height: 22px;
-            /* Even smaller height for small mobile */
-            padding: 2px;
-        }
-
-        .actions-cell {
-            background-color: var(--card-bg) !important;
-        }
-
-        .actions-cell button {
-            background: transparent !important;
-            border: none !important;
-            font-size: 0.9rem;
-            padding: 0.15rem;
-            margin: 0 1px;
-        }
+    .actions-cell button {
+        background: transparent !important;
+        border: none !important;
+        font-size: 0.9rem;
+        padding: 0.15rem;
+        margin: 0 1px;
     }
 }
+
 /* Modal Styles */
 .modal {
     position: fixed;
@@ -508,6 +403,7 @@
     font-size: 0.875rem;
     font-family: monospace;
 }
+
 .modal-footer {
     display: flex;
     justify-content: flex-end;
