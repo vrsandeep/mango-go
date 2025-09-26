@@ -119,10 +119,10 @@ func categorizeError(err error) string {
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) &&
 		(len(s) == len(substr) ||
-		(len(s) > len(substr) &&
-		(s[:len(substr)] == substr ||
-		s[len(s)-len(substr):] == substr ||
-		containsSubstring(s, substr))))
+			(len(s) > len(substr) &&
+				(s[:len(substr)] == substr ||
+					s[len(s)-len(substr):] == substr ||
+					containsSubstring(s, substr))))
 }
 
 // containsSubstring is a simple substring search

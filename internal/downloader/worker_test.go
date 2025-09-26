@@ -301,14 +301,14 @@ func TestProcessDownloadWithFolderPath(t *testing.T) {
 
 	// Create a download job
 	job := &models.DownloadQueueItem{
-		ID:               1,
-		SeriesTitle:      "Test Manga",
-		ChapterTitle:     "Chapter 1",
+		ID:                1,
+		SeriesTitle:       "Test Manga",
+		ChapterTitle:      "Chapter 1",
 		ChapterIdentifier: "ch1",
-		ProviderID:       "mockadex",
-		Status:           "queued",
-		Progress:         0,
-		CreatedAt:        time.Now(),
+		ProviderID:        "mockadex",
+		Status:            "queued",
+		Progress:          0,
+		CreatedAt:         time.Now(),
 	}
 
 	// Add job to database

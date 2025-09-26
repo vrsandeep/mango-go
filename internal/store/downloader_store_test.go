@@ -503,7 +503,6 @@ func TestDeleteQueueItem(t *testing.T) {
 	}
 }
 
-
 func TestGetChapterIdentifiersInQueue(t *testing.T) {
 	db := testutil.SetupTestDB(t)
 	s := store.New(db)
