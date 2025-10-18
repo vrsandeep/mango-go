@@ -1,9 +1,11 @@
 CSS_FILES = $(wildcard internal/assets/web/static/css/*.css)
+CSS_EXT_FILES = $(wildcard internal/assets/web/static/css/ext/*.css)
 JS_FILES = $(wildcard internal/assets/web/static/js/*.js)
 IMAGE_FILES = $(wildcard internal/assets/web/static/images/*)
 
 # Output directories for the minified bundles.
 CSS_OUT = internal/assets/web/dist/css
+CSS_EXT_OUT = internal/assets/web/dist/css/ext
 JS_OUT = internal/assets/web/dist/js
 IMAGE_OUT = internal/assets/web/dist/images
 
@@ -35,7 +37,9 @@ download-go-deps:
 assets:
 	@echo "📦 Bundling and minifying assets for production..."
 	@mkdir -p $(CSS_OUT)
+	@mkdir -p $(CSS_EXT_OUT)
 	@esbuild $(CSS_FILES) --bundle --minify --outdir=$(CSS_OUT)
+	@cp $(CSS_EXT_FILES) $(CSS_EXT_OUT)
 	@esbuild $(JS_FILES) --bundle --minify --outdir=$(JS_OUT)
 	@mkdir -p $(IMAGE_OUT)
 	@cp $(IMAGE_FILES) $(IMAGE_OUT)
