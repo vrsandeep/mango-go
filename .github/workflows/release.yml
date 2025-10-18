@@ -18,9 +18,9 @@ jobs:
           - os: ubuntu-latest
             arch: amd64
             cc: gcc
-          - os: ubuntu-latest
-            arch: arm64
-            cc: aarch64-linux-gnu-gcc
+          # - os: ubuntu-latest
+          #   arch: arm64
+          #   cc: aarch64-linux-gnu-gcc
           - os: macos-latest
             arch: amd64
             cc: clang
