@@ -653,26 +653,50 @@ body.light-theme .anilist-button:hover {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-  min-height: 2rem;
-  padding: 0.5rem;
-  border: 1px solid var(--border-color);
+  min-height: 2.5rem;
+  padding: 0.75rem;
+  border: 2px dashed var(--border-color);
   border-radius: 8px;
   background: var(--bg-color);
+  transition: all 0.2s ease;
+}
+
+.tags-display:focus-within {
+  border-color: var(--accent-color);
+  border-style: solid;
+  background: rgba(var(--accent-color-rgb), 0.05);
 }
 
 .tags-display.no-tags {
-  opacity: 0.6;
+  opacity: 0.7;
+}
+
+.tags-display.no-tags::before {
+  content: "No tags added yet";
+  color: var(--subtle-text-color);
+  font-style: italic;
+  font-size: 0.9rem;
+  align-self: center;
+  margin: auto;
 }
 
 .tag {
   background: var(--accent-color);
   color: white;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
   font-size: 0.8rem;
+  font-weight: 500;
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.3rem;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(var(--accent-color-rgb), 0.2);
+}
+
+.tag:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(var(--accent-color-rgb), 0.3);
 }
 
 .tag-remove-btn {
@@ -680,19 +704,32 @@ body.light-theme .anilist-button:hover {
   font-weight: bold;
   font-size: 0.9rem;
   opacity: 0.8;
+  transition: all 0.2s ease;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .tag-remove-btn:hover {
   opacity: 1;
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
 }
 
 .tag-input-row {
   position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 #tag-input {
-  width: 100%;
-  padding: 0.75rem;
+  flex: 1;
+  padding: 0.75rem 1rem;
   border: 2px solid var(--border-color);
   border-radius: 8px;
   background: var(--card-bg);
@@ -706,6 +743,18 @@ body.light-theme .anilist-button:hover {
   outline: none;
   border-color: var(--accent-color);
   box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.1);
+}
+
+#tag-input::placeholder {
+  color: var(--subtle-text-color);
+  font-style: italic;
+}
+
+.add-tag-hint {
+  color: var(--subtle-text-color);
+  font-size: 0.8rem;
+  font-style: italic;
+  margin-top: 0.25rem;
 }
 
 /* Modal Footer */
@@ -801,6 +850,12 @@ body.light-theme .anilist-button:hover {
     width: 80px;
     height: 112px;
   }
+
+  /* Mobile modal positioning */
+  .modal-overlay {
+    align-items: flex-start;
+    padding-top: 8rem;
+  }
 }
 
 @media (max-width: 480px) {
@@ -821,5 +876,10 @@ body.light-theme .anilist-button:hover {
   .tag {
     font-size: 0.8rem;
     padding: 0.4rem 0.8rem;
+  }
+
+  /* Smaller mobile modal positioning */
+  .modal-overlay {
+    padding-top: 9rem;
   }
 }
