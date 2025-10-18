@@ -77,21 +77,28 @@
             </div>
 
             <div class="modal-body">
-                <!-- Cover Upload Section -->
-                <div class="modal-section">
-                    <h3>Cover Image</h3>
-                    <div class="file-upload-area">
-                        <input type="file" id="cover-file-input" accept="image/png, image/jpeg, image/webp">
-                        <label for="cover-file-input" class="file-upload-label">
+                    <!-- Cover Upload Section -->
+                    <div class="modal-section">
+                        <h3>Cover Image</h3>
+                        <div class="file-upload-area">
+                            <input type="file" id="cover-file-input" accept="image/png, image/jpeg, image/webp">
+                            <label for="cover-file-input" class="file-upload-label">
+                                <i class="ph-bold ph-upload"></i>
+                                <span>Choose Cover Image</span>
+                            </label>
+                            <div class="selected-file-info" id="selected-file-info" style="display: none;">
+                                <i class="ph-bold ph-file-image"></i>
+                                <span class="file-name" id="file-name"></span>
+                                <button type="button" class="remove-file-btn" id="remove-file-btn">
+                                    <i class="ph-bold ph-x"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <button id="modal-save-btn" class="upload-btn">
                             <i class="ph-bold ph-upload"></i>
-                            <span>Choose Cover Image</span>
-                        </label>
+                            Upload Cover
+                        </button>
                     </div>
-                    <button id="modal-save-btn" class="upload-btn">
-                        <i class="ph-bold ph-upload"></i>
-                        Upload Cover
-                    </button>
-                </div>
 
                 <!-- Progress Section -->
                 <div class="modal-section">

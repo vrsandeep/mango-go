@@ -21,6 +21,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const modalSaveBtn = document.getElementById('modal-save-btn');
   const modalCancelBtn = document.getElementById('modal-cancel-btn');
   const coverFileInput = document.getElementById('cover-file-input');
+  const selectedFileInfo = document.getElementById('selected-file-info');
+  const fileName = document.getElementById('file-name');
+  const removeFileBtn = document.getElementById('remove-file-btn');
   const totalCountEl = document.getElementById('total-count');
   const markAllReadBtn = document.getElementById('mark-all-read-btn');
   const markAllUnreadBtn = document.getElementById('mark-all-unread-btn');
@@ -539,9 +542,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (state.currentFolderId) {
       editFolderModal.style.display = 'flex';
       coverFileInput.value = ''; // Clear previous selection
+      selectedFileInfo.style.display = 'none'; // Hide file info
       // Update save button text to be more intuitive
       modalSaveBtn.innerHTML = '<i class="ph-bold ph-upload"></i> Upload Cover';
     }
+  });
+
+  // Handle file selection
+  coverFileInput.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (file) {
+      fileName.textContent = file.name;
+      selectedFileInfo.style.display = 'flex';
+    } else {
+      selectedFileInfo.style.display = 'none';
+    }
+  });
+
+  // Handle remove file button
+  removeFileBtn.addEventListener('click', () => {
+    coverFileInput.value = '';
+    selectedFileInfo.style.display = 'none';
   });
   modalCancelBtn.addEventListener('click', () => (editFolderModal.style.display = 'none'));
   modalSaveBtn.addEventListener('click', handleSaveChanges);
