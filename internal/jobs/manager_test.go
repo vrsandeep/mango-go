@@ -100,30 +100,40 @@ func TestManager_Concurrency(t *testing.T) {
 	ctx := &fakeJobContext{cfg: &config.Config{}, ws: websocket.NewHub()}
 	mgr := jobs.NewManager(ctx)
 	ctx.jobMgr = mgr
+
+	// Test that only one job runs at a time (not concurrently)
+	// We'll use a blocking job to ensure proper testing
+	block := make(chan struct{})
 	var mu sync.Mutex
 	var count int
+
 	mgr.Register("jobC", "Job C", func(ctx jobs.JobContext) {
 		mu.Lock()
 		count++
 		mu.Unlock()
+		<-block // Block until we close the channel
 	})
-	wg := sync.WaitGroup{}
-	for i := 0; i < 5; i++ {
-		wg.Add(1)
-		go func() {
-			_ = mgr.RunJob("jobC", ctx)
-			wg.Done()
-		}()
-	}
-	wg.Wait()
+
+	// Start first job
+	err1 := mgr.RunJob("jobC", ctx)
+	assert.NoError(t, err1)
+
+	// Try to start second job while first is running
+	err2 := mgr.RunJob("jobC", ctx)
+	assert.Error(t, err2)
+	assert.Contains(t, err2.Error(), "a job is already running")
+
+	// Allow first job to complete
+	close(block)
 	time.Sleep(50 * time.Millisecond)
+
+	// Verify only one job ran
 	mu.Lock()
-	assert.Equal(t, 1, count, "job should only run once concurrently")
-	if count != 1 {
-		statuses := mgr.GetStatus()
-		for _, s := range statuses {
-			t.Logf("Job %s: %s", s.ID, s.Status)
-		}
-	}
+	assert.Equal(t, 1, count, "only one job should have run")
 	mu.Unlock()
+
+	// Verify job status
+	statuses := mgr.GetStatus()
+	assert.Len(t, statuses, 1)
+	assert.Equal(t, "success", statuses[0].Status)
 }

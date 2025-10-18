@@ -13,13 +13,10 @@
         <div class="reader-container" id="image-container">
             <!-- Manga pages will be loaded here -->
         </div>
-        <div class="single-page-viewer" id="single-page-viewer">
-            <div class="single-page-nav">
-                <button id="single-prev-btn">&lsaquo;</button>
-                <button id="single-next-btn">&rsaquo;</button>
-            </div>
-        </div>
 
+        <div class="single-page-viewer" id="single-page-viewer">
+            <!-- Single page content will be loaded here -->
+        </div>
 
         <div class="reader-footer">
             <!-- These buttons will be shown or hidden by JS -->
@@ -29,53 +26,64 @@
         </div>
         </main>
 
+    <!-- Navigation buttons outside main container -->
+    <div class="single-page-nav">
+        <button id="single-prev-btn">&lsaquo;</button>
+        <button id="single-next-btn">&rsaquo;</button>
+    </div>
+
     <div class="modal-overlay" id="reader-modal" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
                 <h2 id="modal-title"></h2>
-                <button class="close-btn" id="modal-close-btn">&times;</button>
-            </div>
-            <p class="modal-path" id="modal-path"></p>
-            <p class="modal-progress" id="modal-progress"></p>
-
-            <div class="modal-form-grid">
-                <div class="modal-form-group">
-                    <label for="jump-to-page">Jump to Page</label>
-                    <select id="jump-to-page"></select>
-                </div>
-                <div class="modal-form-group">
-                    <label for="mode-select">Mode</label>
-                    <select id="mode-select">
-                        <option value="continuous">Continuous</option>
-                        <option value="single_page">Single Page</option>
-                    </select>
-                </div>
-                <div class="modal-form-group modal-slider-group">
-                    <label for="margin-slider">Page Margin</label>
-                    <input type="range" id="margin-slider" min="0" max="100" value="10">
-                </div>
-                <div class="modal-form-group">
-                    <label for="fit-mode-select">Fit Mode</label>
-                    <select id="fit-mode-select">
-                        <option value="fit-width">Screen Width</option>
-                        <option value="fit-height">Fit Page</option>
-                        <option value="fit-original">Original Size</option>
-                        <option value="fit-specific">Restricted Width</option>
-                    </select>
-                </div>
-                <div class="modal-form-group" style="grid-column: 1 / -1;">
-                    <label for="jump-to-entry">Jump to Entry</label>
-                    <select id="jump-to-entry"></select>
-                </div>
+                <button class="modal-close" id="modal-close-btn">
+                    <i class="ph-bold ph-x"></i>
+                </button>
             </div>
 
-            <div class="modal-actions">
-                <button id="modal-prev-btn">Previous Chapter</button>
-                <button id="modal-next-btn">Next Chapter</button>
-                <button id="modal-exit-btn" class="exit-btn">Exit Reader</button>
+            <div class="modal-content-body">
+                <p class="modal-path" id="modal-path"></p>
+                <p class="modal-progress" id="modal-progress"></p>
+
+                <div class="modal-form-grid">
+                    <div class="modal-form-group">
+                        <label for="jump-to-page">Jump to Page</label>
+                        <select id="jump-to-page"></select>
+                    </div>
+                    <div class="modal-form-group">
+                        <label for="mode-select">Mode</label>
+                        <select id="mode-select">
+                            <option value="continuous">Continuous</option>
+                            <option value="single_page">Single Page</option>
+                        </select>
+                    </div>
+                    <div class="modal-form-group modal-slider-group">
+                        <label for="margin-slider">Page Margin</label>
+                        <input type="range" id="margin-slider" min="0" max="100" value="10">
+                    </div>
+                    <div class="modal-form-group">
+                        <label for="fit-mode-select">Fit Mode</label>
+                        <select id="fit-mode-select">
+                            <option value="fit-width">Screen Width</option>
+                            <option value="fit-height">Fit Page</option>
+                            <option value="fit-original">Original Size</option>
+                            <option value="fit-specific">Restricted Width</option>
+                        </select>
+                    </div>
+                    <div class="modal-form-group">
+                        <label for="jump-to-entry">Jump to Entry</label>
+                        <select id="jump-to-entry"></select>
+                    </div>
+                </div>
             </div>
+
+            <div class="modal-footer">
+                <button id="modal-prev-btn" class="btn-secondary">Previous Chapter</button>
+                <button id="modal-next-btn" class="btn-secondary">Next Chapter</button>
+                <button id="modal-exit-btn" class="btn-primary exit-btn">Exit Reader</button>
             </div>
-            </div>
+        </div>
+    </div>
 
     <div class="progress-bar-container">
         <div id="progress-bar"></div>

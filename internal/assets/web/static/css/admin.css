@@ -1,78 +1,231 @@
-/* Grid & Cards */
+/* internal/assets/web/static/css/admin.css */
+
+/* Container */
 .container {
-    max-width: 900px;
+max-width: 1000px;
     margin: 2rem auto;
     padding: 0 1.5rem;
 }
 
+/* Job Item */
 .job-item {
-    display: flex;
+display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 1rem;
+padding: 1.5rem;
     background: var(--card-bg);
-    border-radius: 8px;
+border: 2px solid var(--border-color);
+    border-radius: 12px;
     margin-bottom: 1rem;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s ease;
+    animation: fadeIn 0.3s ease;
+}
+
+.job-item:hover {
+    border-color: var(--accent-color);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
 }
 
 .job-details {
-    flex-grow: 1;
+flex-grow: 1;
+margin-right: 1rem;
 }
 
 .job-details h3 {
-    margin: 0 0 0.25rem;
+margin: 0 0 0.5rem 0;
+    color: var(--text-color);
+    font-size: 1.1rem;
+    font-weight: 600;
 }
 
 .job-details p {
-    margin: 0;
+margin: 0;
     font-size: 0.9rem;
-    color: #aaa;
+color: var(--subtle-text-color);
+    line-height: 1.4;
 }
 
+/* Job Progress */
 .job-progress-container {
-    width: 100%;
+width: 100%;
     height: 8px;
-    background: #444;
+background: var(--border-color);
     border-radius: 4px;
-    margin-top: 0.5rem;
+margin-top: 0.75rem;
     display: none;
+overflow: hidden;
 }
 
 .job-progress-bar {
-    width: 0%;
+width: 0%;
     height: 100%;
     background: var(--accent-color);
-    transition: width 0.2s linear;
+transition: width 0.3s ease;
     border-radius: 4px;
+position: relative;
+}
+
+.job-progress-bar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    animation: shimmer 2s infinite;
+}
+
+/* Job Actions */
+.job-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-shrink: 0;
 }
 
 .job-actions button {
-    background-color: var(--btn-bg);
+background-color: var(--card-bg);
     color: var(--text-color);
-    border: 1px solid var(--border-color);
-    padding: 8px 16px;
-    border-radius: 5px;
+border: 2px solid var(--border-color);
+    padding: 0.75rem 1.25rem;
+    border-radius: 8px;
     cursor: pointer;
+font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    position: relative;
 }
 
 .job-actions button:disabled {
-    opacity: 0.5;
+opacity: 0.5;
     cursor: not-allowed;
+transform: none;
 }
 
 .job-actions button:disabled:hover {
-    background-color: var(--btn-bg);
-    color: white;
+background-color: var(--card-bg);
+    color: var(--text-color);
+    border-color: var(--border-color);
+    transform: none;
+    box-shadow: none;
 }
 
 .job-actions button:hover:not(:disabled) {
-    background-color: var(--accent-color);
+background-color: var(--accent-color);
     color: white;
+border-color: var(--accent-color);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(var(--accent-color-rgb), 0.3);
 }
 
+/* Jobs Container */
 .jobs-container {
-    display: flex;
+display: flex;
     flex-direction: column;
     gap: 1rem;
+}
+
+/* Empty State */
+.jobs-empty {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--subtle-text-color);
+}
+
+.jobs-empty i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.jobs-empty h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.2rem;
+    color: var(--text-color);
+}
+
+.jobs-empty p {
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .container {
+        padding: 0 1rem;
+    }
+
+    .job-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+        padding: 1rem;
+    }
+
+    .job-details {
+        margin-right: 0;
+    }
+
+    .job-actions {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .job-actions button {
+        flex: 1;
+        min-width: 120px;
+    }
+}
+
+@media (max-width: 480px) {
+    .container {
+        padding: 0 0.5rem;
+    }
+
+    .job-item {
+        padding: 0.75rem;
+    }
+
+    .job-details h3 {
+        font-size: 1rem;
+    }
+
+    .job-details p {
+        font-size: 0.85rem;
+    }
+
+    .job-actions {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .job-actions button {
+        width: 100%;
+        min-width: auto;
+    }
 }
