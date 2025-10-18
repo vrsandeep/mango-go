@@ -230,7 +230,7 @@ func (s *Store) findNextChapterInSiblingFolder(userID, folderID int64) (*models.
 	return s.findNextChapterInSiblingFolder(userID, *parentID)
 }
 
-// GetRecentlyAdded fetches recently added chapters and groups them by series.
+// GetRecentlyAdded fetches recently added chapters and groups them by series and creation date.
 func (s *Store) GetRecentlyAdded(limit int) ([]*models.HomeSectionItem, error) {
 	query := `
 		SELECT
@@ -251,38 +251,50 @@ func (s *Store) GetRecentlyAdded(limit int) ([]*models.HomeSectionItem, error) {
 	}
 	defer rows.Close()
 
-	folderMap := make(map[int64]*models.HomeSectionItem)
-	var orderedFolderIDs []int64
+	// Use a composite key: seriesID + date string
+	type compositeKey struct {
+		seriesID int64
+		dateStr  string
+	}
+
+	folderMap := make(map[compositeKey]*models.HomeSectionItem)
+	var orderedKeys []compositeKey
 
 	for rows.Next() {
 		var item models.HomeSectionItem
 		var chapterID int64
 		var thumbnail sql.NullString
 		var chapterTitle string
-		if err := rows.Scan(&item.SeriesID, &item.SeriesTitle, &thumbnail, &chapterID, &chapterTitle, &item.UpdatedAt); err != nil {
+		var createdAt time.Time
+		if err := rows.Scan(&item.SeriesID, &item.SeriesTitle, &thumbnail, &chapterID, &chapterTitle, &createdAt); err != nil {
 			return nil, err
 		}
 		item.CoverArt = thumbnail.String
+		item.UpdatedAt = createdAt
 
-		if existing, ok := folderMap[item.SeriesID]; ok {
-			// This is the second (or more) chapter for this series.
+		// Create composite key using series ID and date (YYYY-MM-DD)
+		dateStr := createdAt.Format("2006-01-02")
+		key := compositeKey{seriesID: item.SeriesID, dateStr: dateStr}
+
+		if existing, ok := folderMap[key]; ok {
+			// This is the second (or more) chapter for this series on the same date.
 			// Increment the count and clear the chapter-specific details.
 			existing.NewChapterCount++
 			existing.ChapterID = nil
 			existing.ChapterTitle = ""
 		} else {
-			// This is the first time we've seen this series in the results.
+			// This is the first time we've seen this series on this date in the results.
 			item.NewChapterCount = 1
 			item.ChapterID = &chapterID // Keep the chapter details for now
 			item.ChapterTitle = GetChapterTitle(&models.Chapter{Path: chapterTitle})
-			folderMap[item.SeriesID] = &item
-			orderedFolderIDs = append(orderedFolderIDs, item.SeriesID)
+			folderMap[key] = &item
+			orderedKeys = append(orderedKeys, key)
 		}
 	}
 
 	var finalItems []*models.HomeSectionItem
-	for _, seriesID := range orderedFolderIDs {
-		finalItems = append(finalItems, folderMap[seriesID])
+	for _, key := range orderedKeys {
+		finalItems = append(finalItems, folderMap[key])
 		if len(finalItems) >= limit {
 			break
 		}

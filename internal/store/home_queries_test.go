@@ -37,43 +37,64 @@ func TestGetContinueReading(t *testing.T) {
 	}
 }
 
-func TestGetRecentlyAdded(t *testing.T) {
+func TestGetRecentlyAddedWithDateGrouping(t *testing.T) {
 	db := testutil.SetupTestDB(t)
 	s := store.New(db)
 
 	// Create folders
 	fA, _ := s.CreateFolder("/A", "Series A", nil)
-	fAV1, _ := s.CreateFolder("/A/V1", "Vol 1", &fA.ID)
-	fAV2, _ := s.CreateFolder("/A/V2", "Vol 2", &fA.ID)
 	fB, _ := s.CreateFolder("/B", "Series B", nil)
-	fC, _ := s.CreateFolder("/C", "Series C", nil)
 
-	// Create chapters
-	s.CreateChapter(fAV1.ID, "/A/V1/ch1.cbz", "h_av1_1", 10, "")
-	s.CreateChapter(fAV1.ID, "/A/V1/ch2.cbz", "h_av1_2", 10, "")
-	s.CreateChapter(fAV2.ID, "/A/V2/ch1.cbz", "h_av2_1", 10, "")
-	s.CreateChapter(fB.ID, "/B/ch1.cbz", "h_b_1", 10, "")
-	s.CreateChapter(fC.ID, "/C/ch1.cbz", "h_c_1", 10, "")
+	// Create chapters with different creation times by manually inserting them
+	// This simulates chapters added on different days
+	yesterday := "2024-01-01 10:00:00"
+	today := "2024-01-02 10:00:00"
+
+	// Insert chapters with specific creation times
+	db.Exec("INSERT INTO chapters (folder_id, path, content_hash, page_count, thumbnail, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		fA.ID, "/A/ch1.cbz", "hash_a1", 10, "", yesterday, yesterday)
+	db.Exec("INSERT INTO chapters (folder_id, path, content_hash, page_count, thumbnail, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		fA.ID, "/A/ch2.cbz", "hash_a2", 10, "", yesterday, yesterday) // Same day as ch1
+	db.Exec("INSERT INTO chapters (folder_id, path, content_hash, page_count, thumbnail, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		fA.ID, "/A/ch3.cbz", "hash_a3", 10, "", today, today) // Different day
+	db.Exec("INSERT INTO chapters (folder_id, path, content_hash, page_count, thumbnail, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		fB.ID, "/B/ch1.cbz", "hash_b1", 10, "", today, today) // Same day as ch3
 
 	items, err := s.GetRecentlyAdded(10)
 	if err != nil {
 		t.Fatalf("GetRecentlyAdded failed: %v", err)
 	}
-	if len(items) != 4 {
-		t.Fatalf("Expected 4 grouped items in Recently Added, got %d", len(items))
+
+	// Should have 3 items:
+	// 1. Series B (today) - 1 chapter
+	// 2. Series A (today) - 1 chapter
+	// 3. Series A (yesterday) - 2 chapters grouped together
+	if len(items) != 3 {
+		t.Fatalf("Expected 3 grouped items in Recently Added, got %d", len(items))
 	}
 
-	// Check that we have the expected series
-	seriesTitles := make(map[string]bool)
+	// Check the grouping behavior
+	var seriesAToday, seriesAYesterday, seriesBToday bool
 	for _, item := range items {
-		seriesTitles[item.SeriesTitle] = true
+		if item.SeriesTitle == "Series A" {
+			if item.NewChapterCount == 1 {
+				seriesAToday = true // Single chapter added today
+			} else if item.NewChapterCount == 2 {
+				seriesAYesterday = true // Two chapters grouped from yesterday
+			}
+		} else if item.SeriesTitle == "Series B" && item.NewChapterCount == 1 {
+			seriesBToday = true // Single chapter added today
+		}
 	}
 
-	expectedSeries := []string{"Series C", "Series B", "Vol 2", "Vol 1"}
-	for _, expected := range expectedSeries {
-		if !seriesTitles[expected] {
-			t.Errorf("Expected to find series '%s' in Recently Added", expected)
-		}
+	if !seriesAToday {
+		t.Error("Expected Series A to have 1 chapter from today")
+	}
+	if !seriesAYesterday {
+		t.Error("Expected Series A to have 2 chapters grouped from yesterday")
+	}
+	if !seriesBToday {
+		t.Error("Expected Series B to have 1 chapter from today")
 	}
 }
 
