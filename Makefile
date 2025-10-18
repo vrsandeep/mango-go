@@ -10,7 +10,7 @@ IMAGE_OUT = internal/assets/web/dist/images
 BINARY_NAME=mango-go
 BUILD_DIR=./build
 
-.PHONY: all assets clean build run
+.PHONY: all assets clean build run download-go-deps format format-check install-prettier
 
 all: build
 
@@ -47,3 +47,20 @@ clean:
 	@rm -rf ./internal/assets/web/dist
 	@rm -rf ./$(BUILD_DIR)
 	@echo "✅ Cleanup complete."
+
+# Install Prettier dependencies
+install-prettier:
+	@echo "📦 Installing Prettier..."
+	@npm install
+	@echo "✅ Prettier installed successfully."
+
+# Format CSS and JS files with Prettier
+format: install-prettier
+	@echo "🎨 Formatting CSS and JS files..."
+	@npm run format
+	@echo "✅ Files formatted successfully."
+
+# Check if files are formatted correctly
+format-check: install-prettier
+	@echo "🔍 Checking file formatting..."
+	@npm run format:check

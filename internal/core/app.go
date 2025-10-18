@@ -14,7 +14,7 @@ import (
 	"github.com/vrsandeep/mango-go/internal/websocket"
 )
 
-const Version = "0.0.7" // Application version
+const Version = "0.0.8" // Application version
 
 // App holds the core components of the application that are shared
 // between the server and the CLI.

@@ -29,7 +29,9 @@ body {
   padding: 0;
   display: flex;
   justify-content: center;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
   line-height: 1.6;
   overflow-x: visible;
 }
@@ -101,7 +103,7 @@ body {
   position: fixed;
   top: 50%;
   left: 0;
-    right: 0;
+  right: 0;
   transform: translateY(-50%);
   display: flex;
   justify-content: space-between;
@@ -125,7 +127,7 @@ body {
   pointer-events: auto;
   backdrop-filter: blur(10px);
   position: relative;
-    z-index: 26;
+  z-index: 26;
 }
 
 .single-page-nav button:hover {
@@ -447,11 +449,11 @@ body {
     font-size: 1.2rem;
   }
 
-        .modal-overlay {
-          padding: 1rem;
-          align-items: flex-start;
-          padding-top: 2rem;
-        }
+  .modal-overlay {
+    padding: 1rem;
+    align-items: flex-start;
+    padding-top: 2rem;
+  }
   .modal-content {
     min-width: 280px;
     width: calc(100vw - 1rem);
@@ -490,19 +492,19 @@ body {
     padding: 0.25rem;
   }
 
-    .single-page-viewer {
+  .single-page-viewer {
     padding-top: 0.25rem;
-    }
+  }
   .single-page-nav button {
     width: 40px;
     height: 50px;
     font-size: 1rem;
   }
 
-        .modal-overlay {
-          padding: 0.5rem;
-          padding-top: 1rem;
-        }
+  .modal-overlay {
+    padding: 0.5rem;
+    padding-top: 1rem;
+  }
   .modal-content {
     min-width: 260px;
     width: calc(100vw - 0.5rem);
@@ -521,25 +523,25 @@ body {
     font-size: 1.25rem;
   }
 
-        .modal-form-group label {
-          font-size: 0.9rem;
-        }
+  .modal-form-group label {
+    font-size: 0.9rem;
+  }
 
-        .modal-form-group select,
-        .modal-form-group input[type="range"] {
-          padding: 0.5rem;
-          font-size: 0.9rem;
-        }
+  .modal-form-group select,
+  .modal-form-group input[type="range"] {
+    padding: 0.5rem;
+    font-size: 0.9rem;
+  }
 
-        .modal-footer {
-          flex-direction: column;
-          gap: 0.75rem;
-        }
+  .modal-footer {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
 
-        .modal-footer button {
-          width: 100%;
-          padding: 0.75rem;
-        }
+  .modal-footer button {
+    width: 100%;
+    padding: 0.75rem;
+  }
   .reader-footer {
     padding: 0.75rem;
     margin-top: 0.25rem;

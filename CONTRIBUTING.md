@@ -191,6 +191,32 @@ The frontend is built with vanilla HTML, CSS, and JavaScript. Files are located 
 - JavaScript: `internal/assets/web/static/js/`
 - Images: `internal/assets/web/static/images/`
 
+#### Code Formatting
+
+The project uses Prettier to maintain consistent code formatting for CSS and JavaScript files.
+
+**Format all CSS and JS files:**
+```bash
+make format
+```
+
+**Check if files are properly formatted:**
+```bash
+make format-check
+```
+
+**Format only CSS files:**
+```bash
+npm run format:css
+```
+
+**Format only JavaScript files:**
+```bash
+npm run format:js
+```
+
+Prettier configuration is defined in `.prettierrc` and ignores files listed in `.prettierignore`.
+
 ### Docker Development
 
 The project includes Docker support for containerized development and deployment:

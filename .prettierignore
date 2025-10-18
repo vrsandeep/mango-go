@@ -1,0 +1,12 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+internal/assets/web/dist/
+
+# Generated files
+*.min.css
+*.min.js
+
+# External libraries
+internal/assets/web/static/css/ext/

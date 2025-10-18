@@ -9,13 +9,13 @@
   margin-bottom: 1.5rem;
   font-size: 1.5rem;
   font-weight: 600;
-    color: var(--text-color);
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
+  color: var(--text-color);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 }
 .home-section h2::after {
-  content: '';
+  content: "";
   flex: 1;
   height: 2px;
   background: linear-gradient(90deg, var(--accent-color), transparent);
@@ -30,8 +30,8 @@
   padding: 1rem 0 1.5rem 0;
   scrollbar-width: thin;
   scrollbar-color: var(--accent-color) var(--border-color);
-    -webkit-overflow-scrolling: touch;
-    scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
 }
 
 .horizontal-scroll-container::-webkit-scrollbar {
@@ -57,9 +57,9 @@
   flex: 0 0 160px;
   width: 160px;
   min-height: 240px;
-    display: flex;
-    flex-direction: column;
-    position: relative;
+  display: flex;
+  flex-direction: column;
+  position: relative;
 }
 /* Fix for chapter title spacing - ensure consistent card height */
 .home-section .item-card .item-title {
@@ -96,16 +96,16 @@
 .badge {
   position: absolute;
   top: 0.75rem;
-    right: 0.75rem;
+  right: 0.75rem;
   background-color: var(--accent-color);
   color: white;
   padding: 0.25rem 0.5rem;
   border-radius: 12px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    z-index: 10;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    transition: all 0.2s ease;
+  font-size: 0.75rem;
+  font-weight: 600;
+  z-index: 10;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
 }
 .badge:hover {
   transform: scale(1.05);
@@ -117,11 +117,11 @@
   margin: 0 auto 1.5rem;
   text-align: center;
   font-size: 0.9rem;
-    color: var(--subtle-text-color);
+  color: var(--subtle-text-color);
   font-style: italic;
   font-weight: 400;
-    line-height: 1.5;
-    max-width: 500px;
+  line-height: 1.5;
+  max-width: 500px;
   padding: 0 1rem;
 }
 
@@ -187,31 +187,32 @@
     font-size: 0.85rem;
     margin-bottom: 1rem;
   }
-  
+
   @media (max-width: 480px) {
     .home-section h2 {
       font-size: 1.1rem;
     }
-  
+
     .horizontal-scroll-container {
       gap: 0.75rem;
     }
-  
+
     .home-section .item-card {
       flex: 0 0 120px;
       width: 120px;
       min-height: 200px;
     }
-  
+
     .home-section .item-card .item-title {
       font-size: 0.8rem;
       padding: 0.5rem 0.4rem 0.4rem;
     }
-  
+
     .badge {
       top: 0.4rem;
       right: 0.4rem;
       font-size: 0.65rem;
       padding: 0.15rem 0.3rem;
     }
+  }
 }

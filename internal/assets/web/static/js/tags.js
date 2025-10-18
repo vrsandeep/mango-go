@@ -20,7 +20,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         tagsList.appendChild(li);
       });
     } else {
-      tagsList.innerHTML = '<li>No tags found. Add tags to your series from the chapters page.</li>';
+      tagsList.innerHTML =
+        '<li>No tags found. Add tags to your series from the chapters page.</li>';
     }
   };
 

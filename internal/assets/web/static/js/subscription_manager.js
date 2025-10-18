@@ -9,27 +9,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   let availableFolders = [];
   let currentSubscriptions = []; // Store current subscriptions data
 
-  const timeAgo = (date) => {
+  const timeAgo = date => {
     if (!date) return 'Never';
     const seconds = Math.floor((new Date() - date) / 1000);
     let interval = seconds / 31536000;
-    if (interval > 1) return Math.floor(interval) + " years ago";
+    if (interval > 1) return Math.floor(interval) + ' years ago';
     interval = seconds / 2592000;
-    if (interval > 1) return Math.floor(interval) + " months ago";
+    if (interval > 1) return Math.floor(interval) + ' months ago';
     interval = seconds / 86400;
-    if (interval > 1) return Math.floor(interval) + " days ago";
+    if (interval > 1) return Math.floor(interval) + ' days ago';
     interval = seconds / 3600;
-    if (interval > 1) return Math.floor(interval) + " hours ago";
+    if (interval > 1) return Math.floor(interval) + ' hours ago';
     interval = seconds / 60;
-    if (interval > 1) return Math.floor(interval) + " minutes ago";
-    return Math.floor(seconds) + " seconds ago";
+    if (interval > 1) return Math.floor(interval) + ' minutes ago';
+    return Math.floor(seconds) + ' seconds ago';
   };
 
-  const getSubscriptionData = (subId) => {
+  const getSubscriptionData = subId => {
     return currentSubscriptions.find(sub => sub.id == subId);
   };
 
-  const renderTable = (subs) => {
+  const renderTable = subs => {
     subTableBody.innerHTML = '';
     if (!subs || subs.length === 0) {
       subTableBody.innerHTML = '<tr><td colspan="6">No subscriptions found.</td></tr>';
@@ -76,16 +76,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       currentSubscriptions = subs; // Store the data for later use
       renderTable(subs);
     } catch (e) {
-      console.error("Failed to load subscriptions", e);
+      console.error('Failed to load subscriptions', e);
     }
   };
 
   const loadFolders = async () => {
     try {
       const response = await fetch('/api/folders');
-      availableFolders = await response.json() || [];
+      availableFolders = (await response.json()) || [];
     } catch (e) {
-      console.error("Failed to load folders", e);
+      console.error('Failed to load folders', e);
       availableFolders = [];
     }
   };
@@ -102,20 +102,23 @@ document.addEventListener('DOMContentLoaded', async () => {
           providerSelect.appendChild(option);
         });
       }
-    } catch (e) { console.error("Failed to load providers", e); }
+    } catch (e) {
+      console.error('Failed to load providers', e);
+    }
   };
 
   // Modal functionality
   let currentEditingSubId = null;
 
-  const openFolderPathModal = (subId) => {
+  const openFolderPathModal = subId => {
     const subData = getSubscriptionData(subId);
     if (!subData) return;
 
     currentEditingSubId = subId;
 
     // Set modal title
-    document.getElementById('modal-title').textContent = `Edit Folder Path for "${subData.series_title}"`;
+    document.getElementById('modal-title').textContent =
+      `Edit Folder Path for "${subData.series_title}"`;
 
     // Set series name (read-only)
     document.getElementById('modal-series-name').value = subData.series_title;
@@ -134,9 +137,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     folderSelect.innerHTML = `
       <option value="">Default (series name)</option>
       <option value="__manual__">Custom path...</option>
-      ${availableFolders.map(folder =>
-      `<option value="${folder.path}" ${folder.path === subData.folder_path ? 'selected' : ''}>${folder.name}</option>`
-    ).join('')}
+      ${availableFolders
+        .map(
+          folder =>
+            `<option value="${folder.path}" ${folder.path === subData.folder_path ? 'selected' : ''}>${folder.name}</option>`
+        )
+        .join('')}
     `;
 
     // Set initial selection
@@ -221,7 +227,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('modal-custom-path-group').style.display = 'none';
   };
 
-
   const saveFolderPathFromModal = async () => {
     if (!currentEditingSubId) return;
 
@@ -252,7 +257,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       await fetch(`/api/subscriptions/${currentEditingSubId}/folder-path`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ folder_path: folderPath })
+        body: JSON.stringify({ folder_path: folderPath }),
       });
 
       // Reload subscriptions to update the display
@@ -273,7 +278,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     updatePathPreview();
   };
 
-  subTableBody.addEventListener('click', async (e) => {
+  subTableBody.addEventListener('click', async e => {
     const button = e.target.closest('button');
     if (!button) return;
 
@@ -298,7 +303,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           lastCheckedCell.textContent = timeAgo(now);
         }
 
-        toast.success('Re-check initiated. New chapters will be added to the download queue if found.');
+        toast.success(
+          'Re-check initiated. New chapters will be added to the download queue if found.'
+        );
       } else if (action === 'edit-folder') {
         openFolderPathModal(id);
       }
@@ -322,15 +329,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('modal-reset-btn').addEventListener('click', resetToDefault);
 
   // Close modal when clicking outside
-  document.getElementById('folder-path-modal').addEventListener('click', (e) => {
+  document.getElementById('folder-path-modal').addEventListener('click', e => {
     if (e.target.id === 'folder-path-modal') {
       closeModal();
     }
   });
 
   // Close modal with Escape key
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && document.getElementById('folder-path-modal').style.display === 'flex') {
+  document.addEventListener('keydown', e => {
+    if (
+      e.key === 'Escape' &&
+      document.getElementById('folder-path-modal').style.display === 'flex'
+    ) {
       closeModal();
     }
   });

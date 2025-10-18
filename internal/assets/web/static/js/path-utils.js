@@ -33,7 +33,7 @@ const loadLibraryPath = async () => {
  * @param {string} path - The path to sanitize
  * @returns {string|null} - The sanitized path or null if invalid
  */
-const sanitizePath = (path) => {
+const sanitizePath = path => {
   if (!path) return null;
 
   // Remove leading/trailing whitespace and slashes
@@ -60,7 +60,7 @@ const sanitizePath = (path) => {
  * @param {string} mangaName - The manga/series name
  * @returns {string} - The default folder path
  */
-const getDefaultFolderPath = (mangaName) => {
+const getDefaultFolderPath = mangaName => {
   if (!mangaName) return libraryPath;
   return libraryPath + mangaName;
 };
@@ -97,5 +97,5 @@ window.PathUtils = {
   sanitizePath,
   prefillCustomPath,
   getLibraryPath,
-  getDefaultFolderPath
+  getDefaultFolderPath,
 };

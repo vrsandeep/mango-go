@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const pauseResumeBtn = document.getElementById('pause-resume-btn');
   let ws;
 
-  const renderRow = (item) => {
+  const renderRow = item => {
     let row = document.getElementById(`item-${item.id}`);
     if (!row) {
       row = document.createElement('tr');
@@ -57,7 +57,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         items.forEach(item => queueTableBody.appendChild(renderRow(item)));
       }
     } catch (error) {
-      console.error("Failed to load queue:", error);
+      console.error('Failed to load queue:', error);
       queueTableBody.innerHTML = '<tr><td colspan="7">Error loading queue.</td></tr>';
     }
   };
@@ -66,7 +66,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     ws = new WebSocket(`${protocol}//${window.location.host}/ws/admin/progress`);
 
-    ws.onmessage = (event) => {
+    ws.onmessage = event => {
       const data = JSON.parse(event.data);
       if (data.jobId !== 'downloader' || !data.item_id) return;
 
@@ -76,7 +76,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         row = renderRow({
           id: data.item_id,
           progress: data.progress,
-          status: data.status
+          status: data.status,
           // We don't have all the info, a full refresh is better
         });
         loadQueue(); // Refresh the whole list to get all data
@@ -101,30 +101,34 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.log('WebSocket for downloads disconnected. Reconnecting in 5 seconds...');
       setTimeout(handleWebSocket, 5000);
     };
-    ws.onerror = (err) => {
+    ws.onerror = err => {
       console.error('WebSocket error:', err);
     };
   };
 
   headerActionButtons.forEach(button => {
-    button.addEventListener('click', async (e) => {
+    button.addEventListener('click', async e => {
       const action = e.target.dataset.action;
       if (action === 'refresh') {
         loadQueue();
         return;
       }
-      if (action === "pause_all") {
+      if (action === 'pause_all') {
         const newAction = e.target.textContent === 'Pause All' ? 'pause_all' : 'resume_all';
         await fetch('/api/downloads/action', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: newAction })
+          body: JSON.stringify({ action: newAction }),
         });
         e.target.textContent = newAction === 'pause_all' ? 'Resume All' : 'Pause All';
         return;
       }
       if (action === 'empty_queue') {
-        if (!confirm('Are you sure you want to remove all queued and failed items? This cannot be undone.')) {
+        if (
+          !confirm(
+            'Are you sure you want to remove all queued and failed items? This cannot be undone.'
+          )
+        ) {
           return;
         }
       }
@@ -132,14 +136,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       await fetch('/api/downloads/action', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action })
+        body: JSON.stringify({ action }),
       });
       setTimeout(loadQueue, 500); // Give backend a moment before refreshing
     });
   });
 
   // Add event delegation for individual item action buttons
-  queueTableBody.addEventListener('click', async (e) => {
+  queueTableBody.addEventListener('click', async e => {
     const button = e.target.closest('.action-btn');
     if (!button) return;
 
@@ -162,7 +166,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       await fetch(`/api/downloads/queue/${itemId}/action`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action })
+        body: JSON.stringify({ action }),
       });
 
       // Refresh the queue to show updated status

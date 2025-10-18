@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     sortDir: null,
     isLoading: false,
     totalItems: 0,
-    perPage: 100
+    perPage: 100,
   };
   let allTags = [];
   let currentFolderTags = [];
@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // --- Core Functions ---
 
   // AniList API integration
-  const fetchAniListData = async (title) => {
+  const fetchAniListData = async title => {
     if (!title) return null;
 
     try {
@@ -73,7 +73,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json',
+          Accept: 'application/json',
         },
         body: JSON.stringify({
           query: query,
@@ -125,7 +125,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   // Helper function to add AniList button to page header
-  const addAniListButtonToHeader = (anilistUrl) => {
+  const addAniListButtonToHeader = anilistUrl => {
     const pageTitle = document.getElementById('page-title');
     if (!pageTitle) return;
 
@@ -164,7 +164,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const parts = window.location.pathname.split('/tags/');
     return parts.length > 1 ? parts[1] : null;
   };
-  const getTagNameFromId = async (id) => {
+  const getTagNameFromId = async id => {
     return allTags.find(tag => tag.id === parseInt(id)).name;
   };
 
@@ -189,9 +189,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   // Renders the grid with folders first, then chapters.
-  const renderGrid = (data) => {
+  const renderGrid = data => {
     cardsGrid.innerHTML = '';
-    if ((!data.subfolders || data.subfolders.length === 0) && (!data.chapters || data.chapters.length === 0)) {
+    if (
+      (!data.subfolders || data.subfolders.length === 0) &&
+      (!data.chapters || data.chapters.length === 0)
+    ) {
       cardsGrid.innerHTML = '<p>This folder is empty.</p>';
       return;
     }
@@ -210,12 +213,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   // Creates an HTML card for a folder.
-  const createFolderCard = (folder) => {
+  const createFolderCard = folder => {
     const card = document.createElement('a');
     card.href = `/library/folder/${folder.id}`;
     card.className = 'item-card folder';
     // Calculate progress for the folder
-    const progressPercent = folder.total_chapters > 0 ? (folder.read_chapters / folder.total_chapters) * 100 : 0;
+    const progressPercent =
+      folder.total_chapters > 0 ? (folder.read_chapters / folder.total_chapters) * 100 : 0;
     card.innerHTML = `
             <div class="thumbnail-container">
                 <img class="thumbnail" src="${folder.thumbnail || '/static/images/logo.svg'}" loading="lazy" alt="Cover for ${folder.name}">
@@ -229,7 +233,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   // Creates an HTML card for a chapter.
-  const createChapterCard = (chapter) => {
+  const createChapterCard = chapter => {
     const card = document.createElement('a');
     const progressPercent = chapter.progress_percent || 0;
     card.href = `/reader/series/${chapter.folder_id}/chapters/${chapter.id}`; // Note: Reader URL might need adjustment
@@ -251,7 +255,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await fetch(`/api/folders/${state.currentFolderId}/settings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sort_by: state.sortBy, sort_dir: state.sortDir })
+      body: JSON.stringify({ sort_by: state.sortBy, sort_dir: state.sortDir }),
     });
   };
 
@@ -291,7 +295,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         per_page: state.perPage,
         search: state.search,
         sort_by: state.sortBy,
-        sort_dir: state.sortDir
+        sort_dir: state.sortDir,
       });
       if (state.currentFolderId) {
         params.set('folderId', state.currentFolderId);
@@ -331,7 +335,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       state.totalItems = parseInt(response.headers.get('X-Total-Count') || '0', 10);
       totalCountEl.textContent = `${state.totalItems}`;
       renderPagination();
-
     } catch (error) {
       console.error('Error loading folder contents:', error);
       cardsGrid.innerHTML = '<p>Error loading content. Please try again.</p>';
@@ -364,7 +367,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     paginationContainer.appendChild(createButton('&laquo;', 1, state.currentPage === 1));
-    paginationContainer.appendChild(createButton('&lsaquo;', state.currentPage - 1, state.currentPage === 1));
+    paginationContainer.appendChild(
+      createButton('&lsaquo;', state.currentPage - 1, state.currentPage === 1)
+    );
 
     const pageNumbers = [];
     // Always show first page
@@ -376,7 +381,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Window of pages around current page
-    for (let i = Math.max(2, state.currentPage - 2); i <= Math.min(totalPages - 1, state.currentPage + 2); i++) {
+    for (
+      let i = Math.max(2, state.currentPage - 2);
+      i <= Math.min(totalPages - 1, state.currentPage + 2);
+      i++
+    ) {
       pageNumbers.push(i);
     }
 
@@ -399,21 +408,25 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
 
-    paginationContainer.appendChild(createButton('&rsaquo;', state.currentPage + 1, state.currentPage === totalPages));
-    paginationContainer.appendChild(createButton('&raquo;', totalPages, state.currentPage === totalPages));
+    paginationContainer.appendChild(
+      createButton('&rsaquo;', state.currentPage + 1, state.currentPage === totalPages)
+    );
+    paginationContainer.appendChild(
+      createButton('&raquo;', totalPages, state.currentPage === totalPages)
+    );
   };
 
   // --- Tagging Logic ---
   const loadAllTags = async () => {
     try {
       const response = await fetch('/api/tags');
-      allTags = await response.json() || [];
+      allTags = (await response.json()) || [];
     } catch (e) {
-      console.error("Failed to load all tags:", e);
+      console.error('Failed to load all tags:', e);
     }
   };
 
-  const renderTags = (tags) => {
+  const renderTags = tags => {
     currentFolderTags = tags || [];
     tagsContainer.innerHTML = '';
     currentFolderTags.forEach(tag => {
@@ -424,16 +437,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   };
 
-  const addTag = async (tagName) => {
+  const addTag = async tagName => {
     const normalizedTagName = tagName.trim().toLowerCase();
-    if (normalizedTagName === '' || !state.currentFolderId || currentFolderTags.some(t => t.name === normalizedTagName)) {
+    if (
+      normalizedTagName === '' ||
+      !state.currentFolderId ||
+      currentFolderTags.some(t => t.name === normalizedTagName)
+    ) {
       tagInput.value = '';
       return;
     }
     const response = await fetch(`/api/folders/${state.currentFolderId}/tags`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: normalizedTagName })
+      body: JSON.stringify({ name: normalizedTagName }),
     });
     if (response.ok) {
       tagInput.value = '';
@@ -444,8 +461,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   };
 
-  const removeTag = async (tagId) => {
-    await fetch(`/api/folders/${state.currentFolderId}/tags/${tagId}`, { method: 'DELETE' });
+  const removeTag = async tagId => {
+    await fetch(`/api/folders/${state.currentFolderId}/tags/${tagId}`, {
+      method: 'DELETE',
+    });
     currentFolderTags = currentFolderTags.filter(t => t.id != tagId);
     renderTags(currentFolderTags);
   };
@@ -487,11 +506,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   // Mark all chapters as read or unread.
-  const markAllAs = async (read) => {
+  const markAllAs = async read => {
     const response = await fetch(`/api/folders/${state.currentFolderId}/mark-all-as`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ read })
+      body: JSON.stringify({ read }),
     });
     if (response.ok) {
       loadFolderContents();
@@ -506,15 +525,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       coverFileInput.value = ''; // Clear previous selection
     }
   });
-  modalCancelBtn.addEventListener('click', () => editFolderModal.style.display = 'none');
+  modalCancelBtn.addEventListener('click', () => (editFolderModal.style.display = 'none'));
   modalSaveBtn.addEventListener('click', handleSaveChanges);
   // modalCloseBtn.addEventListener('click', () => editFolderModal.style.display = 'none');
-  tagsContainer.addEventListener('click', (e) => {
+  tagsContainer.addEventListener('click', e => {
     if (e.target.classList.contains('tag-remove-btn')) {
       removeTag(e.target.dataset.tagId);
     }
   });
-  tagInput.addEventListener('keydown', (e) => {
+  tagInput.addEventListener('keydown', e => {
     if (e.key === 'Enter') {
       e.preventDefault();
       addTag(tagInput.value);
@@ -526,7 +545,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       autocompleteSuggestions.style.display = 'none';
       return;
     }
-    const suggestions = allTags.filter(tag => tag.name.toLowerCase().includes(query) && !currentFolderTags.some(t => t.name === tag.name));
+    const suggestions = allTags.filter(
+      tag =>
+        tag.name.toLowerCase().includes(query) && !currentFolderTags.some(t => t.name === tag.name)
+    );
     autocompleteSuggestions.innerHTML = '';
     suggestions.slice(0, 5).forEach(suggestion => {
       const suggestionEl = document.createElement('div');
