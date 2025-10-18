@@ -4,6 +4,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   const currentUser = await checkAuth();
   if (!currentUser) return;
 
+  // Apply theme from localStorage
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme === 'light') {
+    document.body.classList.add('light-theme');
+  } else {
+    document.body.classList.remove('light-theme');
+  }
+
   const pathParts = window.location.pathname.split('/');
   const folderId = pathParts[3];
   const chapterId = pathParts[5];

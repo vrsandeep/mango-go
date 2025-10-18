@@ -31,6 +31,7 @@ body {
   justify-content: center;
   transition: background-color 0.3s ease, color 0.3s ease;
   line-height: 1.6;
+  overflow-x: visible;
 }
 
 .reader-container {
@@ -41,6 +42,7 @@ body {
   width: 100%;
   max-width: 1200px;
   padding: 1rem;
+  overflow: visible;
 }
 
 .page-image {
@@ -88,27 +90,30 @@ body {
   display: none;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   width: 100%;
   position: relative;
-  min-height: 100vh;
+  padding-top: 1rem;
+  overflow: visible;
 }
 
 .single-page-nav {
   position: fixed;
   top: 50%;
+  left: 0;
+    right: 0;
   transform: translateY(-50%);
-  width: 100%;
   display: flex;
   justify-content: space-between;
   padding: 0 2rem;
   box-sizing: border-box;
-  z-index: 15;
+  z-index: 25;
   pointer-events: none;
+  width: 100vw;
 }
 
 .single-page-nav button {
-  background-color: rgba(0, 0, 0, 0.6);
+  background-color: rgba(0, 0, 0, 0.8);
   border: 2px solid var(--reader-border);
   color: var(--reader-text);
   font-size: 1.5rem;
@@ -119,6 +124,8 @@ body {
   transition: all 0.2s ease;
   pointer-events: auto;
   backdrop-filter: blur(10px);
+  position: relative;
+    z-index: 26;
 }
 
 .single-page-nav button:hover {
@@ -126,7 +133,6 @@ body {
   border-color: var(--reader-accent);
   transform: scale(1.05);
 }
-
 .reader-container.single-page .page-image {
   display: none;
 }
@@ -137,11 +143,11 @@ body {
 
 /* Reader Footer */
 .reader-footer {
-  padding: 2rem;
+  padding: 1rem;
   text-align: center;
   background-color: var(--reader-card-bg);
   border-top: 2px solid var(--reader-border);
-  margin-top: 2rem;
+  margin-top: 0.5rem;
   border-radius: 12px 12px 0 0;
 }
 
@@ -221,33 +227,33 @@ body {
   border: 2px solid var(--reader-border);
   min-width: 320px;
   max-width: 95vw;
-  max-height: 90vh;
+  max-height: 85vh;
   width: 480px;
-  padding: 2rem;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
   font-family: inherit;
   animation: slideIn 0.3s ease;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.5rem;
+  padding: 1.5rem;
+  border-bottom: 2px solid var(--reader-border);
+  background-color: var(--reader-card-bg);
+  flex-shrink: 0;
 }
 
 .modal-header h2 {
   margin: 0;
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   color: var(--reader-text);
   font-weight: 600;
 }
 
-.modal-header .close-btn {
-  font-size: 1.5rem;
+.modal-close {
   background: none;
   border: none;
   color: var(--reader-text);
@@ -255,11 +261,18 @@ body {
   padding: 0.5rem;
   border-radius: 6px;
   transition: all 0.2s ease;
+  font-size: 1.2rem;
 }
 
-.modal-header .close-btn:hover {
+.modal-close:hover {
   background-color: var(--reader-border);
   color: var(--reader-text);
+}
+
+.modal-content-body {
+  flex: 1;
+  padding: 1.5rem;
+  overflow-y: auto;
 }
 
 .modal-path {
@@ -284,7 +297,6 @@ body {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  margin-bottom: 0.5rem;
 }
 
 .modal-form-group label {
@@ -319,16 +331,17 @@ body {
   margin-bottom: 0.5rem;
 }
 
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-  margin-top: 1.5rem;
+.modal-footer {
+  padding: 1.5rem;
   border-top: 2px solid var(--reader-border);
-  padding-top: 1.5rem;
+  background-color: var(--reader-card-bg);
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  flex-shrink: 0;
 }
 
-.modal-actions button {
+.modal-footer button {
   border: 2px solid var(--reader-border);
   border-radius: 8px;
   padding: 0.75rem 1.5rem;
@@ -341,7 +354,7 @@ body {
   transition: all 0.2s ease;
 }
 
-.modal-actions button:hover {
+.modal-footer button:hover {
   background-color: var(--reader-accent);
   border-color: var(--reader-accent);
   color: white;
@@ -349,13 +362,24 @@ body {
   box-shadow: 0 4px 12px rgba(var(--reader-accent-rgb), 0.3);
 }
 
-.modal-actions .exit-btn {
+.modal-footer .btn-primary {
+  background-color: var(--reader-accent);
+  border-color: var(--reader-accent);
+  color: white;
+}
+
+.modal-footer .btn-primary:hover {
+  background-color: var(--reader-accent-dark);
+  border-color: var(--reader-accent-dark);
+}
+
+.modal-footer .exit-btn {
   background: var(--danger-color, #ef4444);
   border-color: var(--danger-color, #ef4444);
   color: white;
 }
 
-.modal-actions .exit-btn:hover {
+.modal-footer .exit-btn:hover {
   background: #dc2626;
   border-color: #dc2626;
   transform: translateY(-1px);
@@ -410,6 +434,9 @@ body {
     padding: 0.5rem;
   }
 
+  .single-page-viewer {
+    padding-top: 0.25rem;
+  }
   .single-page-nav {
     padding: 0 1rem;
   }
@@ -427,10 +454,24 @@ body {
         }
   .modal-content {
     min-width: 280px;
-      width: calc(100vw - 2rem);
-      max-width: none;
-    padding: 1.5rem;
+    width: calc(100vw - 1rem);
+    max-width: none;
+    max-height: 80vh;
     margin: 0;
+  }
+
+  .modal-content-body {
+    padding: 1rem;
+  }
+
+  .modal-footer {
+    padding: 1rem;
+    flex-direction: column;
+  }
+
+  .modal-footer button {
+    width: 100%;
+    margin-bottom: 0.5rem;
   }
 
   .reader-footer {
@@ -449,6 +490,9 @@ body {
     padding: 0.25rem;
   }
 
+    .single-page-viewer {
+    padding-top: 0.25rem;
+    }
   .single-page-nav button {
     width: 40px;
     height: 50px;
@@ -461,8 +505,16 @@ body {
         }
   .modal-content {
     min-width: 260px;
-      width: calc(100vw - 1rem);
-    padding: 1rem;
+    width: calc(100vw - 0.5rem);
+    max-height: 85vh;
+  }
+
+  .modal-content-body {
+    padding: 0.75rem;
+  }
+
+  .modal-footer {
+    padding: 0.75rem;
   }
 
   .modal-header h2 {
@@ -472,24 +524,25 @@ body {
         .modal-form-group label {
           font-size: 0.9rem;
         }
-    
+
         .modal-form-group select,
         .modal-form-group input[type="range"] {
           padding: 0.5rem;
           font-size: 0.9rem;
         }
-    
-        .modal-actions {
+
+        .modal-footer {
           flex-direction: column;
           gap: 0.75rem;
         }
-    
-        .modal-actions button {
+
+        .modal-footer button {
           width: 100%;
           padding: 0.75rem;
         }
   .reader-footer {
-    padding: 1rem;
+    padding: 0.75rem;
+    margin-top: 0.25rem;
   }
 
   .reader-footer button {
