@@ -14,13 +14,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   const paginationContainer = document.getElementById('pagination-container');
   const editFolderBtn = document.getElementById('edit-folder-btn');
   const editFolderModal = document.getElementById('edit-folder-modal');
-  // const modalCloseBtn = document.getElementById('modal-close-btn');
+  const modalCloseBtn = document.getElementById('modal-close-btn');
   const tagsContainer = document.getElementById('tags-container');
   const tagInput = document.getElementById('tag-input');
   const autocompleteSuggestions = document.getElementById('autocomplete-suggestions');
   const modalSaveBtn = document.getElementById('modal-save-btn');
   const modalCancelBtn = document.getElementById('modal-cancel-btn');
   const coverFileInput = document.getElementById('cover-file-input');
+  const selectedFileInfo = document.getElementById('selected-file-info');
+  const fileName = document.getElementById('file-name');
+  const removeFileBtn = document.getElementById('remove-file-btn');
   const totalCountEl = document.getElementById('total-count');
   const markAllReadBtn = document.getElementById('mark-all-read-btn');
   const markAllUnreadBtn = document.getElementById('mark-all-unread-btn');
@@ -435,6 +438,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       tagEl.innerHTML = `<span>${tag.name}</span><span class="tag-remove-btn" data-tag-id="${tag.id}">&times;</span>`;
       tagsContainer.appendChild(tagEl);
     });
+
+    // Update icon visibility based on whether there are tags
+    const tagsDisplay = document.querySelector('.tags-display');
+    if (tagsDisplay) {
+      if (currentFolderTags.length === 0) {
+        tagsDisplay.classList.add('no-tags');
+      } else {
+        tagsDisplay.classList.remove('no-tags');
+      }
+    }
   };
 
   const addTag = async tagName => {
@@ -495,6 +508,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       if (response.ok) {
         editFolderModal.style.display = 'none';
+        toast.success('Cover uploaded successfully!');
         loadFolderContents(); // Reload to show the new cover
       } else {
         const errorData = await response.json();
@@ -513,9 +527,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       body: JSON.stringify({ read }),
     });
     if (response.ok) {
+      // Dismiss the modal
+      editFolderModal.style.display = 'none';
+      // Show success toast
+      toast.success(`All chapters marked as ${read ? 'read' : 'unread'}`);
+      // Reload folder contents
       loadFolderContents();
     } else {
-      toast.error('Failed to mark all chapters as read');
+      toast.error(`Failed to mark all chapters as ${read ? 'read' : 'unread'}`);
     }
   };
   // --- Event Listeners ---
@@ -523,11 +542,45 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (state.currentFolderId) {
       editFolderModal.style.display = 'flex';
       coverFileInput.value = ''; // Clear previous selection
+      selectedFileInfo.style.display = 'none'; // Hide file info
+      // Update save button text to be more intuitive
+      modalSaveBtn.innerHTML = '<i class="ph-bold ph-upload"></i> Upload Cover';
     }
+  });
+
+  // Handle file selection
+  coverFileInput.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (file) {
+      fileName.textContent = file.name;
+      selectedFileInfo.style.display = 'flex';
+    } else {
+      selectedFileInfo.style.display = 'none';
+    }
+  });
+
+  // Handle remove file button
+  removeFileBtn.addEventListener('click', () => {
+    coverFileInput.value = '';
+    selectedFileInfo.style.display = 'none';
   });
   modalCancelBtn.addEventListener('click', () => (editFolderModal.style.display = 'none'));
   modalSaveBtn.addEventListener('click', handleSaveChanges);
-  // modalCloseBtn.addEventListener('click', () => editFolderModal.style.display = 'none');
+  modalCloseBtn.addEventListener('click', () => (editFolderModal.style.display = 'none'));
+
+  // Close modal when clicking outside
+  editFolderModal.addEventListener('click', e => {
+    if (e.target === editFolderModal) {
+      editFolderModal.style.display = 'none';
+    }
+  });
+
+  // Close modal when pressing ESC key
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && editFolderModal.style.display === 'flex') {
+      editFolderModal.style.display = 'none';
+    }
+  });
   tagsContainer.addEventListener('click', e => {
     if (e.target.classList.contains('tag-remove-btn')) {
       removeTag(e.target.dataset.tagId);
