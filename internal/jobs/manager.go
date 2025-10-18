@@ -59,14 +59,14 @@ func (jm *JobManager) Register(id, name string, task jobTask) {
 // RunJob now accepts the JobContext interface.
 func (jm *JobManager) RunJob(id string, ctx JobContext) error {
 	jm.mu.Lock()
+	defer jm.mu.Unlock()
+
 	if jm.running {
-		jm.mu.Unlock()
 		return fmt.Errorf("a job is already running")
 	}
 
 	task, ok := jm.jobs[id]
 	if !ok {
-		jm.mu.Unlock()
 		return fmt.Errorf("job '%s' not found", id)
 	}
 
@@ -75,7 +75,6 @@ func (jm *JobManager) RunJob(id string, ctx JobContext) error {
 	status.Status = "running"
 	status.StartTime = time.Now()
 	status.Message = "Job started..."
-	jm.mu.Unlock()
 
 	log.Printf("Starting job: %s (%s)", status.Name, id)
 	// Run the actual task in a new goroutine so it doesn't block.
@@ -84,8 +83,13 @@ func (jm *JobManager) RunJob(id string, ctx JobContext) error {
 			// Ensure we always update the status and unlock the manager
 			if r := recover(); r != nil {
 				log.Printf("Job '%s' panicked: %v", id, r)
+				jm.mu.Lock()
 				status.Status = "failed"
 				status.Message = fmt.Sprintf("Job panicked: %v", r)
+				status.EndTime = time.Now()
+				jm.running = false
+				jm.mu.Unlock()
+				return
 			}
 
 			jm.mu.Lock()
