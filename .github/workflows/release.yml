@@ -18,6 +18,7 @@ jobs:
           - os: ubuntu-latest
             arch: amd64
             cc: gcc
+          # Checkout the job for failure in case of arm64: https://github.com/vrsandeep/mango-go/actions/runs/18621453649/job/53093143044
           # - os: ubuntu-latest
           #   arch: arm64
           #   cc: aarch64-linux-gnu-gcc
