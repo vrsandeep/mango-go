@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const paginationContainer = document.getElementById('pagination-container');
   const editFolderBtn = document.getElementById('edit-folder-btn');
   const editFolderModal = document.getElementById('edit-folder-modal');
-  // const modalCloseBtn = document.getElementById('modal-close-btn');
+  const modalCloseBtn = document.getElementById('modal-close-btn');
   const tagsContainer = document.getElementById('tags-container');
   const tagInput = document.getElementById('tag-input');
   const autocompleteSuggestions = document.getElementById('autocomplete-suggestions');
@@ -435,6 +435,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       tagEl.innerHTML = `<span>${tag.name}</span><span class="tag-remove-btn" data-tag-id="${tag.id}">&times;</span>`;
       tagsContainer.appendChild(tagEl);
     });
+
+    // Update icon visibility based on whether there are tags
+    const tagsDisplay = document.querySelector('.tags-display');
+    if (tagsDisplay) {
+      if (currentFolderTags.length === 0) {
+        tagsDisplay.classList.add('no-tags');
+      } else {
+        tagsDisplay.classList.remove('no-tags');
+      }
+    }
   };
 
   const addTag = async tagName => {
@@ -495,6 +505,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       if (response.ok) {
         editFolderModal.style.display = 'none';
+        toast.success('Cover uploaded successfully!');
         loadFolderContents(); // Reload to show the new cover
       } else {
         const errorData = await response.json();
@@ -513,9 +524,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       body: JSON.stringify({ read }),
     });
     if (response.ok) {
+      // Dismiss the modal
+      editFolderModal.style.display = 'none';
+      // Show success toast
+      toast.success(`All chapters marked as ${read ? 'read' : 'unread'}`);
+      // Reload folder contents
       loadFolderContents();
     } else {
-      toast.error('Failed to mark all chapters as read');
+      toast.error(`Failed to mark all chapters as ${read ? 'read' : 'unread'}`);
     }
   };
   // --- Event Listeners ---
@@ -523,11 +539,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (state.currentFolderId) {
       editFolderModal.style.display = 'flex';
       coverFileInput.value = ''; // Clear previous selection
+      // Update save button text to be more intuitive
+      modalSaveBtn.innerHTML = '<i class="ph-bold ph-upload"></i> Upload Cover';
     }
   });
   modalCancelBtn.addEventListener('click', () => (editFolderModal.style.display = 'none'));
   modalSaveBtn.addEventListener('click', handleSaveChanges);
-  // modalCloseBtn.addEventListener('click', () => editFolderModal.style.display = 'none');
+  modalCloseBtn.addEventListener('click', () => (editFolderModal.style.display = 'none'));
+
+  // Close modal when clicking outside
+  editFolderModal.addEventListener('click', e => {
+    if (e.target === editFolderModal) {
+      editFolderModal.style.display = 'none';
+    }
+  });
+
+  // Close modal when pressing ESC key
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && editFolderModal.style.display === 'flex') {
+      editFolderModal.style.display = 'none';
+    }
+  });
   tagsContainer.addEventListener('click', e => {
     if (e.target.classList.contains('tag-remove-btn')) {
       removeTag(e.target.dataset.tagId);

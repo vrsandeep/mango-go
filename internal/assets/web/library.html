@@ -71,36 +71,58 @@
     <!-- Edit Modal -->
     <div class="modal-overlay" id="edit-folder-modal">
         <div class="modal-content">
-            <h2 id="edit-modal-title">Edit Folder</h2>
-
-            <div class="modal-form-group">
-                <label for="cover-file-input">Upload Custom Cover</label>
-                <input type="file" id="cover-file-input" accept="image/png, image/jpeg, image/webp">
+            <div class="modal-header">
+                <h2 id="edit-modal-title">Edit Folder</h2>
+                <button class="modal-close-btn" id="modal-close-btn">&times;</button>
             </div>
 
-            <div class="modal-form-group">
-                <label>Progress</label>
-                <div style="display: flex; gap: 1rem;">
-                    <button id="mark-all-read-btn">Mark All as Read</button>
-                    <button id="mark-all-unread-btn">Mark All as Unread</button>
+            <div class="modal-body">
+                <!-- Cover Upload Section -->
+                <div class="modal-section">
+                    <h3>Cover Image</h3>
+                    <div class="file-upload-area">
+                        <input type="file" id="cover-file-input" accept="image/png, image/jpeg, image/webp">
+                        <label for="cover-file-input" class="file-upload-label">
+                            <i class="ph-bold ph-upload"></i>
+                            <span>Choose Cover Image</span>
+                        </label>
+                    </div>
+                    <button id="modal-save-btn" class="upload-btn">
+                        <i class="ph-bold ph-upload"></i>
+                        Upload Cover
+                    </button>
                 </div>
-            </div>
 
-            <p>Tags</p>
-            <div class="tags-section">
-                <div class="tags-wrapper">
-                    <i class="ph-bold ph-tag"></i>
-                    <div class="tags-container" id="tags-container"></div>
-                    <div class="tag-input-container">
-                        <input type="text" id="tag-input" placeholder="Add a tag...">
-                        <div class="autocomplete-suggestions" id="autocomplete-suggestions"></div>
+                <!-- Progress Section -->
+                <div class="modal-section">
+                    <h3>Progress</h3>
+                    <div class="progress-buttons">
+                        <button id="mark-all-read-btn" class="progress-btn">
+                            <i class="ph-bold ph-check-circle"></i>
+                            Mark All as Read
+                        </button>
+                        <button id="mark-all-unread-btn" class="progress-btn">
+                            <i class="ph-bold ph-circle"></i>
+                            Mark All as Unread
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tags Section -->
+                <div class="modal-section">
+                    <h3>Tags</h3>
+                    <div class="tags-input-area">
+                        <div class="tags-display" id="tags-container"></div>
+                        <div class="tag-input-row">
+                            <input type="text" id="tag-input" placeholder="Add a tag...">
+                            <div class="autocomplete-suggestions" id="autocomplete-suggestions"></div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="modal-actions">
-                <button id="modal-cancel-btn">Cancel</button>
-                <button id="modal-save-btn">Save</button>
+            <div class="modal-footer">
+                <button id="modal-cancel-btn" class="cancel-btn">Cancel</button>
             </div>
         </div>
     </div>
