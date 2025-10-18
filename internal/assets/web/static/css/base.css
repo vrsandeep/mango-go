@@ -1,4 +1,4 @@
-/* internal/assets/web/static/css/library_grid.css */
+/* internal/assets/web/static/css/base.css */
 :root {
   --bg-color: #1a1a1a;
   --text-color: #f0f0f0;
@@ -305,27 +305,6 @@ a {
     width: 100%;
   }
 }
-#load-more-btn {
-  background-color: #333;
-  color: white;
-  border: 1px solid #555;
-  padding: 10px 20px;
-  font-size: 1rem;
-  cursor: pointer;
-  border-radius: 5px;
-}
-#load-more-btn:hover {
-  background-color: #444;
-}
-.footer {
-  margin-top: 2rem;
-  text-align: center;
-  padding: 2rem;
-}
-.footer button:hover {
-  background-color: var(--accent-color);
-  color: white;
-}
 .main-footer {
   text-align: center;
   padding: 1rem;
@@ -431,8 +410,7 @@ a {
   .thumbnail-container {
     padding-top: 120%;
   }
-  .main-footer,
-  .footer {
+  .main-footer {
     padding: 0.5rem;
     font-size: 0.95rem;
   }
