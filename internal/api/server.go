@@ -23,6 +23,7 @@ type Server struct {
 	app   *core.App
 	db    *sql.DB
 	store *store.Store
+	homeStore HomeStore
 }
 
 // Store returns the store instance.
@@ -30,12 +31,19 @@ func (s *Server) Store() *store.Store {
 	return s.store
 }
 
+// SetHomeStore sets the home store for testing purposes
+func (s *Server) SetHomeStore(homeStore HomeStore) {
+	s.homeStore = homeStore
+}
+
 // NewServer creates a new Server instance.
 func NewServer(app *core.App) *Server {
+	storeInstance := store.New(app.DB())
 	return &Server{
-		app:   app,
-		db:    app.DB(),
-		store: store.New(app.DB()),
+		app:       app,
+		db:        app.DB(),
+		store:     storeInstance,
+		homeStore: storeInstance, // Use the concrete store by default
 	}
 }
 

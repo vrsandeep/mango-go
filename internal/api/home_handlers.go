@@ -27,7 +27,7 @@ func (s *Server) handleGetHomePageData(w http.ResponseWriter, r *http.Request) {
 
 	go func() {
 		defer wg.Done()
-		data, err := s.store.GetContinueReading(user.ID, 12)
+		data, err := s.homeStore.GetContinueReading(user.ID, 12)
 		if err != nil {
 			mu.Lock()
 			errors = append(errors, err)
@@ -38,7 +38,7 @@ func (s *Server) handleGetHomePageData(w http.ResponseWriter, r *http.Request) {
 
 	go func() {
 		defer wg.Done()
-		data, err := s.store.GetNextUp(user.ID, 12)
+		data, err := s.homeStore.GetNextUp(user.ID, 12)
 		if err != nil {
 			mu.Lock()
 			errors = append(errors, err)
@@ -49,7 +49,7 @@ func (s *Server) handleGetHomePageData(w http.ResponseWriter, r *http.Request) {
 
 	go func() {
 		defer wg.Done()
-		data, err := s.store.GetRecentlyAdded(24) // Fetch more items to group
+		data, err := s.homeStore.GetRecentlyAdded(24) // Fetch more items to group
 		if err != nil {
 			mu.Lock()
 			errors = append(errors, err)
@@ -60,7 +60,7 @@ func (s *Server) handleGetHomePageData(w http.ResponseWriter, r *http.Request) {
 
 	go func() {
 		defer wg.Done()
-		data, err := s.store.GetStartReading(user.ID, 12)
+		data, err := s.homeStore.GetStartReading(user.ID, 12)
 		if err != nil {
 			mu.Lock()
 			errors = append(errors, err)
