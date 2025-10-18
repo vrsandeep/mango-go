@@ -8,3 +8,4 @@ data/
 mango-go
 internal/assets/web/dist/
 build/
+node_modules/

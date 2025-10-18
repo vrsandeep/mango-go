@@ -1,10 +1,10 @@
 import { checkAuth } from './auth.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
-  const currentUser = await checkAuth("admin");
+  const currentUser = await checkAuth('admin');
   if (!currentUser) return;
 
-  const startJob = async (button) => {
+  const startJob = async button => {
     button.disabled = true;
     const jobId = button.dataset.jobId;
     const jobEl = document.getElementById(jobId);
@@ -16,14 +16,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     progressBar.style.width = '0%';
     description.textContent = 'Starting job...';
 
-    await fetch('/api/admin/jobs/run', { method: 'POST', body: JSON.stringify({ job_id: jobId }) });
+    await fetch('/api/admin/jobs/run', {
+      method: 'POST',
+      body: JSON.stringify({ job_id: jobId }),
+    });
   };
 
   const initWebSocket = () => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const ws = new WebSocket(`${protocol}//${window.location.host}/ws/admin/progress`);
 
-    ws.onmessage = (event) => {
+    ws.onmessage = event => {
       const data = JSON.parse(event.data);
       const jobEl = document.getElementById(data.jobId);
       if (!jobEl) return;
@@ -52,15 +55,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   initWebSocket();
 
   document.querySelectorAll('.start-job-btn').forEach(button => {
-    button.addEventListener('click', (e) => {
+    button.addEventListener('click', e => {
       startJob(e.target);
     });
   });
 
   document.querySelectorAll('.href').forEach(button => {
-    button.addEventListener('click', (e) => {
+    button.addEventListener('click', e => {
       window.location.href = e.target.dataset.endpoint;
     });
   });
-
 });

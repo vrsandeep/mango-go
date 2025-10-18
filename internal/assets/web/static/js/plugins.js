@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     selectedSeries: null,
     selectedProvider: null,
     selectedChapterRows: new Set(),
-    sort: { by: 'chapter', dir: 'desc' }
+    sort: { by: 'chapter', dir: 'desc' },
   };
 
   // --- DOM Elements ---
@@ -70,17 +70,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       const response = await fetch('/api/providers');
       const providers = await response.json();
       if (providers) {
-        providerSelect.innerHTML = providers.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+        providerSelect.innerHTML = providers
+          .map(p => `<option value="${p.id}">${p.name}</option>`)
+          .join('');
         state.selectedProvider = providerSelect.value;
       }
     } catch (error) {
-      console.error("Failed to load providers:", error);
+      console.error('Failed to load providers:', error);
     }
   };
 
   let searchTimeout;
 
-  const renderSearchResults = (results) => {
+  const renderSearchResults = results => {
     searchResultsSection.style.display = 'block';
     chaptersSection.style.display = 'none';
     searchCountEl.textContent = results.length;
@@ -112,7 +114,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   };
 
-  const handleSeriesSelect = async (series) => {
+  const handleSeriesSelect = async series => {
     state.selectedSeries = series;
     searchResultsSection.style.display = 'none';
     chaptersSection.style.display = 'block';
@@ -120,7 +122,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     providerBadge.textContent = state.selectedProvider;
     chapterTableBody.innerHTML = '<tr><td colspan="6">Loading chapters...</td></tr>';
 
-    const response = await fetch(`/api/providers/${state.selectedProvider}/series/${encodeURIComponent(series.identifier)}`);
+    const response = await fetch(
+      `/api/providers/${state.selectedProvider}/series/${encodeURIComponent(series.identifier)}`
+    );
     state.chapters = await response.json();
     state.filteredChapters = [...state.chapters];
     populateLanguageFilter();
@@ -256,7 +260,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     closePanel(filtersPanel);
   };
 
-
   const loadFolders = async () => {
     try {
       const response = await fetch('/api/folders');
@@ -284,7 +287,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     try {
-      const response = await fetch(`/api/providers/${state.selectedProvider}/search?q=${encodeURIComponent(query)}`);
+      const response = await fetch(
+        `/api/providers/${state.selectedProvider}/search?q=${encodeURIComponent(query)}`
+      );
       const results = await response.json();
       renderSearchResults(results);
     } catch (error) {
@@ -315,13 +320,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       const response = await fetch('/api/downloads/queue', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           series_title: state.selectedSeries.title,
           provider_id: state.selectedProvider,
-          chapters: selectedChapters
-        })
+          chapters: selectedChapters,
+        }),
       });
 
       if (response.ok) {
@@ -337,13 +342,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   // --- Floating Panel Functions ---
-  const openPanel = (panel) => {
+  const openPanel = panel => {
     panel.classList.add('open');
     panelOverlay.classList.add('show');
     document.body.style.overflow = 'hidden';
   };
 
-  const closePanel = (panel) => {
+  const closePanel = panel => {
     panel.classList.remove('open');
     panelOverlay.classList.remove('show');
     document.body.style.overflow = '';
@@ -363,7 +368,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       filterVolumeMin.value,
       filterVolumeMax.value,
       filterChapterMin.value,
-      filterChapterMax.value
+      filterChapterMax.value,
     ].filter(value => value.trim() !== '').length;
 
     if (activeFilters > 0) {
@@ -420,7 +425,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   };
 
-
   const handleSubscribe = async () => {
     if (!state.selectedSeries) return;
 
@@ -428,7 +432,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const selectedFolderPath = document.querySelector('input[name="folder-path"]:checked').value;
 
     if (selectedFolderPath === 'custom') {
-    // Use custom path if custom option is selected and input has value
+      // Use custom path if custom option is selected and input has value
       const customPath = customFolderPath.value.trim();
       if (customPath) {
         folderPath = window.PathUtils.sanitizePath(customPath);
@@ -449,8 +453,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         series_title: state.selectedSeries.title,
         series_identifier: state.selectedSeries.identifier,
         provider_id: state.selectedProvider,
-        folder_path: folderPath
-      })
+        folder_path: folderPath,
+      }),
     });
 
     const folderText = folderPath ? ` in folder "${folderPath}"` : '';
@@ -469,7 +473,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const clearSelections = () => {
     state.selectedChapterRows.clear();
-    document.querySelectorAll('#chapter-table tbody tr.selected').forEach(row => row.classList.remove('selected'));
+    document
+      .querySelectorAll('#chapter-table tbody tr.selected')
+      .forEach(row => row.classList.remove('selected'));
     updateDownloadButtonState();
   };
 
@@ -487,7 +493,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   // Event listeners for search, providers, buttons
-  providerSelect.addEventListener('change', () => state.selectedProvider = providerSelect.value);
+  providerSelect.addEventListener('change', () => (state.selectedProvider = providerSelect.value));
   searchSummary.addEventListener('click', () => {
     const grid = searchResultsGrid;
     const isHidden = grid.style.display === 'none' || !grid.style.display;
@@ -500,13 +506,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   // This line is handled by the floating panel system - filtersBtn opens the filters panel
   applyFiltersBtn.addEventListener('click', applyFiltersAndSort);
   clearFiltersBtn.addEventListener('click', () => {
-    document.querySelectorAll('#filters-panel input').forEach(input => input.value = '');
+    document.querySelectorAll('#filters-panel input').forEach(input => (input.value = ''));
     applyFiltersAndSort();
   });
 
   selectAllBtn.addEventListener('click', () => {
     state.filteredChapters.forEach(ch => state.selectedChapterRows.add(ch.identifier));
-    document.querySelectorAll('#chapter-table tbody tr').forEach(row => row.classList.add('selected'));
+    document
+      .querySelectorAll('#chapter-table tbody tr')
+      .forEach(row => row.classList.add('selected'));
     updateDownloadButtonState();
   });
   clearSelectionsBtn.addEventListener('click', clearSelections);
@@ -531,7 +539,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Multi-select logic
   let lastSelectedRowIndex = null;
-  chapterTableBody.addEventListener('click', (e) => {
+  chapterTableBody.addEventListener('click', e => {
     const row = e.target.closest('tr');
     if (!row) return;
 
@@ -594,7 +602,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   panelOverlay.addEventListener('click', closeAllPanels);
 
   // Filter inputs
-  [filterTitle, filterLanguage, filterVolumeMin, filterVolumeMax, filterChapterMin, filterChapterMax].forEach(input => {
+  [
+    filterTitle,
+    filterLanguage,
+    filterVolumeMin,
+    filterVolumeMax,
+    filterChapterMin,
+    filterChapterMax,
+  ].forEach(input => {
     input.addEventListener('input', updateFilterBadge);
   });
 
@@ -635,7 +650,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       searchInput.focus();
       searchInput.select();
     },
-    'Escape': () => {
+    Escape: () => {
       if (searchInput.value) {
         searchInput.value = '';
         clearSearch();
@@ -645,19 +660,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     },
 
     // Panel shortcuts
-    'f': () => openPanel(filtersPanel),
-    's': () => openPanel(settingsPanel),
+    f: () => openPanel(filtersPanel),
+    s: () => openPanel(settingsPanel),
 
     // Action shortcuts (handled in the main Enter key below)
 
     // Selection shortcuts
-    'a': (e) => {
+    a: e => {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
         selectAllChapters();
       }
     },
-    'd': (e) => {
+    d: e => {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
         deselectAllChapters();
@@ -665,7 +680,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     },
 
     // Download shortcut
-    'Enter': (e) => {
+    Enter: e => {
       if (e.ctrlKey || e.metaKey) {
         if (state.selectedChapterRows.size > 0) {
           e.preventDefault();
@@ -675,16 +690,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         searchInput.blur();
         performSearch();
       }
-    }
+    },
   };
 
   // Handle keyboard shortcuts
-  document.addEventListener('keydown', (e) => {
+  document.addEventListener('keydown', e => {
     // Don't trigger shortcuts when typing in inputs, textareas, or contenteditable elements
-    if (e.target.tagName === 'INPUT' ||
+    if (
+      e.target.tagName === 'INPUT' ||
       e.target.tagName === 'TEXTAREA' ||
       e.target.contentEditable === 'true' ||
-      e.target.closest('.floating-panel')) {
+      e.target.closest('.floating-panel')
+    ) {
       return;
     }
 
@@ -767,7 +784,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Add keyboard shortcut for help (?)
-  document.addEventListener('keydown', (e) => {
+  document.addEventListener('keydown', e => {
     if (e.key === '?' && !e.target.matches('input, textarea, [contenteditable]')) {
       e.preventDefault();
       showKeyboardHelp();

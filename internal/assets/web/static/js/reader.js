@@ -65,7 +65,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   const waitForImagesToLoad = () => {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       // update to select those that do not have display:none
       const images = document.querySelectorAll('.page-image:not([style*="display: none"])');
       if (images.length === 0) {
@@ -101,10 +101,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       body: JSON.stringify({ progress_percent: progressPercent, read: isRead }),
     });
   };
-  const updateProgressText = (progressPercent) => {
+  const updateProgressText = progressPercent => {
     let progress = state.chapterData.progress_percent;
     if (state.readingMode === 'single_page') {
-      progress = state.currentPage / state.chapterData.page_count * 100;
+      progress = (state.currentPage / state.chapterData.page_count) * 100;
     } else {
       progress = progressPercent || state.chapterData.progress_percent;
     }
@@ -150,15 +150,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       imageContainer.classList.add('single-page');
       singlePageViewer.style.display = 'flex';
       updateSinglePageView();
-    } else { // continuous
+    } else {
+      // continuous
       imageContainer.classList.remove('single-page');
       singlePageViewer.style.display = 'none';
-      document.querySelectorAll('.page-image').forEach(img => img.style.display = 'block');
+      document.querySelectorAll('.page-image').forEach(img => (img.style.display = 'block'));
     }
   };
   const updateSinglePageView = () => {
     document.querySelectorAll('.page-image').forEach((img, index) => {
-      img.style.display = (index + 1 === state.currentPage) ? 'block' : 'none';
+      img.style.display = index + 1 === state.currentPage ? 'block' : 'none';
     });
     singlePrevBtn.disabled = state.currentPage === 1;
     singleNextBtn.disabled = state.currentPage === state.chapterData.page_count;
@@ -169,10 +170,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateJumpToPageSelect();
   };
 
-  const updateJumpToPageSelect = (progressPercent) => {
+  const updateJumpToPageSelect = progressPercent => {
     let progress = state.chapterData.progress_percent;
     if (state.readingMode === 'single_page') {
-      progress = state.currentPage / state.chapterData.page_count * 100;
+      progress = (state.currentPage / state.chapterData.page_count) * 100;
     } else {
       progress = progressPercent || state.chapterData.progress_percent;
     }
@@ -231,7 +232,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const populateModal = () => {
     const chapter = state.chapterData;
     const folder = state.folderData;
-    const lastPart = chapter.path.split(/[\\/]/).pop().replace(/\.[^/.]+$/, '');
+    const lastPart = chapter.path
+      .split(/[\\/]/)
+      .pop()
+      .replace(/\.[^/.]+$/, '');
     modalTitle.textContent = folder.name + ' - ' + lastPart;
     modalPath.textContent = chapter.path;
 
@@ -249,7 +253,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     state.allChapters.forEach(ch => {
       const option = document.createElement('option');
       option.value = ch.id;
-      option.textContent = ch.path.split(/[\\/]/).pop().replace(/\.[^/.]+$/, '');
+      option.textContent = ch.path
+        .split(/[\\/]/)
+        .pop()
+        .replace(/\.[^/.]+$/, '');
       if (ch.id == chapterId) {
         option.selected = true;
       }
@@ -264,7 +271,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const calculateAndUpdateProgress = () => {
     let progress = 0;
     if (state.readingMode === 'single_page') {
-      progress = state.currentPage / state.chapterData.page_count * 100;
+      progress = (state.currentPage / state.chapterData.page_count) * 100;
     } else {
       const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
       progress = Math.round((window.scrollY / scrollableHeight) * 100);
@@ -287,17 +294,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // --- Event Listeners ---
   window.addEventListener('scroll', calculateAndUpdateProgress);
-  imageContainer.addEventListener('click', () => modal.style.display = 'flex');
-  modalCloseBtn.addEventListener('click', () => modal.style.display = 'none');
+  imageContainer.addEventListener('click', () => (modal.style.display = 'flex'));
+  modalCloseBtn.addEventListener('click', () => (modal.style.display = 'none'));
   // Close modal on overlay click
-  modal.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
+  modal.addEventListener('click', e => {
+    if (e.target === modal) modal.style.display = 'none';
+  });
 
-  document.addEventListener('keydown', (e) => {
-
+  document.addEventListener('keydown', e => {
     // apply the following if continuous mode
     if (state.readingMode === 'continuous') {
       if (e.key === 'ArrowRight' || e.key === 'd') {
-        if (nextChapterId && window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 10) {
+        if (
+          nextChapterId &&
+          window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 10
+        ) {
           window.location.href = `/reader/series/${folderId}/chapters/${nextChapterId}`;
         } else {
           window.scrollBy({ top: window.innerHeight, behavior: 'smooth' });
@@ -342,19 +353,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       updateSinglePageView();
     }
   });
-  modeSelect.addEventListener('change', (e) => {
+  modeSelect.addEventListener('change', e => {
     state.readingMode = e.target.value;
     applyReadingMode();
   });
-  marginSlider.addEventListener('input', (e) => {
+  marginSlider.addEventListener('input', e => {
     state.pageMargin = e.target.value;
     applyPageMargin();
   });
-  fitModeSelect.addEventListener('change', (e) => {
+  fitModeSelect.addEventListener('change', e => {
     state.fitMode = e.target.value;
     applyFitMode();
   });
-  jumpToPageSelect.addEventListener('change', (e) => {
+  jumpToPageSelect.addEventListener('change', e => {
     const pageNum = parseInt(e.target.value, 10);
     if (state.readingMode === 'single_page') {
       state.currentPage = pageNum || 1;
@@ -364,7 +375,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     modal.style.display = 'none';
   });
-  jumpToEntrySelect.addEventListener('change', (e) => {
+  jumpToEntrySelect.addEventListener('change', e => {
     const newChapterId = e.target.value;
     if (newChapterId !== chapterId) {
       window.location.href = `/reader/series/${folderId}/chapters/${newChapterId}`;
@@ -381,7 +392,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       prevChapterId = state.allChapters[state.allChapters.length - 1].id;
     }
     return prevChapterId;
-  }
+  };
   var genNextChapterId = () => {
     const currentOption = jumpToEntrySelect.options[jumpToEntrySelect.selectedIndex];
     const nextOption = currentOption.nextElementSibling;
@@ -392,13 +403,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       nextChapterId = state.allChapters[0].id;
     }
     return nextChapterId;
-  }
-  var jumpToChapter = (newChapterId) => {
+  };
+  var jumpToChapter = newChapterId => {
     if (newChapterId && newChapterId !== chapterId) {
       window.location.href = `/reader/series/${folderId}/chapters/${newChapterId}`;
     }
-  }
-  const exitToLibrary = () => window.location.href = `/library/folder/${folderId}`;
+  };
+  const exitToLibrary = () => (window.location.href = `/library/folder/${folderId}`);
 
   modalExitBtn.addEventListener('click', exitToLibrary);
   modalPrevBtn.addEventListener('click', () => {

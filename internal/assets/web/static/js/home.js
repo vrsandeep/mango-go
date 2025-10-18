@@ -6,14 +6,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const homeContainer = document.getElementById('home-container');
 
-  const createCard = (item) => {
+  const createCard = item => {
     const card = document.createElement('a');
     card.className = 'item-card';
 
     const isChapter = item.chapter_id && item.chapter_id > 0;
 
     // Link to the chapter reader if it's a chapter, otherwise to the series page.
-    card.href = isChapter ? `/reader/series/${item.series_id}/chapters/${item.chapter_id}` : `/library/folder/${item.series_id}`;
+    card.href = isChapter
+      ? `/reader/series/${item.series_id}/chapters/${item.chapter_id}`
+      : `/library/folder/${item.series_id}`;
 
     const coverSrc = item.cover_art || '';
     const title = isChapter ? item.chapter_title.split(/[\\/]/).pop() : item.series_title;
@@ -79,7 +81,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         createSection('Continue Reading', data.continue_reading),
         createSection('Next Up', data.next_up),
         createSection('Recently Added', data.recently_added),
-        createSection('Start Reading', data.start_reading)
+        createSection('Start Reading', data.start_reading),
       ].filter(Boolean); // Filter out null sections
 
       if (sections.length > 0) {
@@ -87,7 +89,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       } else {
         homeContainer.innerHTML = '<p>Your library is empty. Add some series to get started!</p>';
       }
-
     } catch (error) {
       console.error('Error loading home page:', error);
       homeContainer.innerHTML = '<p>Could not load your home page. Please try again later.</p>';

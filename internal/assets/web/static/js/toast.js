@@ -1,15 +1,15 @@
 // Toast notification system
 class Toast {
-    constructor() {
-        this.createToastContainer();
-    }
+  constructor() {
+    this.createToastContainer();
+  }
 
-    createToastContainer() {
-        // Create toast container if it doesn't exist
-        if (!document.getElementById('toast-container')) {
-            const container = document.createElement('div');
-            container.id = 'toast-container';
-            container.style.cssText = `
+  createToastContainer() {
+    // Create toast container if it doesn't exist
+    if (!document.getElementById('toast-container')) {
+      const container = document.createElement('div');
+      container.id = 'toast-container';
+      container.style.cssText = `
                 position: fixed;
                 top: 20px;
                 right: 20px;
@@ -18,16 +18,16 @@ class Toast {
                 flex-direction: column;
                 gap: 10px;
             `;
-            document.body.appendChild(container);
-        }
+      document.body.appendChild(container);
     }
+  }
 
-    show(message, type = 'info') {
-        const container = document.getElementById('toast-container');
-        const toast = document.createElement('div');
+  show(message, type = 'info') {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
 
-        // Set toast styles
-        toast.style.cssText = `
+    // Set toast styles
+    toast.style.cssText = `
             background: var(--toast-bg, #333);
             color: var(--toast-color, white);
             padding: 12px 16px;
@@ -42,65 +42,65 @@ class Toast {
             border-left: 4px solid var(--toast-border, #666);
         `;
 
-        // Set type-specific styles
-        switch (type) {
-            case 'success':
-                toast.style.setProperty('--toast-bg', '#4caf50');
-                toast.style.setProperty('--toast-color', 'white');
-                toast.style.setProperty('--toast-border', '#45a049');
-                break;
-            case 'error':
-                toast.style.setProperty('--toast-bg', '#f44336');
-                toast.style.setProperty('--toast-color', 'white');
-                toast.style.setProperty('--toast-border', '#d32f2f');
-                break;
-            case 'warning':
-                toast.style.setProperty('--toast-bg', '#ff9800');
-                toast.style.setProperty('--toast-color', 'white');
-                toast.style.setProperty('--toast-border', '#f57c00');
-                break;
-            default:
-                toast.style.setProperty('--toast-bg', '#2196f3');
-                toast.style.setProperty('--toast-color', 'white');
-                toast.style.setProperty('--toast-border', '#1976d2');
+    // Set type-specific styles
+    switch (type) {
+      case 'success':
+        toast.style.setProperty('--toast-bg', '#4caf50');
+        toast.style.setProperty('--toast-color', 'white');
+        toast.style.setProperty('--toast-border', '#45a049');
+        break;
+      case 'error':
+        toast.style.setProperty('--toast-bg', '#f44336');
+        toast.style.setProperty('--toast-color', 'white');
+        toast.style.setProperty('--toast-border', '#d32f2f');
+        break;
+      case 'warning':
+        toast.style.setProperty('--toast-bg', '#ff9800');
+        toast.style.setProperty('--toast-color', 'white');
+        toast.style.setProperty('--toast-border', '#f57c00');
+        break;
+      default:
+        toast.style.setProperty('--toast-bg', '#2196f3');
+        toast.style.setProperty('--toast-color', 'white');
+        toast.style.setProperty('--toast-border', '#1976d2');
+    }
+
+    toast.textContent = message;
+    container.appendChild(toast);
+
+    // Animate in
+    setTimeout(() => {
+      toast.style.opacity = '1';
+      toast.style.transform = 'translateX(0)';
+    }, 10);
+
+    // Auto remove after 3 seconds
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateX(100%)';
+      setTimeout(() => {
+        if (toast.parentNode) {
+          toast.parentNode.removeChild(toast);
         }
+      }, 300);
+    }, 3000);
+  }
 
-        toast.textContent = message;
-        container.appendChild(toast);
+  success(message) {
+    this.show(message, 'success');
+  }
 
-        // Animate in
-        setTimeout(() => {
-            toast.style.opacity = '1';
-            toast.style.transform = 'translateX(0)';
-        }, 10);
+  error(message) {
+    this.show(message, 'error');
+  }
 
-        // Auto remove after 3 seconds
-        setTimeout(() => {
-            toast.style.opacity = '0';
-            toast.style.transform = 'translateX(100%)';
-            setTimeout(() => {
-                if (toast.parentNode) {
-                    toast.parentNode.removeChild(toast);
-                }
-            }, 300);
-        }, 3000);
-    }
+  warning(message) {
+    this.show(message, 'warning');
+  }
 
-    success(message) {
-        this.show(message, 'success');
-    }
-
-    error(message) {
-        this.show(message, 'error');
-    }
-
-    warning(message) {
-        this.show(message, 'warning');
-    }
-
-    info(message) {
-        this.show(message, 'info');
-    }
+  info(message) {
+    this.show(message, 'info');
+  }
 }
 
 // Create global toast instance

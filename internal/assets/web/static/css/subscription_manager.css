@@ -1,504 +1,504 @@
 /* internal/assets/web/static/css/subscription_manager.css */
 .container {
-max-width: 1200px;
-    padding: 0 1rem;
+  max-width: 1200px;
+  padding: 0 1rem;
 }
 
 /* Manager Controls */
 .manager-controls {
-display: flex;
-    gap: 1rem;
-margin-bottom: 2rem;
-    flex-wrap: wrap;
-    justify-content: flex-start;
-animation: fadeIn 0.3s ease;
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  animation: fadeIn 0.3s ease;
 }
 
 .manager-controls select {
-padding: 0.75rem 1rem;
-    border: 2px solid var(--border-color);
-    border-radius: 8px;
-    background-color: var(--card-bg);
-    color: var(--text-color);
-font-size: 1rem;
-    transition: all 0.2s ease;
-    min-width: 180px;
+  padding: 0.75rem 1rem;
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  background-color: var(--card-bg);
+  color: var(--text-color);
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  min-width: 180px;
 }
 
 .manager-controls select:focus {
-    outline: none;
-    border-color: var(--accent-color);
-    box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.1);
+  outline: none;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.1);
 }
 
 .manager-controls select option {
-background-color: var(--card-bg);
-    color: var(--text-color);
+  background-color: var(--card-bg);
+  color: var(--text-color);
 }
 
 #provider-select {
-padding: 0.75rem 1rem;
-    border: 2px solid var(--border-color);
-    border-radius: 8px;
-    background-color: var(--bg-color);
-    color: var(--text-color);
-font-size: 1rem;
-    transition: all 0.2s ease;
+  padding: 0.75rem 1rem;
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  font-size: 1rem;
+  transition: all 0.2s ease;
 }
 
 #provider-select:focus {
-    outline: none;
-    border-color: var(--accent-color);
-    box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.1);
+  outline: none;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.1);
 }
 
 /* Table Container */
 .table-container {
-overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-border-radius: 12px;
-    border: 2px solid var(--border-color);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-    animation: fadeIn 0.3s ease;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 12px;
+  border: 2px solid var(--border-color);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  animation: fadeIn 0.3s ease;
 }
 
 .sub-table {
-width: 100%;
-    min-width: 800px;
-border-collapse: collapse;
+  width: 100%;
+  min-width: 800px;
+  border-collapse: collapse;
 }
 
 .sub-table th,
 .sub-table td {
-padding: 1rem;
-    text-align: left;
-    border-bottom: 1px solid var(--border-color);
-    background-color: var(--card-bg);
-    vertical-align: top;
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--card-bg);
+  vertical-align: top;
 }
 
 .sub-table th {
-background-color: var(--header-bg);
-    font-weight: 600;
-color: var(--text-color);
-    font-size: 0.9rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-position: sticky;
-    top: 0;
-    z-index: 10;
+  background-color: var(--header-bg);
+  font-weight: 600;
+  color: var(--text-color);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .sub-table td {
-color: var(--text-color);
-    font-size: 0.9rem;
-position: relative;
+  color: var(--text-color);
+  font-size: 0.9rem;
+  position: relative;
 }
 
 .sub-table tbody tr {
-    cursor: pointer;
-    transition: all 0.2s ease;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .sub-table tbody tr:hover {
-    background: rgba(var(--accent-color-rgb), 0.05);
+  background: rgba(var(--accent-color-rgb), 0.05);
 }
 
 /* Column Width Distribution */
 .sub-table th:nth-child(1),
 .sub-table td:nth-child(1) {
-width: 25%;
+  width: 25%;
 }
 
 .sub-table th:nth-child(2),
 .sub-table td:nth-child(2) {
-width: 15%;
+  width: 15%;
 }
 
 .sub-table th:nth-child(3),
 .sub-table td:nth-child(3) {
-width: 25%;
+  width: 25%;
 }
 
 .sub-table th:nth-child(4),
 .sub-table td:nth-child(4) {
-width: 15%;
+  width: 15%;
 }
 
 .sub-table th:nth-child(5),
 .sub-table td:nth-child(5) {
-width: 15%;
+  width: 15%;
 }
 
 .sub-table th:nth-child(6),
 .sub-table td:nth-child(6) {
-width: 5%;
+  width: 5%;
 }
 
 /* Actions Cell */
 .actions-cell {
-text-align: center;
-    white-space: nowrap;
-    background-color: var(--card-bg) !important;
+  text-align: center;
+  white-space: nowrap;
+  background-color: var(--card-bg) !important;
 }
 
 .actions-cell button {
-background: transparent;
-    border: 2px solid var(--border-color);
-    color: var(--text-color);
-font-size: 1rem;
-    cursor: pointer;
-padding: 0.5rem;
-    margin: 0 0.25rem;
-    border-radius: 6px;
-    transition: all 0.2s ease;
-    vertical-align: middle;
-width: 36px;
-    height: 36px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+  background: transparent;
+  border: 2px solid var(--border-color);
+  color: var(--text-color);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  margin: 0 0.25rem;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  vertical-align: middle;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .actions-cell button:hover {
-background-color: var(--accent-color);
-    color: white;
-    border-color: var(--accent-color);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(var(--accent-color-rgb), 0.3);
+  background-color: var(--accent-color);
+  color: white;
+  border-color: var(--accent-color);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(var(--accent-color-rgb), 0.3);
 }
 
 /* Folder Path Column Styling */
 .folder-path-cell {
-width: 100%;
-    max-width: 0;
+  width: 100%;
+  max-width: 0;
 }
 
 .folder-path-display {
-display: block;
-    width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 100%;
-color: var(--subtle-text-color);
-    font-family: monospace;
-    font-size: 0.85rem;
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+  color: var(--subtle-text-color);
+  font-family: monospace;
+  font-size: 0.85rem;
 }
 
 /* Modal Styles */
 .modal {
-position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    z-index: 1000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-backdrop-filter: blur(4px);
-    animation: fadeIn 0.3s ease;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.3s ease;
 }
 
 .modal-content {
-background-color: var(--card-bg);
-border-radius: 12px;
-    border: 2px solid var(--border-color);
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-    width: 90%;
-    max-width: 500px;
-    max-height: 90vh;
-    overflow-y: auto;
-animation: slideIn 0.3s ease;
+  background-color: var(--card-bg);
+  border-radius: 12px;
+  border: 2px solid var(--border-color);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: slideIn 0.3s ease;
 }
 
 .modal-header {
-display: flex;
-    justify-content: space-between;
-    align-items: center;
-padding: 1.5rem;
-    border-bottom: 2px solid var(--border-color);
-    background-color: var(--header-bg);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 2px solid var(--border-color);
+  background-color: var(--header-bg);
 }
 
 .modal-header h3 {
-margin: 0;
-    color: var(--text-color);
-font-size: 1.5rem;
-    font-weight: 600;
+  margin: 0;
+  color: var(--text-color);
+  font-size: 1.5rem;
+  font-weight: 600;
 }
 
 .modal-close {
-background: none;
-    border: none;
-    font-size: 1.5rem;
-    color: var(--text-color);
-    cursor: pointer;
-padding: 0.5rem;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-border-radius: 6px;
-    transition: all 0.2s ease;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: var(--text-color);
+  cursor: pointer;
+  padding: 0.5rem;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s ease;
 }
 
 .modal-close:hover {
-background-color: var(--border-color);
-color: var(--text-color);
+  background-color: var(--border-color);
+  color: var(--text-color);
 }
 
 .modal-body {
-padding: 1.5rem;
+  padding: 1.5rem;
 }
 
 .form-group {
-margin-bottom: 1.5rem;
+  margin-bottom: 1.5rem;
 }
 
 .form-group label {
-display: block;
-    margin-bottom: 0.5rem;
-    font-weight: 500;
-    color: var(--text-color);
-font-size: 1rem;
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: var(--text-color);
+  font-size: 1rem;
 }
 
 .form-group input,
 .form-group select {
-width: 100%;
-padding: 0.75rem 1rem;
-    border: 2px solid var(--border-color);
-    border-radius: 8px;
-    background-color: var(--bg-color);
-    color: var(--text-color);
-    font-size: 1rem;
-    box-sizing: border-box;
-transition: all 0.2s ease;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  font-size: 1rem;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
 }
 
 .form-group input:focus,
 .form-group select:focus {
-outline: none;
-border-color: var(--accent-color);
-    box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.1);
+  outline: none;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.1);
 }
 
 .form-group input[readonly] {
-background-color: var(--bg-color);
-color: var(--subtle-text-color);
+  background-color: var(--bg-color);
+  color: var(--subtle-text-color);
 }
 
 .path-display {
-padding: 0.75rem;
-    background-color: rgba(var(--accent-color-rgb), 0.1);
-    border: 1px solid rgba(var(--accent-color-rgb), 0.2);
-    border-radius: 6px;
-    font-family: monospace;
-    color: var(--text-color);
-    word-break: break-all;
-font-size: 0.9rem;
+  padding: 0.75rem;
+  background-color: rgba(var(--accent-color-rgb), 0.1);
+  border: 1px solid rgba(var(--accent-color-rgb), 0.2);
+  border-radius: 6px;
+  font-family: monospace;
+  color: var(--text-color);
+  word-break: break-all;
+  font-size: 0.9rem;
 }
 
 .path-preview {
-margin-top: 0.75rem;
-    padding: 0.75rem;
-    background-color: rgba(var(--accent-color-rgb), 0.1);
-    border: 1px solid rgba(var(--accent-color-rgb), 0.2);
-    border-radius: 6px;
-    font-family: monospace;
-    color: var(--text-color);
-    word-break: break-all;
-font-size: 0.9rem;
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background-color: rgba(var(--accent-color-rgb), 0.1);
+  border: 1px solid rgba(var(--accent-color-rgb), 0.2);
+  border-radius: 6px;
+  font-family: monospace;
+  color: var(--text-color);
+  word-break: break-all;
+  font-size: 0.9rem;
 }
 
 .path-help {
-display: block;
-margin-top: 0.5rem;
-    color: var(--subtle-text-color);
-    font-size: 0.85rem;
-    font-family: monospace;
+  display: block;
+  margin-top: 0.5rem;
+  color: var(--subtle-text-color);
+  font-size: 0.85rem;
+  font-family: monospace;
 }
 
 .modal-footer {
-display: flex;
-    justify-content: flex-end;
-gap: 1rem;
-    padding: 1.5rem;
-    border-top: 2px solid var(--border-color);
-    background-color: var(--header-bg);
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-top: 2px solid var(--border-color);
+  background-color: var(--header-bg);
 }
 
 .btn {
-padding: 0.75rem 1.5rem;
-    border: 2px solid var(--border-color);
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 1rem;
-font-weight: 500;
-    transition: all 0.2s ease;
-    position: relative;
+  padding: 0.75rem 1.5rem;
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  position: relative;
 }
 
 .btn-primary {
-background-color: var(--accent-color);
-    color: white;
-border-color: var(--accent-color);
+  background-color: var(--accent-color);
+  color: white;
+  border-color: var(--accent-color);
 }
 
 .btn-primary:hover:not(:disabled) {
-    background-color: var(--accent-color-dark);
-    border-color: var(--accent-color-dark);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(var(--accent-color-rgb), 0.3);
+  background-color: var(--accent-color-dark);
+  border-color: var(--accent-color-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(var(--accent-color-rgb), 0.3);
 }
 
 .btn-secondary {
-background-color: var(--card-bg);
-    color: var(--text-color);
-    border-color: var(--border-color);
+  background-color: var(--card-bg);
+  color: var(--text-color);
+  border-color: var(--border-color);
 }
 
 .btn-secondary:hover:not(:disabled) {
-    background-color: var(--accent-color);
-    color: white;
-    border-color: var(--accent-color);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(var(--accent-color-rgb), 0.3);
+  background-color: var(--accent-color);
+  color: white;
+  border-color: var(--accent-color);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(var(--accent-color-rgb), 0.3);
 }
 
 .btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .btn:disabled:hover {
-    background-color: var(--card-bg);
-    color: var(--text-color);
-border-color: var(--border-color);
-    transform: none;
-    box-shadow: none;
+  background-color: var(--card-bg);
+  color: var(--text-color);
+  border-color: var(--border-color);
+  transform: none;
+  box-shadow: none;
 }
 
 /* Animations */
 @keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
 
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes slideIn {
-    from {
-        opacity: 0;
-        transform: scale(0.9);
-    }
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
 
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 /* Mobile Responsive Design */
 @media (max-width: 768px) {
-.container {
-        padding: 0 0.5rem;
-    }
+  .container {
+    padding: 0 0.5rem;
+  }
 
-    .manager-controls {
-        flex-direction: column;
-        gap: 0.75rem;
-    }
+  .manager-controls {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
 
-    .manager-controls select {
-        width: 100%;
-        min-width: auto;
-    }
+  .manager-controls select {
+    width: 100%;
+    min-width: auto;
+  }
 
-    .sub-table {
-        min-width: 600px;
-        font-size: 0.8rem;
-    }
+  .sub-table {
+    min-width: 600px;
+    font-size: 0.8rem;
+  }
 
-    .sub-table th,
-    .sub-table td {
-        padding: 0.75rem 0.5rem;
-    }
+  .sub-table th,
+  .sub-table td {
+    padding: 0.75rem 0.5rem;
+  }
 
-    .sub-table th {
-        height: auto;
-        min-height: auto;
-    }
+  .sub-table th {
+    height: auto;
+    min-height: auto;
+  }
 
-    .actions-cell button {
-        width: 32px;
-        height: 32px;
-        font-size: 0.9rem;
-        margin: 0 0.125rem;
-    }
+  .actions-cell button {
+    width: 32px;
+    height: 32px;
+    font-size: 0.9rem;
+    margin: 0 0.125rem;
+  }
   .modal-content {
-      width: 95%;
-      margin: 1rem;
+    width: 95%;
+    margin: 1rem;
   }
 
   .modal-header,
   .modal-body,
   .modal-footer {
-      padding: 1rem;
+    padding: 1rem;
   }
 
   .modal-footer {
-      flex-direction: column;
+    flex-direction: column;
   }
 
   .btn {
-      width: 100%;
-      margin-bottom: 0.5rem;
+    width: 100%;
+    margin-bottom: 0.5rem;
   }
 }
 @media (max-width: 480px) {
-    .sub-table {
-        min-width: 500px;
-        font-size: 0.8rem;
-    }
+  .sub-table {
+    min-width: 500px;
+    font-size: 0.8rem;
+  }
 
-    .sub-table th,
-    .sub-table td {
-        padding: 0.5rem 0.25rem;
-    }
+  .sub-table th,
+  .sub-table td {
+    padding: 0.5rem 0.25rem;
+  }
 
-    .sub-table th {
-        height: auto;
-        min-height: auto;
-    }
+  .sub-table th {
+    height: auto;
+    min-height: auto;
+  }
 
-    .actions-cell button {
-        width: 28px;
-        height: 28px;
-        font-size: 0.8rem;
-        margin: 0 0.1rem;
-    }
+  .actions-cell button {
+    width: 28px;
+    height: 28px;
+    font-size: 0.8rem;
+    margin: 0 0.1rem;
+  }
 
-    .folder-path-display {
-        font-size: 0.75rem;
-    }
+  .folder-path-display {
+    font-size: 0.75rem;
+  }
 
-    .modal-content {
-        width: 98%;
-        margin: 0.5rem;
-    }
+  .modal-content {
+    width: 98%;
+    margin: 0.5rem;
+  }
 
-    .modal-header h3 {
-        font-size: 1.25rem;
-    }
+  .modal-header h3 {
+    font-size: 1.25rem;
+  }
 }

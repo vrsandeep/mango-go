@@ -326,7 +326,7 @@
 }
 
 .grid-section-header::after {
-  content: '';
+  content: "";
   flex: 1;
   height: 2px;
   background: linear-gradient(90deg, var(--accent-color), transparent);
@@ -484,7 +484,7 @@
   box-shadow: 0 4px 12px rgba(var(--accent-color-rgb), 0.3);
 }
 
-.modal-form-group input[type=text] {
+.modal-form-group input[type="text"] {
   background-color: var(--card-bg);
   color: var(--text-color);
   border: 2px solid var(--border-color);

@@ -20,7 +20,7 @@
 }
 
 .page-header h1::after {
-  content: '';
+  content: "";
   flex: 1;
   height: 2px;
   background: linear-gradient(90deg, var(--accent-color), transparent);
@@ -180,7 +180,7 @@
 }
 
 .loading::after {
-  content: '';
+  content: "";
   width: 20px;
   height: 20px;
   border: 2px solid var(--border-color);
@@ -387,8 +387,12 @@
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 /* Responsive Design */
