@@ -1,4 +1,4 @@
-name: Release binaries
+name: Release
 
 on:
   push:
@@ -10,49 +10,8 @@ env:
   NODE_VERSION: '18'
 
 jobs:
-  setup-deps:
-    runs-on: ubuntu-latest
-    outputs:
-      ubuntu-amd64: ${{ steps.ubuntu-amd64.outputs.installed }}
-      ubuntu-arm64: ${{ steps.ubuntu-arm64.outputs.installed }}
-    steps:
-      - name: Install Ubuntu AMD64 dependencies
-        id: ubuntu-amd64
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libsqlite3-dev make gcc libc6-dev
-          echo "installed=true" >> $GITHUB_OUTPUT
-
-      - name: Install Ubuntu ARM64 dependencies
-        id: ubuntu-arm64
-        shell: bash
-        run: |
-          # Ubuntu has ARM64 packages in an entirely different repo
-          sudo tee /etc/apt/sources.list.d/ubuntu.sources <<EOF > /dev/null
-          Types: deb
-          URIs: http://azure.archive.ubuntu.com/ubuntu/
-          Suites: noble noble-updates noble-backports
-          Components: main universe restricted multiverse
-          Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
-          Architectures: amd64
-
-          Types: deb
-          URIs: http://azure.ports.ubuntu.com/ubuntu-ports/
-          Suites: noble noble-updates noble-backports
-          Components: main universe restricted multiverse
-          Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
-          Architectures: arm64
-          EOF
-
-          sudo dpkg --add-architecture arm64
-          sudo apt-get update -y
-          sudo apt-get install -y gcc-aarch64-linux-gnu \
-            libc6-arm64-cross qemu-user-binfmt libc6:arm64 libsqlite3-dev make
-          echo "installed=true" >> $GITHUB_OUTPUT
-
   build:
     runs-on: ${{ matrix.os }}
-    needs: setup-deps
     strategy:
       matrix:
         include:
@@ -71,6 +30,44 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install dependencies (Ubuntu)
+        if: ${{ matrix.os == 'ubuntu-latest' && matrix.arch == 'amd64' }}
+        run: sudo apt-get update && sudo apt-get install -y libsqlite3-dev make gcc libc6-dev
+
+      - name: Install dependencies (Ubuntu arm64)
+        if: ${{ matrix.os == 'ubuntu-latest' && matrix.arch == 'arm64' }}
+        shell: bash
+        run: |
+          # Ubuntu has ARM64 packages in an entirely different repo, so we can't just
+          # `dpkg --add-architecture arm64` here: we have to add a custom sources.list first.
+          sudo tee /etc/apt/sources.list.d/ubuntu.sources <<EOF > /dev/null
+          Types: deb
+          URIs: http://azure.archive.ubuntu.com/ubuntu/
+          Suites: jammy jammy-updates jammy-backports
+          Components: main universe restricted multiverse
+          Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+          Architectures: amd64
+
+          Types: deb
+          URIs: http://azure.ports.ubuntu.com/ubuntu-ports/
+          Suites: jammy jammy-updates jammy-backports
+          Components: main universe restricted multiverse
+          Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+          Architectures: arm64
+          EOF
+
+          sudo dpkg --add-architecture arm64
+          sudo apt-get update -y
+
+          sudo apt-get install -y gcc-aarch64-linux-gnu \
+            libc6-arm64-cross qemu-user-binfmt libc6:arm64 libsqlite3-dev make
+
+      - name: Install macOS dependencies
+        if: ${{ matrix.os == 'macos-latest' }}
+        run: |
+          brew update
+          brew install sqlite
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -106,11 +103,6 @@ jobs:
       - name: Install esbuild
         run: npm install -g esbuild
 
-      - name: Install macOS dependencies
-        if: ${{ matrix.os == 'macos-latest' }}
-        run: |
-          brew update
-          brew install sqlite
 
       - name: Build assets
         run: make assets
