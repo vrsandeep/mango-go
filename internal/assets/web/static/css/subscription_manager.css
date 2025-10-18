@@ -1,55 +1,76 @@
+/* internal/assets/web/static/css/subscription_manager.css */
 .container {
-    max-width: 1200px;
+max-width: 1200px;
     padding: 0 1rem;
 }
 
+/* Manager Controls */
 .manager-controls {
-    display: flex;
+display: flex;
     gap: 1rem;
-    margin-bottom: 1.5rem;
+margin-bottom: 2rem;
     flex-wrap: wrap;
     justify-content: flex-start;
+animation: fadeIn 0.3s ease;
 }
 
 .manager-controls select {
-    padding: 0.5rem;
-    border: 1px solid var(--border-color);
-    border-radius: 5px;
+padding: 0.75rem 1rem;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
     background-color: var(--card-bg);
     color: var(--text-color);
+font-size: 1rem;
+    transition: all 0.2s ease;
+    min-width: 180px;
+}
+
+.manager-controls select:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.1);
 }
 
 .manager-controls select option {
-    background-color: var(--card-bg);
+background-color: var(--card-bg);
     color: var(--text-color);
 }
 
 #provider-select {
-    padding: 0.5rem;
-    border: 1px solid var(--border-color);
-    border-radius: 5px;
+padding: 0.75rem 1rem;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
     background-color: var(--bg-color);
     color: var(--text-color);
+font-size: 1rem;
+    transition: all 0.2s ease;
 }
 
-/* Table container with horizontal scroll for mobile */
+#provider-select:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.1);
+}
+
+/* Table Container */
 .table-container {
-    overflow-x: auto;
+overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+border-radius: 12px;
+    border: 2px solid var(--border-color);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    animation: fadeIn 0.3s ease;
 }
 
 .sub-table {
-    width: 100%;
+width: 100%;
     min-width: 800px;
-    /* Minimum width to prevent cramping */
-    border-collapse: collapse;
+border-collapse: collapse;
 }
 
 .sub-table th,
 .sub-table td {
-    padding: 0.75rem;
+padding: 1rem;
     text-align: left;
     border-bottom: 1px solid var(--border-color);
     background-color: var(--card-bg);
@@ -57,231 +78,117 @@
 }
 
 .sub-table th {
-    background-color: var(--header-bg);
+background-color: var(--header-bg);
     font-weight: 600;
-    position: sticky;
+color: var(--text-color);
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+position: sticky;
     top: 0;
     z-index: 10;
-    height: auto;
-    /* Header height should be natural */
-    min-height: auto;
 }
 
 .sub-table td {
-    position: relative;
+color: var(--text-color);
+    font-size: 0.9rem;
+position: relative;
 }
 
-/* Column width distribution */
+.sub-table tbody tr {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.sub-table tbody tr:hover {
+    background: rgba(var(--accent-color-rgb), 0.05);
+}
+
+/* Column Width Distribution */
 .sub-table th:nth-child(1),
 .sub-table td:nth-child(1) {
-    width: 25%;
-    /* Name */
+width: 25%;
 }
 
 .sub-table th:nth-child(2),
 .sub-table td:nth-child(2) {
-    width: 15%;
-    /* Provider */
+width: 15%;
 }
 
 .sub-table th:nth-child(3),
 .sub-table td:nth-child(3) {
-    width: 25%;
-    /* Folder Path */
+width: 25%;
 }
 
 .sub-table th:nth-child(4),
 .sub-table td:nth-child(4) {
-    width: 15%;
-    /* Subscribed */
+width: 15%;
 }
 
 .sub-table th:nth-child(5),
 .sub-table td:nth-child(5) {
-    width: 15%;
-    /* Last Checked */
+width: 15%;
 }
 
 .sub-table th:nth-child(6),
 .sub-table td:nth-child(6) {
-    width: 5%;
-    /* Actions */
+width: 5%;
 }
 
+/* Actions Cell */
 .actions-cell {
-    text-align: center;
+text-align: center;
     white-space: nowrap;
     background-color: var(--card-bg) !important;
 }
 
 .actions-cell button {
-    background: transparent !important;
-    border: none !important;
+background: transparent;
+    border: 2px solid var(--border-color);
     color: var(--text-color);
-    font-size: 1.2rem;
+font-size: 1rem;
     cursor: pointer;
-    padding: 0.25rem;
-    margin: 0 2px;
-    border-radius: 4px;
-    transition: background-color 0.2s;
+padding: 0.5rem;
+    margin: 0 0.25rem;
+    border-radius: 6px;
+    transition: all 0.2s ease;
     vertical-align: middle;
+width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .actions-cell button:hover {
-    background-color: var(--border-color) !important;
+background-color: var(--accent-color);
+    color: white;
+    border-color: var(--accent-color);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(var(--accent-color-rgb), 0.3);
 }
 
-/* Ensure all buttons in actions cell have consistent styling */
-.sub-table .actions-cell button {
-    background: transparent !important;
-    background-color: transparent !important;
-    border: none !important;
-    border-width: 0 !important;
-    color: var(--text-color) !important;
-    box-shadow: none !important;
-    outline: none !important;
-}
-
-/* Folder path column styling */
+/* Folder Path Column Styling */
 .folder-path-cell {
-    width: 100%;
+width: 100%;
     max-width: 0;
-    /* This helps with text truncation */
 }
 
 .folder-path-display {
-    display: block;
+display: block;
     width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     max-width: 100%;
-}
-
-/* Mobile responsive design */
-@media (max-width: 768px) {
-    .container {
-        padding: 0 0.5rem;
-    }
-
-    .manager-controls {
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-
-    .manager-controls select {
-        width: 100%;
-    }
-
-    .sub-table {
-        min-width: 600px;
-        /* Smaller minimum width for mobile */
-        font-size: 0.9rem;
-    }
-
-    .sub-table th,
-    .sub-table td {
-        padding: 0.5rem;
-    }
-
-    .sub-table th {
-        height: auto;
-        /* Header height should be natural */
-        min-height: auto;
-    }
-
-    /* Adjust column widths for mobile */
-    .sub-table th:nth-child(1),
-    .sub-table td:nth-child(1) {
-        width: 25%;
-        /* Name */
-    }
-
-    .sub-table th:nth-child(2),
-    .sub-table td:nth-child(2) {
-        width: 15%;
-        /* Provider */
-    }
-
-    .sub-table th:nth-child(3),
-    .sub-table td:nth-child(3) {
-        width: 25%;
-        /* Folder Path */
-    }
-
-    .sub-table th:nth-child(4),
-    .sub-table td:nth-child(4) {
-        width: 15%;
-        /* Subscribed */
-    }
-
-    .sub-table th:nth-child(5),
-    .sub-table td:nth-child(5) {
-        width: 15%;
-        /* Last Checked */
-    }
-
-    .sub-table th:nth-child(6),
-    .sub-table td:nth-child(6) {
-        width: 5%;
-        /* Actions */
-    }
-
-    /* Ensure date columns have enough space and proper text wrapping */
-    .sub-table td:nth-child(4),
-    .sub-table td:nth-child(5) {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        font-size: 0.8rem;
-    }
-
-    .actions-cell {
-        background-color: var(--card-bg) !important;
-    }
-
-    .actions-cell button {
-        background: transparent !important;
-        border: none !important;
-        font-size: 1rem;
-        padding: 0.2rem;
-    }
-
-}
-
-@media (max-width: 480px) {
-    .sub-table {
-        min-width: 500px;
-        font-size: 0.8rem;
-    }
-
-    .sub-table th,
-    .sub-table td {
-        padding: 0.4rem;
-    }
-
-    .sub-table th {
-        height: auto;
-        /* Header height should be natural */
-        min-height: auto;
-    }
-
-    .actions-cell {
-        background-color: var(--card-bg) !important;
-    }
-
-    .actions-cell button {
-        background: transparent !important;
-        border: none !important;
-        font-size: 0.9rem;
-        padding: 0.15rem;
-        margin: 0 1px;
-    }
+color: var(--subtle-text-color);
+    font-family: monospace;
+    font-size: 0.85rem;
 }
 
 /* Modal Styles */
 .modal {
-    position: fixed;
+position: fixed;
     top: 0;
     left: 0;
     width: 100%;
@@ -291,173 +198,307 @@
     display: flex;
     align-items: center;
     justify-content: center;
+backdrop-filter: blur(4px);
+    animation: fadeIn 0.3s ease;
 }
 
 .modal-content {
-    background-color: var(--card-bg);
-    border-radius: 8px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+background-color: var(--card-bg);
+border-radius: 12px;
+    border: 2px solid var(--border-color);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
     width: 90%;
     max-width: 500px;
     max-height: 90vh;
     overflow-y: auto;
+animation: slideIn 0.3s ease;
 }
 
 .modal-header {
-    display: flex;
+display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1rem 1.5rem;
-    border-bottom: 1px solid var(--border-color);
+padding: 1.5rem;
+    border-bottom: 2px solid var(--border-color);
+    background-color: var(--header-bg);
 }
 
 .modal-header h3 {
-    margin: 0;
+margin: 0;
     color: var(--text-color);
+font-size: 1.5rem;
+    font-weight: 600;
 }
 
 .modal-close {
-    background: none;
+background: none;
     border: none;
     font-size: 1.5rem;
     color: var(--text-color);
     cursor: pointer;
-    padding: 0;
-    width: 30px;
-    height: 30px;
+padding: 0.5rem;
+    width: 40px;
+    height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 4px;
-    transition: background-color 0.2s;
+border-radius: 6px;
+    transition: all 0.2s ease;
 }
 
 .modal-close:hover {
-    background-color: var(--border-color);
+background-color: var(--border-color);
+color: var(--text-color);
 }
 
 .modal-body {
-    padding: 1.5rem;
+padding: 1.5rem;
 }
 
 .form-group {
-    margin-bottom: 1rem;
+margin-bottom: 1.5rem;
 }
 
 .form-group label {
-    display: block;
+display: block;
     margin-bottom: 0.5rem;
     font-weight: 500;
     color: var(--text-color);
+font-size: 1rem;
 }
 
 .form-group input,
 .form-group select {
-    width: 100%;
-    padding: 0.5rem;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    background-color: var(--card-bg);
+width: 100%;
+padding: 0.75rem 1rem;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    background-color: var(--bg-color);
     color: var(--text-color);
     font-size: 1rem;
     box-sizing: border-box;
+transition: all 0.2s ease;
 }
 
 .form-group input:focus,
 .form-group select:focus {
-    outline: none;
-    border-color: var(--primary-color, #007bff);
-    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+outline: none;
+border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.1);
 }
 
 .form-group input[readonly] {
-    background-color: var(--bg-color);
-    color: var(--text-muted, #666);
+background-color: var(--bg-color);
+color: var(--subtle-text-color);
 }
 
 .path-display {
-    padding: 0.5rem;
-    background-color: var(--bg-color);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
+padding: 0.75rem;
+    background-color: rgba(var(--accent-color-rgb), 0.1);
+    border: 1px solid rgba(var(--accent-color-rgb), 0.2);
+    border-radius: 6px;
     font-family: monospace;
     color: var(--text-color);
     word-break: break-all;
+font-size: 0.9rem;
 }
 
 .path-preview {
-    margin-top: 0.5rem;
-    padding: 0.5rem;
-    background-color: var(--bg-color);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
+margin-top: 0.75rem;
+    padding: 0.75rem;
+    background-color: rgba(var(--accent-color-rgb), 0.1);
+    border: 1px solid rgba(var(--accent-color-rgb), 0.2);
+    border-radius: 6px;
     font-family: monospace;
     color: var(--text-color);
     word-break: break-all;
+font-size: 0.9rem;
 }
 
 .path-help {
-    display: block;
-    margin-top: 0.25rem;
-    color: var(--text-muted, #666);
-    font-size: 0.875rem;
+display: block;
+margin-top: 0.5rem;
+    color: var(--subtle-text-color);
+    font-size: 0.85rem;
     font-family: monospace;
 }
 
 .modal-footer {
-    display: flex;
+display: flex;
     justify-content: flex-end;
-    gap: 0.5rem;
-    padding: 1rem 1.5rem;
-    border-top: 1px solid var(--border-color);
+gap: 1rem;
+    padding: 1.5rem;
+    border-top: 2px solid var(--border-color);
+    background-color: var(--header-bg);
 }
 
 .btn {
-    padding: 0.5rem 1rem;
-    border: none;
-    border-radius: 4px;
+padding: 0.75rem 1.5rem;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
     cursor: pointer;
     font-size: 1rem;
-    transition: background-color 0.2s;
+font-weight: 500;
+    transition: all 0.2s ease;
+    position: relative;
 }
 
 .btn-primary {
-    background-color: var(--primary-color, #007bff);
+background-color: var(--accent-color);
     color: white;
+border-color: var(--accent-color);
 }
 
-.btn-primary:hover {
-    background-color: var(--primary-hover, #0056b3);
+.btn-primary:hover:not(:disabled) {
+    background-color: var(--accent-color-dark);
+    border-color: var(--accent-color-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(var(--accent-color-rgb), 0.3);
 }
 
 .btn-secondary {
-    background-color: var(--border-color);
+background-color: var(--card-bg);
     color: var(--text-color);
+    border-color: var(--border-color);
 }
 
-.btn-secondary:hover {
-    background-color: var(--text-muted, #666);
+.btn-secondary:hover:not(:disabled) {
+    background-color: var(--accent-color);
+    color: white;
+    border-color: var(--accent-color);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(var(--accent-color-rgb), 0.3);
 }
 
-/* Mobile responsive modal */
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn:disabled:hover {
+    background-color: var(--card-bg);
+    color: var(--text-color);
+border-color: var(--border-color);
+    transform: none;
+    box-shadow: none;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Mobile Responsive Design */
 @media (max-width: 768px) {
-    .modal-content {
-        width: 95%;
-        margin: 1rem;
+.container {
+        padding: 0 0.5rem;
     }
 
-    .modal-header,
-    .modal-body,
-    .modal-footer {
-        padding: 1rem;
-    }
-
-    .modal-footer {
+    .manager-controls {
         flex-direction: column;
+        gap: 0.75rem;
     }
 
-    .btn {
+    .manager-controls select {
         width: 100%;
-        margin-bottom: 0.5rem;
+        min-width: auto;
+    }
+
+    .sub-table {
+        min-width: 600px;
+        font-size: 0.8rem;
+    }
+
+    .sub-table th,
+    .sub-table td {
+        padding: 0.75rem 0.5rem;
+    }
+
+    .sub-table th {
+        height: auto;
+        min-height: auto;
+    }
+
+    .actions-cell button {
+        width: 32px;
+        height: 32px;
+        font-size: 0.9rem;
+        margin: 0 0.125rem;
+    }
+  .modal-content {
+      width: 95%;
+      margin: 1rem;
+  }
+
+  .modal-header,
+  .modal-body,
+  .modal-footer {
+      padding: 1rem;
+  }
+
+  .modal-footer {
+      flex-direction: column;
+  }
+
+  .btn {
+      width: 100%;
+      margin-bottom: 0.5rem;
+  }
+}
+@media (max-width: 480px) {
+    .sub-table {
+        min-width: 500px;
+        font-size: 0.8rem;
+    }
+
+    .sub-table th,
+    .sub-table td {
+        padding: 0.5rem 0.25rem;
+    }
+
+    .sub-table th {
+        height: auto;
+        min-height: auto;
+    }
+
+    .actions-cell button {
+        width: 28px;
+        height: 28px;
+        font-size: 0.8rem;
+        margin: 0 0.1rem;
+    }
+
+    .folder-path-display {
+        font-size: 0.75rem;
+    }
+
+    .modal-content {
+        width: 98%;
+        margin: 0.5rem;
+    }
+
+    .modal-header h3 {
+        font-size: 1.25rem;
     }
 }

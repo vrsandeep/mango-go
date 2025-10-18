@@ -1,60 +1,217 @@
 /* internal/assets/web/static/css/home.css */
+/* Home Section Layout */
 .home-section {
   margin-bottom: 3rem;
+  animation: fadeIn 0.3s ease;
 }
+
 .home-section h2 {
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
   font-size: 1.5rem;
+  font-weight: 600;
+    color: var(--text-color);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
 }
+.home-section h2::after {
+  content: '';
+  flex: 1;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent-color), transparent);
+  border-radius: 1px;
+}
+
+/* Horizontal Scroll Container */
 .horizontal-scroll-container {
   display: flex;
   overflow-x: auto;
   gap: 1.5rem;
-  padding-bottom: 1.5rem;
+  padding: 1rem 0 1.5rem 0;
   scrollbar-width: thin;
-  scrollbar-color: var(--accent-color) var(--btn-bg);
+  scrollbar-color: var(--accent-color) var(--border-color);
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
 }
+
 .horizontal-scroll-container::-webkit-scrollbar {
   height: 8px;
 }
+
 .horizontal-scroll-container::-webkit-scrollbar-track {
-  background: var(--btn-bg);
+  background: var(--border-color);
   border-radius: 4px;
 }
+
 .horizontal-scroll-container::-webkit-scrollbar-thumb {
   background-color: var(--accent-color);
   border-radius: 4px;
+  transition: background-color 0.2s ease;
 }
+.horizontal-scroll-container::-webkit-scrollbar-thumb:hover {
+  background-color: var(--accent-color-dark);
+}
+
+/* Home Section Cards */
 .home-section .item-card {
   flex: 0 0 160px;
   width: 160px;
+  min-height: 240px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
 }
+/* Fix for chapter title spacing - ensure consistent card height */
+.home-section .item-card .item-title {
+  padding: 1rem 0.75rem 0.5rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-color);
+  line-height: 1.3;
+  flex-shrink: 0;
+}
+
+/* Progress bar for home cards */
+.home-section .item-card .progress-bar-container {
+  margin: 0 0.75rem 0.75rem;
+  height: 4px;
+  background-color: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.home-section .item-card .progress-bar {
+  width: 0%;
+  height: 100%;
+  background-color: var(--accent-color);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+/* Badge Styling */
 .badge {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 0.75rem;
+    right: 0.75rem;
   background-color: var(--accent-color);
-  color: #fefefe;
+  color: white;
   padding: 0.25rem 0.5rem;
-  border-radius: 10px;
-  font-size: 0.8rem;
-  font-weight: bold;
+  border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    z-index: 10;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    transition: all 0.2s ease;
 }
+.badge:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 8px rgba(var(--accent-color-rgb), 0.3);
+}
+
+/* Home Container Description */
 #home-container p {
-  margin-bottom: 0;
-  text-wrap: balance;
+  margin: 0 auto 1.5rem;
   text-align: center;
-  font-size: 0.8rem;
-  color: var(--text-color);
-  text-align: center;
+  font-size: 0.9rem;
+    color: var(--subtle-text-color);
   font-style: italic;
-  font-weight: 300;
-  line-height: 1.2;
-  max-width: 400px;
-  margin: 0 auto;
+  font-weight: 400;
+    line-height: 1.5;
+    max-width: 500px;
   padding: 0 1rem;
-  text-wrap: balance;
-  margin-bottom: 1rem;
-  text-wrap: balance;
+}
+
+/* Empty State for Home */
+.home-empty-state {
   text-align: center;
+  padding: 3rem 1rem;
+  color: var(--subtle-text-color);
+}
+
+.home-empty-state i {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+.home-empty-state h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.2rem;
+  color: var(--text-color);
+}
+
+.home-empty-state p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .home-section {
+    margin-bottom: 2rem;
+  }
+
+  .home-section h2 {
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+  }
+
+  .horizontal-scroll-container {
+    gap: 1rem;
+    padding: 0.75rem 0 1rem 0;
+  }
+
+  .home-section .item-card {
+    flex: 0 0 140px;
+    width: 140px;
+    min-height: 220px;
+  }
+
+  .home-section .item-card .item-title {
+    font-size: 0.85rem;
+    padding: 0.75rem 0.5rem 0.5rem;
+  }
+
+  .badge {
+    top: 0.5rem;
+    right: 0.5rem;
+    font-size: 0.7rem;
+    padding: 0.2rem 0.4rem;
+  }
+
+  #home-container p {
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+  }
+  
+  @media (max-width: 480px) {
+    .home-section h2 {
+      font-size: 1.1rem;
+    }
+  
+    .horizontal-scroll-container {
+      gap: 0.75rem;
+    }
+  
+    .home-section .item-card {
+      flex: 0 0 120px;
+      width: 120px;
+      min-height: 200px;
+    }
+  
+    .home-section .item-card .item-title {
+      font-size: 0.8rem;
+      padding: 0.5rem 0.4rem 0.4rem;
+    }
+  
+    .badge {
+      top: 0.4rem;
+      right: 0.4rem;
+      font-size: 0.65rem;
+      padding: 0.15rem 0.3rem;
+    }
 }
