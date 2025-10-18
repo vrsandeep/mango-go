@@ -7,10 +7,43 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/vrsandeep/mango-go/internal/api"
 	"github.com/vrsandeep/mango-go/internal/models"
 	"github.com/vrsandeep/mango-go/internal/testutil"
 )
+
+// MockHomeStore is a mock implementation of api.HomeStore interface
+type MockHomeStore struct {
+	mock.Mock
+}
+
+// Ensure MockHomeStore implements api.HomeStore interface
+var _ api.HomeStore = (*MockHomeStore)(nil)
+
+// GetContinueReading mocks the GetContinueReading method
+func (m *MockHomeStore) GetContinueReading(userID int64, limit int) ([]*models.HomeSectionItem, error) {
+	args := m.Called(userID, limit)
+	return args.Get(0).([]*models.HomeSectionItem), args.Error(1)
+}
+
+// GetNextUp mocks the GetNextUp method
+func (m *MockHomeStore) GetNextUp(userID int64, limit int) ([]*models.HomeSectionItem, error) {
+	args := m.Called(userID, limit)
+	return args.Get(0).([]*models.HomeSectionItem), args.Error(1)
+}
+
+// GetRecentlyAdded mocks the GetRecentlyAdded method
+func (m *MockHomeStore) GetRecentlyAdded(limit int) ([]*models.HomeSectionItem, error) {
+	args := m.Called(limit)
+	return args.Get(0).([]*models.HomeSectionItem), args.Error(1)
+}
+
+// GetStartReading mocks the GetStartReading method
+func (m *MockHomeStore) GetStartReading(userID int64, limit int) ([]*models.HomeSectionItem, error) {
+	args := m.Called(userID, limit)
+	return args.Get(0).([]*models.HomeSectionItem), args.Error(1)
+}
 
 func TestHandleGetHomePageDataContinueReading(t *testing.T) {
 	// Setup test server
@@ -18,7 +51,7 @@ func TestHandleGetHomePageDataContinueReading(t *testing.T) {
 	router := server.Router()
 
 	// Create mock store
-	mockStore := &api.MockHomeStore{}
+	mockStore := &MockHomeStore{}
 	server.SetHomeStore(mockStore)
 
 	// Setup mock expectations
@@ -70,7 +103,7 @@ func TestHandleGetHomePageDataNextUp(t *testing.T) {
 	router := server.Router()
 
 	// Create mock store
-	mockStore := &api.MockHomeStore{}
+	mockStore := &MockHomeStore{}
 	server.SetHomeStore(mockStore)
 
 	// Setup mock expectations
@@ -119,7 +152,7 @@ func TestHandleGetHomePageDataRecentlyAdded(t *testing.T) {
 	router := server.Router()
 
 	// Create mock store
-	mockStore := &api.MockHomeStore{}
+	mockStore := &MockHomeStore{}
 	server.SetHomeStore(mockStore)
 
 	// Setup mock expectations
@@ -179,7 +212,7 @@ func TestHandleGetHomePageDataStartReading(t *testing.T) {
 	router := server.Router()
 
 	// Create mock store
-	mockStore := &api.MockHomeStore{}
+	mockStore := &MockHomeStore{}
 	server.SetHomeStore(mockStore)
 
 	// Setup mock expectations
@@ -225,7 +258,7 @@ func TestHandleGetHomePageDataEmptyLibrary(t *testing.T) {
 	router := server.Router()
 
 	// Create mock store
-	mockStore := &api.MockHomeStore{}
+	mockStore := &MockHomeStore{}
 	server.SetHomeStore(mockStore)
 
 	// Setup mock expectations - all return empty
@@ -281,7 +314,7 @@ func TestHandleGetHomePageDataStoreError(t *testing.T) {
 	router := server.Router()
 
 	// Create mock store
-	mockStore := &api.MockHomeStore{}
+	mockStore := &MockHomeStore{}
 	server.SetHomeStore(mockStore)
 
 	// Setup mock expectations - one method returns error
@@ -313,7 +346,7 @@ func TestHandleGetHomePageDataCompleteFlow(t *testing.T) {
 	router := server.Router()
 
 	// Create mock store
-	mockStore := &api.MockHomeStore{}
+	mockStore := &MockHomeStore{}
 	server.SetHomeStore(mockStore)
 
 	// Setup mock expectations with realistic data
