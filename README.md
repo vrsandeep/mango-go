@@ -51,6 +51,12 @@ The recommended way to run Mango-Go in production is using Docker and Docker Com
             - ./data:/app/data
             # Mount your actual manga library on your host machine to /manga inside the container.
             - ./manga:/manga # 👈  This is safe. This project does not modify the manga folder.
+         healthcheck:
+            test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+            start_period: 40s
    ```
 
 2. **Start the Application:**

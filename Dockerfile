@@ -29,7 +29,8 @@ FROM alpine:latest
 
 # Install runtime dependencies. ca-certificates is needed for making HTTPS requests.
 # sqlite-libs provides the .so files needed by the compiled Go binary.
-RUN apk add --no-cache ca-certificates
+# curl is needed for health checks.
+RUN apk add --no-cache ca-certificates curl
 
 # Copy the compiled binary from the builder stage.
 COPY --from=builder /app/build/mango-go /mango-go
