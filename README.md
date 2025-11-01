@@ -144,38 +144,6 @@ You can configure Mango-Go using environment variables:
 
 When using Docker, the `docker-compose.yml` file is configured to store all application data in a `./data` directory on your host machine. Your manga library is mounted directly into the container and is never modified, ensuring your data is safe even if you update or restart the container.
 
-## Features in Detail
-
-### Library Management
-
-- **Automatic Scanning**: The application periodically scans your library for new manga
-- **Thumbnail Generation**: Creates thumbnails for quick browsing
-- **Duplicate Detection**: Identifies and handles duplicate files
-
-### Web Reader
-
-- **Responsive Design**: Optimized for desktop, tablet, and mobile devices
-- **Keyboard Navigation**: Use arrow keys or WASD to navigate pages
-- **Zoom Controls**: Zoom in/out for better reading experience
-- **Reading Progress**: Automatically tracks your reading progress
-
-### User Management
-
-- **Multi-User Support**: Create multiple user accounts
-- **Permission Levels**: Admin and regular user roles
-- **Reading Progress**: Individual progress tracking per user
-
-### Download Manager
-
-- **Multiple Sources**: Download from various manga websites
-- **Queue Management**: Manage download queues and priorities
-- **Automatic Organization**: Downloaded manga is automatically organized
-- **Progress Tracking**: Monitor download progress
-
-### Tagging System
-
-- **Custom Tags**: Create and assign custom tags to manga
-- **Hierarchical Organization**: Create nested tag structures
 
 ## Troubleshooting
 
