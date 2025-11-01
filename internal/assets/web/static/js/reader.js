@@ -342,15 +342,29 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   singlePrevBtn.addEventListener('click', () => {
-    if (state.currentPage > 1) {
-      state.currentPage--;
-      updateSinglePageView();
+    if (state.readingMode === 'continuous') {
+      // In continuous mode, navigate to previous chapter
+      const newChapterId = genPrevChapterId();
+      jumpToChapter(newChapterId);
+    } else {
+      // In single page mode, navigate to previous page
+      if (state.currentPage > 1) {
+        state.currentPage--;
+        updateSinglePageView();
+      }
     }
   });
   singleNextBtn.addEventListener('click', () => {
-    if (state.currentPage < state.chapterData.page_count) {
-      state.currentPage++;
-      updateSinglePageView();
+    if (state.readingMode === 'continuous') {
+      // In continuous mode, navigate to next chapter
+      const newChapterId = genNextChapterId();
+      jumpToChapter(newChapterId);
+    } else {
+      // In single page mode, navigate to next page
+      if (state.currentPage < state.chapterData.page_count) {
+        state.currentPage++;
+        updateSinglePageView();
+      }
     }
   });
   modeSelect.addEventListener('change', e => {
