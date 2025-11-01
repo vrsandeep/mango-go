@@ -26,7 +26,7 @@ var (
 	jobQueue          chan *models.DownloadQueueItem
 	isPaused          bool
 	mu                sync.Mutex
-	numWorkers        = int(math.Min(4, float64(runtime.NumCPU()))) // Number of concurrent downloads
+	numWorkers        = int(math.Min(1, float64(runtime.NumCPU()))) // Number of concurrent downloads
 	ErrDownloadPaused = fmt.Errorf("download paused by user")
 )
 
