@@ -18,9 +18,10 @@ A self-hosted manga server and web reader written in Go. This is a modern rewrit
 
 ## Screenshots
 
-![Home page](screenshots/home.png)
+![Home page](screenshots/home_light.png)
 ![Library](screenshots/library.png)
-![Light theme](screenshots/home_light.png)
+![Admin](screenshots/admin.png)
+![Dark theme](screenshots/home_dark.png)
 
 ## 🚀 Installation & Usage
 
@@ -29,11 +30,6 @@ There are two primary ways to run Mango-Go: via Docker (recommended for producti
 ### 🐳 Option 1: Docker
 
 The recommended way to run Mango-Go in production is using Docker and Docker Compose.
-
-#### Prerequisites
-
-* **Docker**: [Install Docker](https://docs.docker.com/get-docker/)
-* **Docker Compose**: [Install Docker Compose](https://docs.docker.com/compose/install/)
 
 #### Quick Start
 
@@ -77,7 +73,11 @@ The recommended way to run Mango-Go in production is using Docker and Docker Com
 4. **Access Mango-Go:**
    Open your web browser and navigate to `http://localhost:8080`. Log in with the admin credentials and change the password immediately via the Admin > User Management page.
 
-### Option 2: Standalone Binary
+## Option 2: Use binary from release
+
+Go to [Releases](https://github.com/vrsandeep/mango-go/releases) and download a binary of your OS. Follow Configure section from next option.
+
+### Option 3: Build Binary
 
 The application can be compiled into a single, portable binary file that contains all necessary web assets and migrations.
 
@@ -126,7 +126,6 @@ manga/
 
 - **Comic Book Archives**: `.cbz`, `.cbr`, `.cb7`
 - **Compressed Archives**: `.zip`, `.rar`, `.7z`
-- **Individual Images**: `.jpg`, `.jpeg`, `.png`, `.webp`
 
 ## Configuration
 
@@ -201,11 +200,8 @@ docker-compose logs
 ## Support
 
 - 🐞 **Issues**: Report bugs and request features on [GitHub Issues](https://github.com/vrsandeep/mango-go/issues)
-- ✨ **Documentation**: For contribution guidelines, see [Development.md](Development.md)
+- ✨ **Documentation**: For contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md)
 
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 
