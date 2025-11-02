@@ -107,6 +107,11 @@ func (s *Server) handleProxyResource(w http.ResponseWriter, r *http.Request) {
 
 	// Copy content type from the original response
 	contentType := resp.Header.Get("Content-Type")
+	// Trim any charset or other parameters
+	if strings.Contains(contentType, ";") {
+		contentType = strings.Split(contentType, ";")[0]
+		contentType = strings.TrimSpace(contentType)
+	}
 	if contentType == "" {
 		// Try to infer from extension
 		contentType = inferContentType(resourceURL)

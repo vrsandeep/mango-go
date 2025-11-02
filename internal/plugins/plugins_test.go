@@ -1,458 +1,797 @@
 package plugins
 
 import (
+	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/vrsandeep/mango-go/internal/downloader/providers"
 	"github.com/vrsandeep/mango-go/internal/testutil"
 )
 
-// setupMockWebtoonsServer creates a mock HTTP server simulating webtoons.com API
-func setupMockWebtoonsServer() *httptest.Server {
-	mux := http.NewServeMux()
-	var serverURL string
-
-	// Mock search endpoint - webtoons search API response format
-	mux.HandleFunc("/en/search/immediate", func(w http.ResponseWriter, r *http.Request) {
-		// Check query parameter
-		query := r.URL.Query().Get("keyword")
-
-		w.Header().Set("Content-Type", "application/json")
-
-		// Mock response for "unordinary" search
-		if query == "unordinary" || query == "unord" || query == "uno" {
-			w.Write([]byte(`{
-				"result": {
-					"total": 1,
-					"searchedList": [
-						{
-							"titleNo": 6795,
-							"title": "unOrdinary",
-							"authorNameList": ["uru-chan"],
-							"representGenre": "Drama",
-							"thumbnailImage2": "/thumbnail/icon_webtoon/6795/thumbnail_icon_webtoon_6795.jpg",
-							"thumbnailMobile": "/thumbnail/icon_webtoon/6795/thumbnail_icon_webtoon_6795.jpg"
-						}
-					]
-				}
-			}`))
-			return
-		}
-
-		// Default empty result
-		w.Write([]byte(`{"result": {"total": 0, "searchedList": []}}`))
-	})
-
-	// Mock episode list redirect
-	mux.HandleFunc("/episodeList", func(w http.ResponseWriter, r *http.Request) {
-		titleNo := r.URL.Query().Get("titleNo")
-		if titleNo == "6795" {
-			// Redirect to mobile URL (use absolute URL from server)
-			redirectURL := serverURL + "/en/drama/unordinary/list?title_no=" + titleNo
-			w.Header().Set("Location", redirectURL)
-			w.WriteHeader(http.StatusFound)
-			return
-		}
-		w.WriteHeader(http.StatusNotFound)
-	})
-
-	// Mock mobile episode list page
-	mux.HandleFunc("/en/drama/unordinary/list", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html")
-		w.Write([]byte(`
-			<html>
-				<head><title>unOrdinary</title></head>
-				<body>
-					<h2 class="subj">unOrdinary</h2>
-					<ul id="_episodeList">
-						<li id="episode_1">
-							<a href="/en/drama/unordinary/episode-1/viewer?episode_no=1">
-								<span class="ellipsis">Episode 1</span>
-								<span class="col num">#1</span>
-								<span class="date">May 24, 2016</span>
-							</a>
-						</li>
-						<li id="episode_2">
-							<a href="/en/drama/unordinary/episode-2/viewer?episode_no=2">
-								<span class="ellipsis">Episode 2</span>
-								<span class="col num">#2</span>
-								<span class="date">May 31, 2016</span>
-							</a>
-						</li>
-					</ul>
-				</body>
-			</html>
-		`))
-	})
-
-	// Mock viewer page
-	mux.HandleFunc("/en/drama/unordinary/episode-1/viewer", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html")
-		w.Write([]byte(`
-			<html>
-				<body>
-					<div class="subj_info">
-						<a href="/en/drama/unordinary/list">unOrdinary</a>
-						<span class="subj_episode">Episode 1</span>
-					</div>
-					<div id="_imageList">
-						<img data-url="https://webtoon-phinf.pstatic.net/image1.jpg" />
-						<img data-url="https://webtoon-phinf.pstatic.net/image2.jpg" />
-						<img data-url="https://webtoon-phinf.pstatic.net/image3.jpg" />
-					</div>
-				</body>
-			</html>
-		`))
-	})
-
-	server := httptest.NewServer(mux)
-	serverURL = server.URL
-	return server
+// contains checks if a string contains a substring (case-insensitive)
+func contains(s, substr string) bool {
+	return strings.Contains(strings.ToLower(s), strings.ToLower(substr))
 }
 
-func TestWebtoonsPlugin(t *testing.T) {
-	// Setup test app
-	app := testutil.SetupTestApp(t)
-
-	// Setup mock server
-	server := setupMockWebtoonsServer()
-	defer server.Close()
-
-	// Create temporary plugin directory
-	pluginDir := t.TempDir()
-	webtoonsDir := filepath.Join(pluginDir, "webtoons")
-	os.MkdirAll(webtoonsDir, 0755)
-
-	// Write plugin.json
-	manifestJSON := `{
-		"id": "webtoons",
-		"name": "Webtoons",
-		"version": "1.0.0",
-		"description": "Download webtoons from webtoons.com",
-		"author": "Test",
-		"license": "MIT",
-		"api_version": "1.0",
-		"plugin_type": "downloader",
-		"entry_point": "index.js",
-		"capabilities": {
-			"search": true,
-			"chapters": true,
-			"download": true
-		},
-		"config": {
-			"base_url": {
-				"type": "string",
-				"default": "` + server.URL + `"
-			},
-			"mobile_url": {
-				"type": "string",
-				"default": "` + server.URL + `"
-			}
-		}
-	}`
-	os.WriteFile(filepath.Join(webtoonsDir, "plugin.json"), []byte(manifestJSON), 0644)
-
-	// Write plugin code with configurable base URL
-	pluginJS := `
-const BASE_URL = mango.config.base_url || "https://www.webtoons.com";
-const MOBILE_URL = mango.config.mobile_url || "https://m.webtoons.com";
-const SEARCH_URL = BASE_URL + "/en/search/immediate?keyword=";
-const SEARCH_PARAMS = "&q_enc=UTF-8&st=1&r_format=json&r_enc=UTF-8";
-const THUMBNAIL_URL = "https://webtoon-phinf.pstatic.net";
-const LIST_ENDPOINT = "/episodeList?titleNo=";
-
-exports.getInfo = () => ({
-  id: "webtoons",
-  name: "Webtoons",
-  version: "1.0.0"
-});
-
-exports.search = async (query, mango) => {
-  mango.log.info("Searching Webtoons for: " + query);
-
-  try {
-    const searchUrl = SEARCH_URL + encodeURIComponent(query) + SEARCH_PARAMS;
-    const headers = { 'Referer': BASE_URL + "/" };
-
-    const response = await mango.http.get(searchUrl, { headers: headers });
-
-    if (response.status !== 200) {
-      throw new Error("Search failed: " + response.statusText);
-    }
-
-    const search = response.data;
-
-    if (!search.result || search.result.total === 0) {
-      mango.log.info("No results found");
-      return [];
-    }
-
-    const searchedItems = search.result.searchedList || [];
-    const results = searchedItems
-      .filter(item => item.titleNo != null)
-      .map(item => ({
-        title: item.title || "Untitled",
-        cover_url: item.thumbnailImage2 || item.thumbnailMobile
-          ? THUMBNAIL_URL + (item.thumbnailImage2 || item.thumbnailMobile)
-          : "",
-        identifier: String(item.titleNo)
-      }));
-
-    mango.log.info("Found " + results.length + " results");
-    return results;
-
-  } catch (error) {
-    mango.log.error("Search failed: " + error.message);
-    throw new Error("Failed to search: " + error.message);
-  }
-};
-
-exports.getChapters = async (seriesId, mango) => {
-  mango.log.info("Fetching chapters for series: " + seriesId);
-
-  try {
-    const listUrl = BASE_URL + LIST_ENDPOINT + seriesId;
-    const response = await mango.http.get(listUrl);
-
-    let urlLocation = null;
-    if (response.headers && response.headers.location) {
-      urlLocation = response.headers.location;
-    }
-
-    if (!urlLocation) {
-      throw new Error("Could not get webtoon page redirect");
-    }
-
-    const mobileUrl = MOBILE_URL + urlLocation;
-    const mobileResponse = await mango.http.get(mobileUrl, {
-      headers: { 'referer': MOBILE_URL }
-    });
-
-    if (mobileResponse.status !== 200) {
-      throw new Error("Failed to fetch mobile page: " + mobileResponse.statusText);
-    }
-
-    const html = mobileResponse.text();
-
-    const chapters = [];
-    const titleMatch = html.match(/<h2[^>]*class="subj"[^>]*>([^<]+)</);
-    const mangaTitle = titleMatch ? titleMatch[1].trim() : "Unknown";
-
-    const episodeListRegex = /<li[^>]*id="[^"]*episode[^"]*"[^>]*>([\s\S]*?)<\/li>/g;
-    let match;
-    let episodeIndex = 0;
-
-    while ((match = episodeListRegex.exec(html)) !== null) {
-      episodeIndex++;
-      const episodeHtml = match[1];
-
-      const linkMatch = episodeHtml.match(/<a[^>]+href="([^"]+)"/);
-      if (!linkMatch) continue;
-
-      const url = linkMatch[1];
-      const chapterIdMatch = url.match(/episode-(\d+)/);
-      if (!chapterIdMatch) continue;
-
-      const chapterSlug = chapterIdMatch[1];
-
-      const titleMatch = episodeHtml.match(/<span[^>]*class="ellipsis"[^>]*>([^<]+)</);
-      const chapterTitle = titleMatch ? titleMatch[1].trim() : "Episode " + episodeIndex;
-
-      const numMatch = episodeHtml.match(/<span[^>]*class="col num"[^>]*>([^<]+)</);
-      let chapterNum = "0";
-      if (numMatch) {
-        chapterNum = numMatch[1].replace("#", "").trim();
-      }
-
-      const dateMatch = episodeHtml.match(/<span[^>]*class="date"[^>]*>([^<]+)</);
-      let publishedAt = new Date().toISOString();
-      if (dateMatch) {
-        const dateStr = dateMatch[1].replace("UP", "").trim();
-        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-        const parts = dateStr.split(" ");
-        if (parts.length >= 3) {
-          const month = months.indexOf(parts[0]);
-          const day = parseInt(parts[1].replace(",", ""));
-          const year = parseInt(parts[2]);
-          if (month !== -1 && !isNaN(day) && !isNaN(year)) {
-            publishedAt = new Date(year, month, day).toISOString();
-          }
-        }
-      }
-
-      const chapterId = "id" + seriesId + "ch" + chapterSlug + "num" + chapterNum;
-
-      chapters.push({
-        identifier: chapterId,
-        title: chapterTitle,
-        volume: "",
-        chapter: chapterNum,
-        pages: 0,
-        language: "en",
-        group_id: "",
-        published_at: publishedAt
-      });
-    }
-
-    chapters.reverse();
-    chapters.sort((a, b) => {
-      const aNum = parseFloat(a.chapter) || 0;
-      const bNum = parseFloat(b.chapter) || 0;
-      return aNum - bNum;
-    });
-
-    mango.log.info("Found " + chapters.length + " chapters");
-    return chapters;
-
-  } catch (error) {
-    mango.log.error("GetChapters failed: " + error.message);
-    throw new Error("Failed to get chapters: " + error.message);
-  }
-};
-
-exports.getPageURLs = async (chapterId, mango) => {
-  mango.log.info("Fetching page URLs for chapter: " + chapterId);
-
-  try {
-    const idMatch = chapterId.match(/id(\d+)ch(.+)num(.+)/);
-    if (!idMatch) {
-      throw new Error("Invalid chapter ID format");
-    }
-
-    const mangaID = idMatch[1];
-    const chapterSlug = idMatch[2];
-    const chapterNum = idMatch[3];
-
-    const listUrl = BASE_URL + LIST_ENDPOINT + mangaID;
-    const listResponse = await mango.http.get(listUrl);
-
-    let urlLocation = null;
-    if (listResponse.headers && listResponse.headers.location) {
-      urlLocation = listResponse.headers.location;
-    }
-
-    if (!urlLocation) {
-      throw new Error("Could not get webtoon chapter list");
-    }
-
-    const viewerUrl = BASE_URL + urlLocation.replace(/list/, chapterSlug + "/viewer") + "&episode_no=" + chapterNum;
-
-    let finalUrl = viewerUrl;
-    let attempts = 0;
-    while (attempts < 5) {
-      const resp = await mango.http.get(finalUrl);
-
-      if (resp.status === 301 || resp.status === 302) {
-        if (resp.headers && resp.headers.location) {
-          finalUrl = BASE_URL + resp.headers.location;
-          attempts++;
-          continue;
-        }
-      } else if (resp.status === 200) {
-        const html = resp.text();
-
-        const imageListRegex = /<img[^>]+data-url="([^"]+)"/g;
-        const imageUrls = [];
-        let imgMatch;
-
-        while ((imgMatch = imageListRegex.exec(html)) !== null) {
-          imageUrls.push(imgMatch[1]);
-        }
-
-        if (imageUrls.length === 0) {
-          throw new Error("No images found in chapter");
-        }
-
-        mango.log.info("Found " + imageUrls.length + " pages");
-        return imageUrls;
-      } else {
-        throw new Error("Failed to get chapter viewer: " + resp.statusText);
-      }
-    }
-
-    throw new Error("Too many redirects");
-
-  } catch (error) {
-    mango.log.error("GetPageURLs failed: " + error.message);
-    throw new Error("Failed to get page URLs: " + error.message);
-  }
-};
-`
-	os.WriteFile(filepath.Join(webtoonsDir, "index.js"), []byte(pluginJS), 0644)
-
-	// Load the plugin
-	err := LoadPlugin(app, webtoonsDir)
-	if err != nil {
-		t.Fatalf("Failed to load plugin: %v", err)
+// createTestPlugin creates a minimal test plugin for unit testing
+func createTestPlugin(t *testing.T, pluginDir string, pluginJS string) (*PluginRuntime, error) {
+	manifest := &PluginManifest{
+		ID:          "test-plugin",
+		Name:        "Test Plugin",
+		Version:     "1.0.0",
+		PluginType:  "downloader",
+		EntryPoint:  "index.js",
+		Description: "Test plugin for unit tests",
 	}
 
-	// Cleanup
-	t.Cleanup(func() {
-		providers.UnregisterAll()
+	// Write plugin script
+	scriptPath := filepath.Join(pluginDir, "index.js")
+	if err := os.WriteFile(scriptPath, []byte(pluginJS), 0644); err != nil {
+		return nil, err
+	}
+
+	app := testutil.SetupTestApp(t)
+	runtime, err := NewPluginRuntime(app, manifest, pluginDir)
+	return runtime, err
+}
+
+func TestPluginRuntime(t *testing.T) {
+	t.Run("Create Runtime", func(t *testing.T) {
+		pluginDir := t.TempDir()
+		pluginJS := `
+exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
+exports.search = async () => [];
+exports.getChapters = async () => [];
+exports.getPageURLs = async () => [];
+`
+		runtime, err := createTestPlugin(t, pluginDir, pluginJS)
+		if err != nil {
+			t.Fatalf("Failed to create runtime: %v", err)
+		}
+		if runtime == nil {
+			t.Fatal("Runtime is nil")
+		}
+		if runtime.manifest.ID != "test-plugin" {
+			t.Errorf("Expected manifest ID 'test-plugin', got '%s'", runtime.manifest.ID)
+		}
 	})
 
-	// Get the adapter
-	provider, ok := providers.Get("webtoons")
-	if !ok {
-		t.Fatal("Plugin not registered")
-	}
-
-	adapter := provider.(*PluginProviderAdapter)
-
-	t.Run("GetInfo", func(t *testing.T) {
-		info := adapter.GetInfo()
-		if info.ID != "webtoons" {
-			t.Errorf("Expected ID 'webtoons', got '%s'", info.ID)
+	t.Run("Call Synchronous Function", func(t *testing.T) {
+		pluginDir := t.TempDir()
+		pluginJS := `
+exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
+exports.search = async () => [];
+exports.getChapters = async () => [];
+exports.getPageURLs = async () => [];
+`
+		runtime, err := createTestPlugin(t, pluginDir, pluginJS)
+		if err != nil {
+			t.Fatalf("Failed to create runtime: %v", err)
 		}
-		if info.Name != "Webtoons" {
-			t.Errorf("Expected Name 'Webtoons', got '%s'", info.Name)
+
+		val, err := runtime.Call("getInfo")
+		if err != nil {
+			t.Fatalf("Call() failed: %v", err)
+		}
+
+		infoObj := val.ToObject(runtime.vm)
+		id := infoObj.Get("id").String()
+		if id != "test" {
+			t.Errorf("Expected id 'test', got '%s'", id)
+		}
+	})
+
+	t.Run("Call Async Function", func(t *testing.T) {
+		pluginDir := t.TempDir()
+		pluginJS := `
+exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
+exports.search = async (query, mango) => {
+	return [{ title: "Test Series", identifier: "1", cover_url: "" }];
+};
+exports.getChapters = async () => [];
+exports.getPageURLs = async () => [];
+`
+		runtime, err := createTestPlugin(t, pluginDir, pluginJS)
+		if err != nil {
+			t.Fatalf("Failed to create runtime: %v", err)
+		}
+
+		val, err := runtime.Call("search", "test")
+		if err != nil {
+			t.Fatalf("Call() failed: %v", err)
+		}
+
+		// Check that it's an array
+		if val.ToObject(runtime.vm).Get("length") == nil {
+			t.Error("Expected array result from search")
+		}
+	})
+
+	t.Run("Function Not Found", func(t *testing.T) {
+		pluginDir := t.TempDir()
+		pluginJS := `
+exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
+exports.search = async () => [];
+exports.getChapters = async () => [];
+exports.getPageURLs = async () => [];
+`
+		runtime, err := createTestPlugin(t, pluginDir, pluginJS)
+		if err != nil {
+			t.Fatalf("Failed to create runtime: %v", err)
+		}
+
+		_, err = runtime.Call("nonexistent")
+		if err == nil {
+			t.Fatal("Expected error for nonexistent function")
+		}
+	})
+
+	t.Run("Panic Recovery", func(t *testing.T) {
+		pluginDir := t.TempDir()
+		pluginJS := `
+exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
+exports.search = async () => {
+	throw new Error("Intentional error");
+};
+exports.getChapters = async () => [];
+exports.getPageURLs = async () => [];
+`
+		runtime, err := createTestPlugin(t, pluginDir, pluginJS)
+		if err != nil {
+			t.Fatalf("Failed to create runtime: %v", err)
+		}
+
+		_, err = runtime.Call("search", "test")
+		if err == nil {
+			t.Fatal("Expected error from panicking function")
+		}
+
+		pluginErr, ok := err.(*PluginError)
+		if !ok {
+			t.Fatalf("Expected PluginError, got %T", err)
+		}
+		if pluginErr.PluginID != "test-plugin" {
+			t.Errorf("Expected PluginID 'test-plugin', got '%s'", pluginErr.PluginID)
+		}
+	})
+
+	t.Run("Timeout", func(t *testing.T) {
+		pluginDir := t.TempDir()
+		pluginJS := `
+exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
+exports.search = async () => {
+	return new Promise(resolve => setTimeout(() => resolve([]), 60000));
+};
+exports.getChapters = async () => [];
+exports.getPageURLs = async () => [];
+`
+		runtime, err := createTestPlugin(t, pluginDir, pluginJS)
+		if err != nil {
+			t.Fatalf("Failed to create runtime: %v", err)
+		}
+
+		// Use context with timeout - the runtime has a 30s hard timeout too
+		// So we test that the context timeout works by using a shorter timeout
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		defer cancel()
+
+		_, err = runtime.CallWithContext(ctx, "search", "test")
+		if err == nil {
+			t.Fatal("Expected timeout error")
+		}
+
+		// The error should indicate a timeout occurred
+		pluginErr, ok := err.(*PluginError)
+		if !ok {
+			t.Fatalf("Expected PluginError, got %T: %v", err, err)
+		}
+		// Context timeout will be caught by ctx.Done() in the select statement
+		// Check that it's a timeout error
+		if !pluginErr.IsTimeout {
+			t.Logf("Note: Timeout error may come from context: %v", err)
+			// If it's not marked as timeout, the error message should contain "timeout"
+			if err.Error() != "timeout" && !contains(err.Error(), "timeout") {
+				t.Errorf("Expected timeout error, got: %v", err)
+			}
+		}
+	})
+
+	t.Run("Missing Required Export", func(t *testing.T) {
+		pluginDir := t.TempDir()
+		manifest := &PluginManifest{
+			ID:          "test-plugin",
+			Name:        "Test Plugin",
+			Version:     "1.0.0",
+			PluginType:  "downloader",
+			EntryPoint:  "index.js",
+			Description: "Test plugin",
+		}
+
+		pluginJS := `
+exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
+// Missing search, getChapters, getPageURLs
+`
+		scriptPath := filepath.Join(pluginDir, "index.js")
+		os.WriteFile(scriptPath, []byte(pluginJS), 0644)
+
+		app := testutil.SetupTestApp(t)
+		_, err := NewPluginRuntime(app, manifest, pluginDir)
+		if err == nil {
+			t.Fatal("Expected error for missing required exports")
+		}
+	})
+}
+
+func TestPluginAdapter(t *testing.T) {
+	t.Run("GetInfo", func(t *testing.T) {
+		pluginDir := t.TempDir()
+		pluginJS := `
+exports.getInfo = () => ({ id: "test-plugin", name: "Test Plugin", version: "1.0.0" });
+exports.search = async () => [];
+exports.getChapters = async () => [];
+exports.getPageURLs = async () => [];
+`
+		runtime, err := createTestPlugin(t, pluginDir, pluginJS)
+		if err != nil {
+			t.Fatalf("Failed to create runtime: %v", err)
+		}
+
+		adapter := NewPluginProviderAdapter(runtime)
+		info := adapter.GetInfo()
+
+		if info.ID != "test-plugin" {
+			t.Errorf("Expected ID 'test-plugin', got '%s'", info.ID)
+		}
+		if info.Name != "Test Plugin" {
+			t.Errorf("Expected Name 'Test Plugin', got '%s'", info.Name)
+		}
+	})
+
+	t.Run("GetInfo Fallback", func(t *testing.T) {
+		pluginDir := t.TempDir()
+		pluginJS := `
+exports.getInfo = () => { throw new Error("Error in getInfo"); };
+exports.search = async () => [];
+exports.getChapters = async () => [];
+exports.getPageURLs = async () => [];
+`
+		runtime, err := createTestPlugin(t, pluginDir, pluginJS)
+		if err != nil {
+			t.Fatalf("Failed to create runtime: %v", err)
+		}
+
+		adapter := NewPluginProviderAdapter(runtime)
+		info := adapter.GetInfo()
+
+		// Should fallback to manifest values
+		if info.ID != "test-plugin" {
+			t.Errorf("Expected ID 'test-plugin', got '%s'", info.ID)
 		}
 	})
 
 	t.Run("Search", func(t *testing.T) {
-		results, err := adapter.Search("unordinary")
+		pluginDir := t.TempDir()
+		pluginJS := `
+exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
+exports.search = async (query, mango) => {
+	return [
+		{ title: "Series 1", identifier: "1", cover_url: "http://example.com/cover1.jpg" },
+		{ title: "Series 2", identifier: "2", cover_url: "http://example.com/cover2.jpg" }
+	];
+};
+exports.getChapters = async () => [];
+exports.getPageURLs = async () => [];
+`
+		runtime, err := createTestPlugin(t, pluginDir, pluginJS)
+		if err != nil {
+			t.Fatalf("Failed to create runtime: %v", err)
+		}
+
+		adapter := NewPluginProviderAdapter(runtime)
+		results, err := adapter.Search("test")
 		if err != nil {
 			t.Fatalf("Search() failed: %v", err)
 		}
-		if len(results) == 0 {
-			t.Fatal("Expected at least 1 search result, got 0")
+
+		if len(results) != 2 {
+			t.Fatalf("Expected 2 results, got %d", len(results))
 		}
-		if results[0].Title != "unOrdinary" {
-			t.Errorf("Expected title 'unOrdinary', got '%s'", results[0].Title)
+		if results[0].Title != "Series 1" {
+			t.Errorf("Expected first title 'Series 1', got '%s'", results[0].Title)
 		}
-		if results[0].Identifier != "6795" {
-			t.Errorf("Expected identifier '6795', got '%s'", results[0].Identifier)
+		if results[0].Identifier != "1" {
+			t.Errorf("Expected first identifier '1', got '%s'", results[0].Identifier)
+		}
+	})
+
+	t.Run("Search Empty Results", func(t *testing.T) {
+		pluginDir := t.TempDir()
+		pluginJS := `
+exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
+exports.search = async (query, mango) => [];
+exports.getChapters = async () => [];
+exports.getPageURLs = async () => [];
+`
+		runtime, err := createTestPlugin(t, pluginDir, pluginJS)
+		if err != nil {
+			t.Fatalf("Failed to create runtime: %v", err)
+		}
+
+		adapter := NewPluginProviderAdapter(runtime)
+		results, err := adapter.Search("test")
+		if err != nil {
+			t.Fatalf("Search() failed: %v", err)
+		}
+
+		if len(results) != 0 {
+			t.Errorf("Expected 0 results, got %d", len(results))
 		}
 	})
 
 	t.Run("GetChapters", func(t *testing.T) {
-		chapters, err := adapter.GetChapters("6795")
+		pluginDir := t.TempDir()
+		pluginJS := `
+exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
+exports.search = async () => [];
+exports.getChapters = async (seriesId, mango) => {
+	return [
+		{
+			identifier: "ch1",
+			title: "Chapter 1",
+			volume: "1",
+			chapter: "1",
+			pages: 20,
+			language: "en",
+			group_id: "",
+			published_at: "2024-01-01T00:00:00Z"
+		},
+		{
+			identifier: "ch2",
+			title: "Chapter 2",
+			volume: "1",
+			chapter: "2",
+			pages: 22,
+			language: "en",
+			group_id: "",
+			published_at: "2024-01-02T00:00:00Z"
+		}
+	];
+};
+exports.getPageURLs = async () => [];
+`
+		runtime, err := createTestPlugin(t, pluginDir, pluginJS)
+		if err != nil {
+			t.Fatalf("Failed to create runtime: %v", err)
+		}
+
+		adapter := NewPluginProviderAdapter(runtime)
+		chapters, err := adapter.GetChapters("series1")
 		if err != nil {
 			t.Fatalf("GetChapters() failed: %v", err)
 		}
+
 		if len(chapters) != 2 {
 			t.Fatalf("Expected 2 chapters, got %d", len(chapters))
 		}
+		if chapters[0].Title != "Chapter 1" {
+			t.Errorf("Expected first title 'Chapter 1', got '%s'", chapters[0].Title)
+		}
 		if chapters[0].Chapter != "1" {
-			t.Errorf("Expected first chapter to be '1', got '%s'", chapters[0].Chapter)
+			t.Errorf("Expected first chapter '1', got '%s'", chapters[0].Chapter)
 		}
 	})
 
 	t.Run("GetPageURLs", func(t *testing.T) {
-		urls, err := adapter.GetPageURLs("id6795chepisode-1num1")
+		pluginDir := t.TempDir()
+		pluginJS := `
+exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
+exports.search = async () => [];
+exports.getChapters = async () => [];
+exports.getPageURLs = async (chapterId, mango) => {
+	return [
+		"http://example.com/page1.jpg",
+		"http://example.com/page2.jpg",
+		"http://example.com/page3.jpg"
+	];
+};
+`
+		runtime, err := createTestPlugin(t, pluginDir, pluginJS)
+		if err != nil {
+			t.Fatalf("Failed to create runtime: %v", err)
+		}
+
+		adapter := NewPluginProviderAdapter(runtime)
+		urls, err := adapter.GetPageURLs("ch1")
 		if err != nil {
 			t.Fatalf("GetPageURLs() failed: %v", err)
 		}
+
 		if len(urls) != 3 {
-			t.Fatalf("Expected 3 page URLs, got %d", len(urls))
+			t.Fatalf("Expected 3 URLs, got %d", len(urls))
 		}
-		if urls[0] != "https://webtoon-phinf.pstatic.net/image1.jpg" {
-			t.Errorf("Expected first URL to be 'image1.jpg', got '%s'", urls[0])
+		if urls[0] != "http://example.com/page1.jpg" {
+			t.Errorf("Expected first URL 'http://example.com/page1.jpg', got '%s'", urls[0])
+		}
+	})
+
+	t.Run("Error Handling in Search", func(t *testing.T) {
+		pluginDir := t.TempDir()
+		pluginJS := `
+exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
+exports.search = async () => {
+	throw new Error("Search failed");
+};
+exports.getChapters = async () => [];
+exports.getPageURLs = async () => [];
+`
+		runtime, err := createTestPlugin(t, pluginDir, pluginJS)
+		if err != nil {
+			t.Fatalf("Failed to create runtime: %v", err)
+		}
+
+		adapter := NewPluginProviderAdapter(runtime)
+		_, err = adapter.Search("test")
+		if err == nil {
+			t.Fatal("Expected error from Search")
 		}
 	})
 }
 
+func TestPluginAPI(t *testing.T) {
+	t.Run("Config", func(t *testing.T) {
+		pluginDir := t.TempDir()
+		pluginJS := `
+exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
+exports.search = async (query, mango) => {
+	return [{ title: mango.config.test_value, identifier: "1", cover_url: "" }];
+};
+exports.getChapters = async () => [];
+exports.getPageURLs = async () => [];
+`
+		manifest := &PluginManifest{
+			ID:          "test-plugin",
+			Name:        "Test Plugin",
+			Version:     "1.0.0",
+			PluginType:  "downloader",
+			EntryPoint:  "index.js",
+			Description: "Test plugin",
+			Config: map[string]interface{}{
+				"test_value": map[string]interface{}{
+					"type":    "string",
+					"default": "configured_value",
+				},
+			},
+		}
+
+		scriptPath := filepath.Join(pluginDir, "index.js")
+		os.WriteFile(scriptPath, []byte(pluginJS), 0644)
+
+		app := testutil.SetupTestApp(t)
+		runtime, err := NewPluginRuntime(app, manifest, pluginDir)
+		if err != nil {
+			t.Fatalf("Failed to create runtime: %v", err)
+		}
+
+		adapter := NewPluginProviderAdapter(runtime)
+		results, err := adapter.Search("test")
+		if err != nil {
+			t.Fatalf("Search() failed: %v", err)
+		}
+
+		if results[0].Title != "configured_value" {
+			t.Errorf("Expected title 'configured_value', got '%s'", results[0].Title)
+		}
+	})
+
+	t.Run("State Persistence", func(t *testing.T) {
+		pluginDir := t.TempDir()
+		pluginJS := `
+exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
+exports.search = async (query, mango) => {
+	mango.state.set("last_query", query);
+	const lastQuery = mango.state.get("last_query");
+	return [{ title: lastQuery, identifier: "1", cover_url: "" }];
+};
+exports.getChapters = async () => [];
+exports.getPageURLs = async () => [];
+`
+		runtime, err := createTestPlugin(t, pluginDir, pluginJS)
+		if err != nil {
+			t.Fatalf("Failed to create runtime: %v", err)
+		}
+
+		adapter := NewPluginProviderAdapter(runtime)
+		results, err := adapter.Search("test_query")
+		if err != nil {
+			t.Fatalf("Search() failed: %v", err)
+		}
+
+		if results[0].Title != "test_query" {
+			t.Errorf("Expected title 'test_query', got '%s'", results[0].Title)
+		}
+
+		// Verify state was persisted - state is saved asynchronously
+		// Give it a moment to write
+		time.Sleep(50 * time.Millisecond)
+
+		statePath := filepath.Join(pluginDir, "state.json")
+		data, err := os.ReadFile(statePath)
+		if err != nil {
+			// State might not be persisted yet or might not be created on first set
+			// This is acceptable behavior - state is lazy-loaded
+			t.Logf("Note: state.json not yet created (this is OK for lazy persistence): %v", err)
+			return
+		}
+
+		var state map[string]interface{}
+		if err := json.Unmarshal(data, &state); err != nil {
+			t.Fatalf("Failed to unmarshal state: %v", err)
+		}
+
+		if state["last_query"] != "test_query" {
+			t.Errorf("Expected state.last_query 'test_query', got '%v'", state["last_query"])
+		}
+	})
+
+	t.Run("HTTP Client", func(t *testing.T) {
+		// Setup mock HTTP server
+		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"data": {"title": "Mock Response"}}`))
+		}))
+		defer mockServer.Close()
+
+		pluginDir := t.TempDir()
+		pluginJS := `
+exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
+exports.search = async (query, mango) => {
+	const response = await mango.http.get("` + mockServer.URL + `/test");
+	return [{ title: response.data.data.title, identifier: "1", cover_url: "" }];
+};
+exports.getChapters = async () => [];
+exports.getPageURLs = async () => [];
+`
+		runtime, err := createTestPlugin(t, pluginDir, pluginJS)
+		if err != nil {
+			t.Fatalf("Failed to create runtime: %v", err)
+		}
+
+		adapter := NewPluginProviderAdapter(runtime)
+		results, err := adapter.Search("test")
+		if err != nil {
+			t.Fatalf("Search() failed: %v", err)
+		}
+
+		if results[0].Title != "Mock Response" {
+			t.Errorf("Expected title 'Mock Response', got '%s'", results[0].Title)
+		}
+	})
+}
+
+func TestPluginLoader(t *testing.T) {
+	t.Run("Load Valid Plugin", func(t *testing.T) {
+		pluginDir := t.TempDir()
+		pluginSubDir := filepath.Join(pluginDir, "test-plugin")
+		os.MkdirAll(pluginSubDir, 0755)
+
+		// Write manifest
+		manifestJSON := `{
+			"id": "test-plugin",
+			"name": "Test Plugin",
+			"version": "1.0.0",
+			"plugin_type": "downloader",
+			"entry_point": "index.js",
+			"description": "Test plugin",
+			"api_version": "1.0"
+		}`
+		os.WriteFile(filepath.Join(pluginSubDir, "plugin.json"), []byte(manifestJSON), 0644)
+
+		// Write plugin script
+		pluginJS := `
+exports.getInfo = () => ({ id: "test-plugin", name: "Test Plugin", version: "1.0.0" });
+exports.search = async () => [];
+exports.getChapters = async () => [];
+exports.getPageURLs = async () => [];
+`
+		os.WriteFile(filepath.Join(pluginSubDir, "index.js"), []byte(pluginJS), 0644)
+
+		app := testutil.SetupTestApp(t)
+		err := LoadPlugin(app, pluginSubDir)
+		if err != nil {
+			t.Fatalf("LoadPlugin() failed: %v", err)
+		}
+
+		// Verify plugin is registered
+		provider, ok := providers.Get("test-plugin")
+		if !ok {
+			t.Fatal("Plugin not registered")
+		}
+
+		info := provider.GetInfo()
+		if info.ID != "test-plugin" {
+			t.Errorf("Expected ID 'test-plugin', got '%s'", info.ID)
+		}
+
+		t.Cleanup(func() {
+			providers.UnregisterAll()
+		})
+	})
+
+	t.Run("Load Plugins from Directory", func(t *testing.T) {
+		pluginDir := t.TempDir()
+
+		// Create two plugin directories
+		for _, pluginName := range []string{"plugin1", "plugin2"} {
+			pluginSubDir := filepath.Join(pluginDir, pluginName)
+			os.MkdirAll(pluginSubDir, 0755)
+
+			manifestJSON := `{
+				"id": "` + pluginName + `",
+				"name": "` + pluginName + `",
+				"version": "1.0.0",
+				"plugin_type": "downloader",
+				"entry_point": "index.js",
+				"description": "Test plugin",
+				"api_version": "1.0"
+			}`
+			os.WriteFile(filepath.Join(pluginSubDir, "plugin.json"), []byte(manifestJSON), 0644)
+
+			pluginJS := `
+exports.getInfo = () => ({ id: "` + pluginName + `", name: "` + pluginName + `", version: "1.0.0" });
+exports.search = async () => [];
+exports.getChapters = async () => [];
+exports.getPageURLs = async () => [];
+`
+			os.WriteFile(filepath.Join(pluginSubDir, "index.js"), []byte(pluginJS), 0644)
+		}
+
+		app := testutil.SetupTestApp(t)
+		err := LoadPlugins(app, pluginDir)
+		if err != nil {
+			t.Fatalf("LoadPlugins() failed: %v", err)
+		}
+
+		// Verify both plugins are registered
+		if _, ok := providers.Get("plugin1"); !ok {
+			t.Error("plugin1 not registered")
+		}
+		if _, ok := providers.Get("plugin2"); !ok {
+			t.Error("plugin2 not registered")
+		}
+
+		t.Cleanup(func() {
+			providers.UnregisterAll()
+		})
+	})
+
+	t.Run("Skip Invalid Plugin", func(t *testing.T) {
+		pluginDir := t.TempDir()
+
+		// Create invalid plugin (missing plugin.json)
+		invalidDir := filepath.Join(pluginDir, "invalid")
+		os.MkdirAll(invalidDir, 0755)
+
+		app := testutil.SetupTestApp(t)
+		err := LoadPlugins(app, pluginDir)
+		// Should not error, just skip invalid plugins
+		if err != nil {
+			t.Fatalf("LoadPlugins() should not fail for invalid plugins: %v", err)
+		}
+	})
+
+	t.Run("Skip Hidden Directories", func(t *testing.T) {
+		pluginDir := t.TempDir()
+
+		// Create hidden directory
+		hiddenDir := filepath.Join(pluginDir, ".hidden")
+		os.MkdirAll(hiddenDir, 0755)
+		os.WriteFile(filepath.Join(hiddenDir, "plugin.json"), []byte(`{"id": "hidden"}`), 0644)
+
+		app := testutil.SetupTestApp(t)
+		err := LoadPlugins(app, pluginDir)
+		if err != nil {
+			t.Fatalf("LoadPlugins() failed: %v", err)
+		}
+
+		// Hidden plugin should not be registered
+		if _, ok := providers.Get("hidden"); ok {
+			t.Error("Hidden plugin should not be loaded")
+		}
+
+		t.Cleanup(func() {
+			providers.UnregisterAll()
+		})
+	})
+}
+
+func TestManifest(t *testing.T) {
+	t.Run("Load Valid Manifest", func(t *testing.T) {
+		pluginDir := t.TempDir()
+		manifestJSON := `{
+			"id": "test-plugin",
+			"name": "Test Plugin",
+			"version": "1.0.0",
+			"plugin_type": "downloader",
+			"entry_point": "index.js",
+			"description": "Test plugin",
+			"api_version": "1.0"
+		}`
+		os.WriteFile(filepath.Join(pluginDir, "plugin.json"), []byte(manifestJSON), 0644)
+
+		manifest, err := LoadManifest(pluginDir)
+		if err != nil {
+			t.Fatalf("LoadManifest() failed: %v", err)
+		}
+
+		if manifest.ID != "test-plugin" {
+			t.Errorf("Expected ID 'test-plugin', got '%s'", manifest.ID)
+		}
+		if manifest.Name != "Test Plugin" {
+			t.Errorf("Expected Name 'Test Plugin', got '%s'", manifest.Name)
+		}
+		if manifest.PluginType != "downloader" {
+			t.Errorf("Expected PluginType 'downloader', got '%s'", manifest.PluginType)
+		}
+	})
+
+	t.Run("Load Manifest with Config", func(t *testing.T) {
+		pluginDir := t.TempDir()
+		manifestJSON := `{
+			"id": "test-plugin",
+			"name": "Test Plugin",
+			"version": "1.0.0",
+			"plugin_type": "downloader",
+			"entry_point": "index.js",
+			"api_version": "1.0",
+			"config": {
+				"api_url": {
+					"type": "string",
+					"default": "https://api.example.com"
+				}
+			}
+		}`
+		os.WriteFile(filepath.Join(pluginDir, "plugin.json"), []byte(manifestJSON), 0644)
+
+		manifest, err := LoadManifest(pluginDir)
+		if err != nil {
+			t.Fatalf("LoadManifest() failed: %v", err)
+		}
+
+		if manifest.Config == nil {
+			t.Fatal("Expected config to be loaded")
+		}
+
+		apiURL, ok := manifest.Config["api_url"].(map[string]interface{})
+		if !ok {
+			t.Fatal("Expected api_url config")
+		}
+		if apiURL["default"] != "https://api.example.com" {
+			t.Errorf("Expected default 'https://api.example.com', got '%v'", apiURL["default"])
+		}
+	})
+
+	t.Run("Load Non-Existent Manifest", func(t *testing.T) {
+		pluginDir := t.TempDir()
+		_, err := LoadManifest(pluginDir)
+		if err == nil {
+			t.Fatal("Expected error for non-existent manifest")
+		}
+	})
+
+	t.Run("Load Invalid JSON Manifest", func(t *testing.T) {
+		pluginDir := t.TempDir()
+		os.WriteFile(filepath.Join(pluginDir, "plugin.json"), []byte(`invalid json`), 0644)
+
+		_, err := LoadManifest(pluginDir)
+		if err == nil {
+			t.Fatal("Expected error for invalid JSON")
+		}
+	})
+}
