@@ -19,6 +19,9 @@ type Config struct {
 	Library struct {
 		Path string `mapstructure:"path"`
 	} `mapstructure:"library"`
+	Plugins struct {
+		Path string `mapstructure:"path"`
+	} `mapstructure:"plugins"`
 }
 
 // Load reads configuration from a file named "config.yml" in the
@@ -40,6 +43,7 @@ func Load() (*Config, error) {
 	viper.SetDefault("scan_interval", 60)
 	viper.SetDefault("database.path", "./mango.db")
 	viper.SetDefault("library.path", "./manga")
+	viper.SetDefault("plugins.path", "../mango-go-plugins")
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {

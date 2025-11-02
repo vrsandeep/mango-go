@@ -123,6 +123,9 @@ func (s *Server) Router() http.Handler {
 			r.Post("/downloads/action", s.handleQueueAction)
 			r.Post("/downloads/queue/{itemID}/action", s.handleQueueItemAction)
 
+			// Resource Proxy (for resources that require special headers, e.g., Referer for webtoons)
+			r.Get("/proxy/resource", s.handleProxyResource)
+
 			// Subscription Routes
 			r.Post("/subscriptions", s.handleSubscribeToSeries)
 			r.Get("/subscriptions", s.handleListSubscriptions)

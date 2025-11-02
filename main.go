@@ -18,6 +18,7 @@ import (
 	"github.com/vrsandeep/mango-go/internal/downloader/providers"
 	"github.com/vrsandeep/mango-go/internal/downloader/providers/mangadex"
 	"github.com/vrsandeep/mango-go/internal/downloader/providers/weebcentral"
+	"github.com/vrsandeep/mango-go/internal/plugins"
 	"github.com/vrsandeep/mango-go/internal/store"
 	"github.com/vrsandeep/mango-go/internal/subscription"
 )
@@ -73,6 +74,11 @@ func main() {
 	// Register all available downloader providers here.
 	providers.Register(mangadex.New())
 	providers.Register(weebcentral.New())
+
+	// Load plugins from plugins directory
+	if err := plugins.LoadPlugins(app, app.Config().Plugins.Path); err != nil {
+		log.Printf("Warning: failed to load plugins: %v", err)
+	}
 
 	// Start the download worker pool
 	downloader.StartWorkerPool(app)

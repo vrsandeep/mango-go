@@ -39,3 +39,8 @@ func UnregisterAll() {
 		delete(registry, k)
 	}
 }
+
+// Unregister removes a provider from the registry by ID.
+func Unregister(id string) {
+	delete(registry, id)
+}
