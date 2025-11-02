@@ -21,8 +21,15 @@ import (
 //   - origin: (optional) Origin header value
 //   - headers: (optional) JSON object with additional custom headers
 func (s *Server) handleProxyResource(w http.ResponseWriter, r *http.Request) {
+	// Allow localhost requests without authentication (for internal downloader use)
+	// External requests still require authentication
 	user := getUserFromContext(r)
-	if user == nil {
+	isLocalhost := r.RemoteAddr == "" ||
+		strings.HasPrefix(r.RemoteAddr, "127.0.0.1:") ||
+		strings.HasPrefix(r.RemoteAddr, "[::1]:") ||
+		strings.HasPrefix(r.RemoteAddr, "localhost:")
+
+	if user == nil && !isLocalhost {
 		RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}

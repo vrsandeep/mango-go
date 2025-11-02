@@ -8,6 +8,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -124,19 +125,76 @@ func processDownload(app *core.App, st *store.Store, job *models.DownloadQueueIt
 		// Respectful delay between page downloads
 		time.Sleep(250 * time.Millisecond)
 
-		resp, err := http.Get(pageURL)
+		// Create HTTP request
+		// Note: If the URL is a proxy URL (from plugins), it will already include
+		// the necessary headers via query parameters
+		req, err := http.NewRequest("GET", pageURL, nil)
+		if err != nil {
+			return fmt.Errorf("failed to create request for page %d: %w", i+1, err)
+		}
+
+		// Use HTTP client with timeout
+		client := &http.Client{
+			Timeout: 30 * time.Second,
+		}
+
+		resp, err := client.Do(req)
 		if err != nil {
 			return fmt.Errorf("failed to download page %d: %w", i+1, err)
 		}
 		defer resp.Body.Close()
+
+		// Check response status
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("failed to download page %d: server returned status %d", i+1, resp.StatusCode)
+		}
 
 		pageData, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return fmt.Errorf("failed to read page %d data: %w", i+1, err)
 		}
 
+		// Check if page data is empty
+		if len(pageData) == 0 {
+			return fmt.Errorf("page %d returned empty data (may need Referer header or URL is invalid)", i+1)
+		}
+
+		// Determine file extension from Content-Type header or URL
+		// Parse URL to remove query parameters before extracting extension
+		var extension string
+		parsedURL, err := url.Parse(pageURL)
+		if err == nil {
+			// Extract extension from URL path (without query parameters)
+			extension = filepath.Ext(parsedURL.Path)
+		} else {
+			// Fallback: try to extract extension from raw URL, but remove query params
+			if idx := strings.Index(pageURL, "?"); idx != -1 {
+				extension = filepath.Ext(pageURL[:idx])
+			} else {
+				extension = filepath.Ext(pageURL)
+			}
+		}
+
+		if extension == "" {
+			// Try to infer from Content-Type header
+			contentType := resp.Header.Get("Content-Type")
+			switch {
+			case strings.Contains(contentType, "image/jpeg") || strings.Contains(contentType, "image/jpg"):
+				extension = ".jpg"
+			case strings.Contains(contentType, "image/png"):
+				extension = ".png"
+			case strings.Contains(contentType, "image/gif"):
+				extension = ".gif"
+			case strings.Contains(contentType, "image/webp"):
+				extension = ".webp"
+			default:
+				// Default to jpg if unknown
+				extension = ".jpg"
+			}
+		}
+
 		// Create a file in the zip archive
-		fileName := fmt.Sprintf("page_%03d%s", i+1, filepath.Ext(pageURL))
+		fileName := fmt.Sprintf("page_%03d%s", i+1, extension)
 		f, err := zipWriter.Create(fileName)
 		if err != nil {
 			return fmt.Errorf("failed to create file in zip: %w", err)

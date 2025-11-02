@@ -61,6 +61,9 @@ func (s *Server) Router() http.Handler {
 	r.Post("/api/users/login", s.handleLogin)
 	r.Get("/api/version", s.handleGetVersion)
 	r.Get("/api/config", s.handleGetConfig)
+
+	// Resource Proxy (for resources that require special headers, e.g., Referer for webtoons)
+	r.Get("/api/proxy/resource", s.handleProxyResource)
 	r.Group(func(r chi.Router) {
 		r.Use(s.AuthMiddleware)
 
@@ -122,9 +125,6 @@ func (s *Server) Router() http.Handler {
 			r.Get("/downloads/queue", s.handleGetDownloadQueue)
 			r.Post("/downloads/action", s.handleQueueAction)
 			r.Post("/downloads/queue/{itemID}/action", s.handleQueueItemAction)
-
-			// Resource Proxy (for resources that require special headers, e.g., Referer for webtoons)
-			r.Get("/proxy/resource", s.handleProxyResource)
 
 			// Subscription Routes
 			r.Post("/subscriptions", s.handleSubscribeToSeries)
