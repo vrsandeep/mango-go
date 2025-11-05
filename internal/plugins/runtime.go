@@ -249,8 +249,3 @@ func (r *PluginRuntime) CallWithContext(ctx context.Context, functionName string
 	return nil, fmt.Errorf("function %s is not callable", functionName)
 }
 
-// Helper to convert Go values to JS (exposed from MangoAPI)
-func (r *PluginRuntime) goToJS(v interface{}) goja.Value {
-	return r.api.GoToJS(r.vm, v)
-}
-

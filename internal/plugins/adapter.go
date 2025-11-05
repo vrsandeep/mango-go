@@ -271,20 +271,3 @@ func (a *PluginProviderAdapter) jsToStringArray(val goja.Value) []string {
 
 	return urls
 }
-
-func (a *PluginProviderAdapter) getJSString(obj *goja.Object, key string) string {
-	val := obj.Get(key)
-	if goja.IsUndefined(val) || goja.IsNull(val) {
-		return ""
-	}
-	return val.String()
-}
-
-func (a *PluginProviderAdapter) getJSInt(obj *goja.Object, key string) int64 {
-	val := obj.Get(key)
-	if goja.IsUndefined(val) || goja.IsNull(val) {
-		return 0
-	}
-	return val.ToInteger()
-}
-
