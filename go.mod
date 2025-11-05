@@ -4,6 +4,7 @@ go 1.24.4
 
 require (
 	github.com/PuerkitoBio/goquery v1.10.3
+	github.com/dop251/goja v0.0.0-20251008123653-cf18d89f3cf6
 	github.com/go-chi/chi/v5 v5.2.3
 	github.com/go-co-op/gocron v1.37.0
 	github.com/golang-migrate/migrate/v4 v4.19.0
@@ -25,7 +26,6 @@ require (
 	github.com/bodgit/windows v1.0.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dlclark/regexp2 v1.11.4 // indirect
-	github.com/dop251/goja v0.0.0-20251008123653-cf18d89f3cf6 // indirect
 	github.com/dsnet/compress v0.0.2-0.20230904184137-39efe44ab707 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.3+incompatible // indirect
