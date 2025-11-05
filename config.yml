@@ -7,3 +7,6 @@ database:
 library:
   # The root directory of your manga library.
   path: "./manga"
+plugins:
+  # The path to the plugins directory.
+  path: "../mango-go-plugins"
