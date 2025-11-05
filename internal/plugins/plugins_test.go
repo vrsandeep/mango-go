@@ -573,6 +573,189 @@ exports.getPageURLs = async () => [];
 			t.Errorf("Expected title 'Mock Response', got '%s'", results[0].Title)
 		}
 	})
+
+	t.Run("HTTP Client with Timeout", func(t *testing.T) {
+		// Setup mock HTTP server with delay
+		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			time.Sleep(100 * time.Millisecond) // Simulate slow response
+			w.Write([]byte(`{"status": "ok"}`))
+		}))
+		defer mockServer.Close()
+
+		pluginDir := t.TempDir()
+		pluginJS := `
+exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
+exports.search = async (query, mango) => {
+	const response = await mango.http.get("` + mockServer.URL + `/test", { timeout: 0.5 });
+	return [{ title: "timeout-test", identifier: "1", cover_url: "" }];
+};
+exports.getChapters = async () => [];
+exports.getPageURLs = async () => [];
+`
+		runtime, err := createTestPlugin(t, pluginDir, pluginJS)
+		if err != nil {
+			t.Fatalf("Failed to create runtime: %v", err)
+		}
+
+		adapter := NewPluginProviderAdapter(runtime)
+		results, err := adapter.Search("test")
+		if err != nil {
+			t.Fatalf("Search() failed: %v", err)
+		}
+
+		if results[0].Title != "timeout-test" {
+			t.Errorf("Expected title 'timeout-test', got '%s'", results[0].Title)
+		}
+	})
+
+	t.Run("HTML Parsing - parseHTML and querySelector", func(t *testing.T) {
+		pluginDir := t.TempDir()
+		pluginJS := `
+exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
+exports.search = async (query, mango) => {
+	const html = '<html><body><h1 class="title">Test Title</h1><p>Content</p></body></html>';
+	const doc = mango.utils.parseHTML(html);
+	const title = doc.querySelector('h1.title');
+	return [{ title: title.textContent, identifier: "1", cover_url: "" }];
+};
+exports.getChapters = async () => [];
+exports.getPageURLs = async () => [];
+`
+		runtime, err := createTestPlugin(t, pluginDir, pluginJS)
+		if err != nil {
+			t.Fatalf("Failed to create runtime: %v", err)
+		}
+
+		adapter := NewPluginProviderAdapter(runtime)
+		results, err := adapter.Search("test")
+		if err != nil {
+			t.Fatalf("Search() failed: %v", err)
+		}
+
+		if results[0].Title != "Test Title" {
+			t.Errorf("Expected title 'Test Title', got '%s'", results[0].Title)
+		}
+	})
+
+	t.Run("HTML Parsing - querySelectorAll", func(t *testing.T) {
+		pluginDir := t.TempDir()
+		pluginJS := `
+exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
+exports.search = async (query, mango) => {
+	const html = '<html><body><div class="item">Item 1</div><div class="item">Item 2</div></body></html>';
+	const doc = mango.utils.parseHTML(html);
+	const items = doc.querySelectorAll('div.item');
+	return [{ title: items.length + " items", identifier: "1", cover_url: "" }];
+};
+exports.getChapters = async () => [];
+exports.getPageURLs = async () => [];
+`
+		runtime, err := createTestPlugin(t, pluginDir, pluginJS)
+		if err != nil {
+			t.Fatalf("Failed to create runtime: %v", err)
+		}
+
+		adapter := NewPluginProviderAdapter(runtime)
+		results, err := adapter.Search("test")
+		if err != nil {
+			t.Fatalf("Search() failed: %v", err)
+		}
+
+		if results[0].Title != "2 items" {
+			t.Errorf("Expected title '2 items', got '%s'", results[0].Title)
+		}
+	})
+
+	t.Run("HTML Parsing - getAttribute", func(t *testing.T) {
+		pluginDir := t.TempDir()
+		pluginJS := `
+exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
+exports.search = async (query, mango) => {
+	const html = '<html><body><a href="/test" data-id="123">Link</a></body></html>';
+	const doc = mango.utils.parseHTML(html);
+	const link = doc.querySelector('a');
+	const href = link.getAttribute('href');
+	const dataId = link.getAttribute('data-id');
+	return [{ title: href + ":" + dataId, identifier: "1", cover_url: "" }];
+};
+exports.getChapters = async () => [];
+exports.getPageURLs = async () => [];
+`
+		runtime, err := createTestPlugin(t, pluginDir, pluginJS)
+		if err != nil {
+			t.Fatalf("Failed to create runtime: %v", err)
+		}
+
+		adapter := NewPluginProviderAdapter(runtime)
+		results, err := adapter.Search("test")
+		if err != nil {
+			t.Fatalf("Search() failed: %v", err)
+		}
+
+		expected := "/test:123"
+		if results[0].Title != expected {
+			t.Errorf("Expected title '%s', got '%s'", expected, results[0].Title)
+		}
+	})
+
+	t.Run("HTML Parsing - XPath", func(t *testing.T) {
+		pluginDir := t.TempDir()
+		pluginJS := `
+exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
+exports.search = async (query, mango) => {
+	const html = '<html><body><div class="chapter-item" data-id="ch1">Chapter 1</div><div class="chapter-item" data-id="ch2">Chapter 2</div></body></html>';
+	const doc = mango.utils.parseHTML(html);
+	const chapters = mango.utils.xpath(doc, '//div[@class="chapter-item"]');
+	return [{ title: chapters.length + " chapters", identifier: "1", cover_url: "" }];
+};
+exports.getChapters = async () => [];
+exports.getPageURLs = async () => [];
+`
+		runtime, err := createTestPlugin(t, pluginDir, pluginJS)
+		if err != nil {
+			t.Fatalf("Failed to create runtime: %v", err)
+		}
+
+		adapter := NewPluginProviderAdapter(runtime)
+		results, err := adapter.Search("test")
+		if err != nil {
+			t.Fatalf("Search() failed: %v", err)
+		}
+
+		if results[0].Title != "2 chapters" {
+			t.Errorf("Expected title '2 chapters', got '%s'", results[0].Title)
+		}
+	})
+
+	t.Run("HTML Parsing - Element querySelector", func(t *testing.T) {
+		pluginDir := t.TempDir()
+		pluginJS := `
+exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
+exports.search = async (query, mango) => {
+	const html = '<html><body><div class="container"><span class="title">Nested Title</span></div></body></html>';
+	const doc = mango.utils.parseHTML(html);
+	const container = doc.querySelector('div.container');
+	const title = container.querySelector('span.title');
+	return [{ title: title.textContent, identifier: "1", cover_url: "" }];
+};
+exports.getChapters = async () => [];
+exports.getPageURLs = async () => [];
+`
+		runtime, err := createTestPlugin(t, pluginDir, pluginJS)
+		if err != nil {
+			t.Fatalf("Failed to create runtime: %v", err)
+		}
+
+		adapter := NewPluginProviderAdapter(runtime)
+		results, err := adapter.Search("test")
+		if err != nil {
+			t.Fatalf("Search() failed: %v", err)
+		}
+
+		if results[0].Title != "Nested Title" {
+			t.Errorf("Expected title 'Nested Title', got '%s'", results[0].Title)
+		}
+	})
 }
 
 func TestPluginLoader(t *testing.T) {
