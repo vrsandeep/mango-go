@@ -17,6 +17,16 @@ type MockPluginManager struct {
 	mock.Mock
 }
 
+func (m *MockPluginManager) LoadPlugins() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
+func (m *MockPluginManager) LoadPlugin(pluginDir string) error {
+	args := m.Called(pluginDir)
+	return args.Error(0)
+}
+
 func (m *MockPluginManager) ListPlugins() []plugins.PluginInfo {
 	args := m.Called()
 	return args.Get(0).([]plugins.PluginInfo)

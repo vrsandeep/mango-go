@@ -120,6 +120,12 @@ func (s *Server) Router() http.Handler {
 				r.Post("/plugins/reload", s.handleReloadAllPlugins)
 				r.Post("/plugins/{pluginID}/reload", s.handleReloadPlugin)
 				r.Delete("/plugins/{pluginID}", s.handleUnloadPlugin)
+
+				// Plugin Repository Management Routes (Admin only)
+				r.Post("/plugin-repositories", s.handleCreateRepository)
+				r.Delete("/plugin-repositories/{repositoryID}", s.handleDeleteRepository)
+				r.Post("/plugin-repositories/install", s.handleInstallPlugin)
+				r.Post("/plugin-repositories/check-updates", s.handleCheckUpdates)
 			})
 
 			// Downloader Routes
@@ -141,6 +147,10 @@ func (s *Server) Router() http.Handler {
 			// Plugin Management Routes
 			r.Get("/plugins", s.handleListPlugins)
 			r.Get("/plugins/{pluginID}", s.handleGetPluginInfo)
+
+			// Plugin Repository Routes
+			r.Get("/plugin-repositories", s.handleListRepositories)
+			r.Get("/plugin-repositories/{repositoryID}/plugins", s.handleGetRepositoryPlugins)
 		})
 	})
 
