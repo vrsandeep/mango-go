@@ -37,6 +37,7 @@ type PluginManager struct {
 	app       *core.App
 	pluginDir string
 	plugins   map[string]*LoadedPlugin
+	failedPlugins map[string]string // Map of plugin path to error message
 	mu        sync.RWMutex
 }
 
@@ -55,9 +56,10 @@ var (
 // NewPluginManager creates a new plugin manager
 func NewPluginManager(app *core.App, pluginDir string) *PluginManager {
 	return &PluginManager{
-		app:       app,
-		pluginDir: pluginDir,
-		plugins:   make(map[string]*LoadedPlugin),
+		app:          app,
+		pluginDir:    pluginDir,
+		plugins:      make(map[string]*LoadedPlugin),
+		failedPlugins: make(map[string]string),
 	}
 }
 
@@ -112,8 +114,11 @@ func (pm *PluginManager) LoadPlugins() error {
 		// Load plugin (using internal method to avoid lock re-acquisition)
 		if err := pm.loadPluginInternal(pluginPath); err != nil {
 			log.Printf("Failed to load plugin %s: %v", entry.Name(), err)
+			pm.failedPlugins[pluginPath] = err.Error()
 			continue
 		}
+		// Remove from failed plugins if it successfully loaded
+		delete(pm.failedPlugins, pluginPath)
 	}
 
 	return nil
@@ -257,12 +262,14 @@ func (pm *PluginManager) GetPluginInfo(pluginID string) (*PluginInfo, bool) {
 	}, true
 }
 
-// ListPlugins returns information about all loaded plugins.
+// ListPlugins returns information about all loaded plugins and failed plugins.
 func (pm *PluginManager) ListPlugins() []PluginInfo {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 
-	plugins := make([]PluginInfo, 0, len(pm.plugins))
+	plugins := make([]PluginInfo, 0, len(pm.plugins)+len(pm.failedPlugins))
+
+	// Add successfully loaded plugins
 	for _, loadedPlugin := range pm.plugins {
 		plugins = append(plugins, PluginInfo{
 			ID:          loadedPlugin.Manifest.ID,
@@ -277,6 +284,38 @@ func (pm *PluginManager) ListPlugins() []PluginInfo {
 			Path:        loadedPlugin.Path,
 			Loaded:      true,
 		})
+	}
+
+	// Add failed plugins (try to load manifest to get basic info)
+	for pluginPath, errorMsg := range pm.failedPlugins {
+		manifest, err := LoadManifest(pluginPath)
+		if err != nil {
+			// If we can't even load the manifest, use directory name as ID
+			pluginID := filepath.Base(pluginPath)
+			plugins = append(plugins, PluginInfo{
+				ID:          pluginID,
+				Name:        pluginID,
+				Description: "Failed to load plugin",
+				Path:        pluginPath,
+				Loaded:      false,
+				Error:       errorMsg,
+			})
+		} else {
+			plugins = append(plugins, PluginInfo{
+				ID:          manifest.ID,
+				Name:        manifest.Name,
+				Version:     manifest.Version,
+				Description: manifest.Description,
+				Author:      manifest.Author,
+				License:     manifest.License,
+				APIVersion:  manifest.APIVersion,
+				PluginType:  manifest.PluginType,
+				Capabilities: manifest.Capabilities,
+				Path:        pluginPath,
+				Loaded:      false,
+				Error:       errorMsg,
+			})
+		}
 	}
 
 	return plugins
