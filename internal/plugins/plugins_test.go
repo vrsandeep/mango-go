@@ -790,9 +790,10 @@ exports.getPageURLs = async () => [];
 		os.WriteFile(filepath.Join(pluginSubDir, "index.js"), []byte(pluginJS), 0644)
 
 		app := testutil.SetupTestApp(t)
-		err := plugins.LoadPlugin(app, pluginSubDir)
+		manager := plugins.NewPluginManager(app, pluginDir)
+		err := manager.LoadPlugin(pluginSubDir)
 		if err != nil {
-			t.Fatalf("plugins.LoadPlugin() failed: %v", err)
+			t.Fatalf("manager.LoadPlugin() failed: %v", err)
 		}
 
 		// Verify plugin is registered
@@ -840,9 +841,10 @@ exports.getPageURLs = async () => [];
 		}
 
 		app := testutil.SetupTestApp(t)
-		err := plugins.LoadPlugins(app, pluginDir)
+		manager := plugins.NewPluginManager(app, pluginDir)
+		err := manager.LoadPlugins()
 		if err != nil {
-			t.Fatalf("plugins.LoadPlugins() failed: %v", err)
+			t.Fatalf("manager.LoadPlugins() failed: %v", err)
 		}
 
 		// Verify both plugins are registered
@@ -866,10 +868,11 @@ exports.getPageURLs = async () => [];
 		os.MkdirAll(invalidDir, 0755)
 
 		app := testutil.SetupTestApp(t)
-		err := plugins.LoadPlugins(app, pluginDir)
+		manager := plugins.NewPluginManager(app, pluginDir)
+		err := manager.LoadPlugins()
 		// Should not error, just skip invalid plugins
 		if err != nil {
-			t.Fatalf("plugins.LoadPlugins() should not fail for invalid plugins: %v", err)
+			t.Fatalf("manager.LoadPlugins() should not fail for invalid plugins: %v", err)
 		}
 	})
 
@@ -882,9 +885,10 @@ exports.getPageURLs = async () => [];
 		os.WriteFile(filepath.Join(hiddenDir, "plugin.json"), []byte(`{"id": "hidden"}`), 0644)
 
 		app := testutil.SetupTestApp(t)
-		err := plugins.LoadPlugins(app, pluginDir)
+		manager := plugins.NewPluginManager(app, pluginDir)
+		err := manager.LoadPlugins()
 		if err != nil {
-			t.Fatalf("plugins.LoadPlugins() failed: %v", err)
+			t.Fatalf("manager.LoadPlugins() failed: %v", err)
 		}
 
 		// Hidden plugin should not be registered

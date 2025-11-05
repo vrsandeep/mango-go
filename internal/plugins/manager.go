@@ -109,8 +109,8 @@ func (pm *PluginManager) LoadPlugins() error {
 			continue
 		}
 
-		// Load plugin
-		if err := pm.LoadPlugin(pluginPath); err != nil {
+		// Load plugin (using internal method to avoid lock re-acquisition)
+		if err := pm.loadPluginInternal(pluginPath); err != nil {
 			log.Printf("Failed to load plugin %s: %v", entry.Name(), err)
 			continue
 		}
@@ -121,6 +121,13 @@ func (pm *PluginManager) LoadPlugins() error {
 
 // LoadPlugin loads a single plugin from a directory.
 func (pm *PluginManager) LoadPlugin(pluginDir string) error {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+	return pm.loadPluginInternal(pluginDir)
+}
+
+// loadPluginInternal loads a plugin without acquiring locks (caller must hold lock).
+func (pm *PluginManager) loadPluginInternal(pluginDir string) error {
 	// Load manifest
 	manifest, err := LoadManifest(pluginDir)
 	if err != nil {
@@ -139,12 +146,9 @@ func (pm *PluginManager) LoadPlugin(pluginDir string) error {
 	}
 
 	// Check if plugin is already loaded
-	pm.mu.RLock()
 	if _, exists := pm.plugins[manifest.ID]; exists {
-		pm.mu.RUnlock()
 		return fmt.Errorf("plugin %s is already loaded", manifest.ID)
 	}
-	pm.mu.RUnlock()
 
 	// Create runtime
 	runtime, err := NewPluginRuntime(pm.app, manifest, pluginDir)
@@ -158,14 +162,12 @@ func (pm *PluginManager) LoadPlugin(pluginDir string) error {
 	// Register with provider registry
 	providers.Register(adapter)
 
-	// Store loaded plugin
-	pm.mu.Lock()
+	// Store loaded plugin (lock already held by caller)
 	pm.plugins[manifest.ID] = &LoadedPlugin{
 		Manifest: manifest,
 		Runtime:  runtime,
 		Path:     pluginDir,
 	}
-	pm.mu.Unlock()
 
 	log.Printf("Loaded plugin: %s (%s)", manifest.Name, manifest.ID)
 
