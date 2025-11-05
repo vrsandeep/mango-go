@@ -226,9 +226,15 @@ func (rs *RepositoryService) CheckForUpdates() ([]models.PluginUpdateInfo, error
 				continue // Skip incompatible plugins
 			}
 
-			// Compare versions (simple string comparison for now)
-			// TODO: Implement proper semantic version comparison
-			if installed.InstalledVersion != plugin.Version {
+			// Compare versions using semantic versioning
+			isNewer, err := IsNewerVersion(installed.InstalledVersion, plugin.Version)
+			if err != nil {
+				// If version comparison fails (invalid version), log and skip
+				// This handles edge cases where version strings might not be semantic
+				continue
+			}
+
+			if isNewer {
 				updates = append(updates, models.PluginUpdateInfo{
 					PluginID:         plugin.ID,
 					Name:             plugin.Name,

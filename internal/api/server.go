@@ -125,6 +125,7 @@ func (s *Server) Router() http.Handler {
 				r.Post("/plugin-repositories", s.handleCreateRepository)
 				r.Delete("/plugin-repositories/{repositoryID}", s.handleDeleteRepository)
 				r.Post("/plugin-repositories/install", s.handleInstallPlugin)
+				r.Post("/plugin-repositories/update", s.handleUpdatePlugin)
 				r.Post("/plugin-repositories/check-updates", s.handleCheckUpdates)
 			})
 

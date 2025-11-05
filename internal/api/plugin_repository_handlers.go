@@ -138,6 +138,55 @@ func (s *Server) handleCheckUpdates(w http.ResponseWriter, r *http.Request) {
 	RespondWithJSON(w, http.StatusOK, updates)
 }
 
+// handleUpdatePlugin updates an installed plugin to the latest version from its repository
+func (s *Server) handleUpdatePlugin(w http.ResponseWriter, r *http.Request) {
+	var req models.PluginInstallRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		RespondWithError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	if req.PluginID == "" {
+		RespondWithError(w, http.StatusBadRequest, "Plugin ID is required")
+		return
+	}
+
+	manager := plugins.GetGlobalManager()
+	if manager == nil {
+		RespondWithError(w, http.StatusInternalServerError, "Plugin manager not initialized")
+		return
+	}
+	repoService := plugins.NewRepositoryService(s.app, s.store, manager)
+
+	// Get installed plugin info
+	installed, err := s.store.GetInstalledPlugin(req.PluginID)
+	if err != nil {
+		RespondWithError(w, http.StatusNotFound, fmt.Sprintf("Plugin %s is not installed", req.PluginID))
+		return
+	}
+
+	// Determine repository ID
+	var repoID int64
+	if installed.RepositoryID.Valid {
+		repoID = installed.RepositoryID.Int64
+	} else if req.RepositoryID > 0 {
+		repoID = req.RepositoryID
+	} else {
+		RespondWithError(w, http.StatusBadRequest, "Repository ID is required")
+		return
+	}
+
+	// Install/update the plugin
+	if err := repoService.InstallPlugin(req.PluginID, repoID); err != nil {
+		RespondWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to update plugin: %v", err))
+		return
+	}
+
+	RespondWithJSON(w, http.StatusOK, map[string]string{
+		"message": fmt.Sprintf("Plugin %s updated successfully", req.PluginID),
+	})
+}
+
 // handleDeleteRepository deletes a repository
 func (s *Server) handleDeleteRepository(w http.ResponseWriter, r *http.Request) {
 	repositoryID := chi.URLParam(r, "repositoryID")
