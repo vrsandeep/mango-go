@@ -75,8 +75,10 @@ func main() {
 	providers.Register(mangadex.New())
 	providers.Register(weebcentral.New())
 
-	// Load plugins from plugins directory
-	if err := plugins.LoadPlugins(app, app.Config().Plugins.Path); err != nil {
+	// Initialize plugin manager and load plugins
+	pluginManager := plugins.NewPluginManager(app, app.Config().Plugins.Path)
+	plugins.SetGlobalManager(pluginManager)
+	if err := pluginManager.LoadPlugins(); err != nil {
 		log.Printf("Warning: failed to load plugins: %v", err)
 	}
 

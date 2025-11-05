@@ -1,4 +1,4 @@
-package plugins
+package plugins_test
 
 import (
 	"context"
@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/vrsandeep/mango-go/internal/downloader/providers"
+	"github.com/vrsandeep/mango-go/internal/plugins"
 	"github.com/vrsandeep/mango-go/internal/testutil"
 )
 
@@ -21,14 +22,15 @@ func contains(s, substr string) bool {
 }
 
 // createTestPlugin creates a minimal test plugin for unit testing
-func createTestPlugin(t *testing.T, pluginDir string, pluginJS string) (*PluginRuntime, error) {
-	manifest := &PluginManifest{
+func createTestPlugin(t *testing.T, pluginDir string, pluginJS string) (*plugins.PluginRuntime, error) {
+	manifest := &plugins.PluginManifest{
 		ID:          "test-plugin",
 		Name:        "Test Plugin",
 		Version:     "1.0.0",
 		PluginType:  "downloader",
 		EntryPoint:  "index.js",
 		Description: "Test plugin for unit tests",
+		APIVersion:  "1.0",
 	}
 
 	// Write plugin script
@@ -38,7 +40,7 @@ func createTestPlugin(t *testing.T, pluginDir string, pluginJS string) (*PluginR
 	}
 
 	app := testutil.SetupTestApp(t)
-	runtime, err := NewPluginRuntime(app, manifest, pluginDir)
+	runtime, err := plugins.NewPluginRuntime(app, manifest, pluginDir)
 	return runtime, err
 }
 
@@ -58,8 +60,8 @@ exports.getPageURLs = async () => [];
 		if runtime == nil {
 			t.Fatal("Runtime is nil")
 		}
-		if runtime.manifest.ID != "test-plugin" {
-			t.Errorf("Expected manifest ID 'test-plugin', got '%s'", runtime.manifest.ID)
+		if runtime.Manifest().ID != "test-plugin" {
+			t.Errorf("Expected manifest ID 'test-plugin', got '%s'", runtime.Manifest().ID)
 		}
 	})
 
@@ -81,7 +83,7 @@ exports.getPageURLs = async () => [];
 			t.Fatalf("Call() failed: %v", err)
 		}
 
-		infoObj := val.ToObject(runtime.vm)
+		infoObj := val.ToObject(runtime.VM())
 		id := infoObj.Get("id").String()
 		if id != "test" {
 			t.Errorf("Expected id 'test', got '%s'", id)
@@ -109,7 +111,7 @@ exports.getPageURLs = async () => [];
 		}
 
 		// Check that it's an array
-		if val.ToObject(runtime.vm).Get("length") == nil {
+		if val.ToObject(runtime.VM()).Get("length") == nil {
 			t.Error("Expected array result from search")
 		}
 	})
@@ -153,7 +155,7 @@ exports.getPageURLs = async () => [];
 			t.Fatal("Expected error from panicking function")
 		}
 
-		pluginErr, ok := err.(*PluginError)
+		pluginErr, ok := err.(*plugins.PluginError)
 		if !ok {
 			t.Fatalf("Expected PluginError, got %T", err)
 		}
@@ -188,7 +190,7 @@ exports.getPageURLs = async () => [];
 		}
 
 		// The error should indicate a timeout occurred
-		pluginErr, ok := err.(*PluginError)
+		pluginErr, ok := err.(*plugins.PluginError)
 		if !ok {
 			t.Fatalf("Expected PluginError, got %T: %v", err, err)
 		}
@@ -205,13 +207,14 @@ exports.getPageURLs = async () => [];
 
 	t.Run("Missing Required Export", func(t *testing.T) {
 		pluginDir := t.TempDir()
-		manifest := &PluginManifest{
+		manifest := &plugins.PluginManifest{
 			ID:          "test-plugin",
 			Name:        "Test Plugin",
 			Version:     "1.0.0",
 			PluginType:  "downloader",
 			EntryPoint:  "index.js",
 			Description: "Test plugin",
+			APIVersion:  "1.0",
 		}
 
 		pluginJS := `
@@ -222,7 +225,7 @@ exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
 		os.WriteFile(scriptPath, []byte(pluginJS), 0644)
 
 		app := testutil.SetupTestApp(t)
-		_, err := NewPluginRuntime(app, manifest, pluginDir)
+		_, err := plugins.NewPluginRuntime(app, manifest, pluginDir)
 		if err == nil {
 			t.Fatal("Expected error for missing required exports")
 		}
@@ -243,7 +246,7 @@ exports.getPageURLs = async () => [];
 			t.Fatalf("Failed to create runtime: %v", err)
 		}
 
-		adapter := NewPluginProviderAdapter(runtime)
+		adapter := plugins.NewPluginProviderAdapter(runtime)
 		info := adapter.GetInfo()
 
 		if info.ID != "test-plugin" {
@@ -267,7 +270,7 @@ exports.getPageURLs = async () => [];
 			t.Fatalf("Failed to create runtime: %v", err)
 		}
 
-		adapter := NewPluginProviderAdapter(runtime)
+		adapter := plugins.NewPluginProviderAdapter(runtime)
 		info := adapter.GetInfo()
 
 		// Should fallback to manifest values
@@ -294,7 +297,7 @@ exports.getPageURLs = async () => [];
 			t.Fatalf("Failed to create runtime: %v", err)
 		}
 
-		adapter := NewPluginProviderAdapter(runtime)
+		adapter := plugins.NewPluginProviderAdapter(runtime)
 		results, err := adapter.Search("test")
 		if err != nil {
 			t.Fatalf("Search() failed: %v", err)
@@ -324,7 +327,7 @@ exports.getPageURLs = async () => [];
 			t.Fatalf("Failed to create runtime: %v", err)
 		}
 
-		adapter := NewPluginProviderAdapter(runtime)
+		adapter := plugins.NewPluginProviderAdapter(runtime)
 		results, err := adapter.Search("test")
 		if err != nil {
 			t.Fatalf("Search() failed: %v", err)
@@ -371,7 +374,7 @@ exports.getPageURLs = async () => [];
 			t.Fatalf("Failed to create runtime: %v", err)
 		}
 
-		adapter := NewPluginProviderAdapter(runtime)
+		adapter := plugins.NewPluginProviderAdapter(runtime)
 		chapters, err := adapter.GetChapters("series1")
 		if err != nil {
 			t.Fatalf("GetChapters() failed: %v", err)
@@ -407,7 +410,7 @@ exports.getPageURLs = async (chapterId, mango) => {
 			t.Fatalf("Failed to create runtime: %v", err)
 		}
 
-		adapter := NewPluginProviderAdapter(runtime)
+		adapter := plugins.NewPluginProviderAdapter(runtime)
 		urls, err := adapter.GetPageURLs("ch1")
 		if err != nil {
 			t.Fatalf("GetPageURLs() failed: %v", err)
@@ -436,7 +439,7 @@ exports.getPageURLs = async () => [];
 			t.Fatalf("Failed to create runtime: %v", err)
 		}
 
-		adapter := NewPluginProviderAdapter(runtime)
+		adapter := plugins.NewPluginProviderAdapter(runtime)
 		_, err = adapter.Search("test")
 		if err == nil {
 			t.Fatal("Expected error from Search")
@@ -455,13 +458,14 @@ exports.search = async (query, mango) => {
 exports.getChapters = async () => [];
 exports.getPageURLs = async () => [];
 `
-		manifest := &PluginManifest{
+		manifest := &plugins.PluginManifest{
 			ID:          "test-plugin",
 			Name:        "Test Plugin",
 			Version:     "1.0.0",
 			PluginType:  "downloader",
 			EntryPoint:  "index.js",
 			Description: "Test plugin",
+			APIVersion:  "1.0",
 			Config: map[string]interface{}{
 				"test_value": map[string]interface{}{
 					"type":    "string",
@@ -474,12 +478,12 @@ exports.getPageURLs = async () => [];
 		os.WriteFile(scriptPath, []byte(pluginJS), 0644)
 
 		app := testutil.SetupTestApp(t)
-		runtime, err := NewPluginRuntime(app, manifest, pluginDir)
+		runtime, err := plugins.NewPluginRuntime(app, manifest, pluginDir)
 		if err != nil {
 			t.Fatalf("Failed to create runtime: %v", err)
 		}
 
-		adapter := NewPluginProviderAdapter(runtime)
+		adapter := plugins.NewPluginProviderAdapter(runtime)
 		results, err := adapter.Search("test")
 		if err != nil {
 			t.Fatalf("Search() failed: %v", err)
@@ -507,7 +511,7 @@ exports.getPageURLs = async () => [];
 			t.Fatalf("Failed to create runtime: %v", err)
 		}
 
-		adapter := NewPluginProviderAdapter(runtime)
+		adapter := plugins.NewPluginProviderAdapter(runtime)
 		results, err := adapter.Search("test_query")
 		if err != nil {
 			t.Fatalf("Search() failed: %v", err)
@@ -563,7 +567,7 @@ exports.getPageURLs = async () => [];
 			t.Fatalf("Failed to create runtime: %v", err)
 		}
 
-		adapter := NewPluginProviderAdapter(runtime)
+		adapter := plugins.NewPluginProviderAdapter(runtime)
 		results, err := adapter.Search("test")
 		if err != nil {
 			t.Fatalf("Search() failed: %v", err)
@@ -597,7 +601,7 @@ exports.getPageURLs = async () => [];
 			t.Fatalf("Failed to create runtime: %v", err)
 		}
 
-		adapter := NewPluginProviderAdapter(runtime)
+		adapter := plugins.NewPluginProviderAdapter(runtime)
 		results, err := adapter.Search("test")
 		if err != nil {
 			t.Fatalf("Search() failed: %v", err)
@@ -626,7 +630,7 @@ exports.getPageURLs = async () => [];
 			t.Fatalf("Failed to create runtime: %v", err)
 		}
 
-		adapter := NewPluginProviderAdapter(runtime)
+		adapter := plugins.NewPluginProviderAdapter(runtime)
 		results, err := adapter.Search("test")
 		if err != nil {
 			t.Fatalf("Search() failed: %v", err)
@@ -655,7 +659,7 @@ exports.getPageURLs = async () => [];
 			t.Fatalf("Failed to create runtime: %v", err)
 		}
 
-		adapter := NewPluginProviderAdapter(runtime)
+		adapter := plugins.NewPluginProviderAdapter(runtime)
 		results, err := adapter.Search("test")
 		if err != nil {
 			t.Fatalf("Search() failed: %v", err)
@@ -686,7 +690,7 @@ exports.getPageURLs = async () => [];
 			t.Fatalf("Failed to create runtime: %v", err)
 		}
 
-		adapter := NewPluginProviderAdapter(runtime)
+		adapter := plugins.NewPluginProviderAdapter(runtime)
 		results, err := adapter.Search("test")
 		if err != nil {
 			t.Fatalf("Search() failed: %v", err)
@@ -716,7 +720,7 @@ exports.getPageURLs = async () => [];
 			t.Fatalf("Failed to create runtime: %v", err)
 		}
 
-		adapter := NewPluginProviderAdapter(runtime)
+		adapter := plugins.NewPluginProviderAdapter(runtime)
 		results, err := adapter.Search("test")
 		if err != nil {
 			t.Fatalf("Search() failed: %v", err)
@@ -746,7 +750,7 @@ exports.getPageURLs = async () => [];
 			t.Fatalf("Failed to create runtime: %v", err)
 		}
 
-		adapter := NewPluginProviderAdapter(runtime)
+		adapter := plugins.NewPluginProviderAdapter(runtime)
 		results, err := adapter.Search("test")
 		if err != nil {
 			t.Fatalf("Search() failed: %v", err)
@@ -786,9 +790,9 @@ exports.getPageURLs = async () => [];
 		os.WriteFile(filepath.Join(pluginSubDir, "index.js"), []byte(pluginJS), 0644)
 
 		app := testutil.SetupTestApp(t)
-		err := LoadPlugin(app, pluginSubDir)
+		err := plugins.LoadPlugin(app, pluginSubDir)
 		if err != nil {
-			t.Fatalf("LoadPlugin() failed: %v", err)
+			t.Fatalf("plugins.LoadPlugin() failed: %v", err)
 		}
 
 		// Verify plugin is registered
@@ -836,9 +840,9 @@ exports.getPageURLs = async () => [];
 		}
 
 		app := testutil.SetupTestApp(t)
-		err := LoadPlugins(app, pluginDir)
+		err := plugins.LoadPlugins(app, pluginDir)
 		if err != nil {
-			t.Fatalf("LoadPlugins() failed: %v", err)
+			t.Fatalf("plugins.LoadPlugins() failed: %v", err)
 		}
 
 		// Verify both plugins are registered
@@ -862,10 +866,10 @@ exports.getPageURLs = async () => [];
 		os.MkdirAll(invalidDir, 0755)
 
 		app := testutil.SetupTestApp(t)
-		err := LoadPlugins(app, pluginDir)
+		err := plugins.LoadPlugins(app, pluginDir)
 		// Should not error, just skip invalid plugins
 		if err != nil {
-			t.Fatalf("LoadPlugins() should not fail for invalid plugins: %v", err)
+			t.Fatalf("plugins.LoadPlugins() should not fail for invalid plugins: %v", err)
 		}
 	})
 
@@ -878,9 +882,9 @@ exports.getPageURLs = async () => [];
 		os.WriteFile(filepath.Join(hiddenDir, "plugin.json"), []byte(`{"id": "hidden"}`), 0644)
 
 		app := testutil.SetupTestApp(t)
-		err := LoadPlugins(app, pluginDir)
+		err := plugins.LoadPlugins(app, pluginDir)
 		if err != nil {
-			t.Fatalf("LoadPlugins() failed: %v", err)
+			t.Fatalf("plugins.LoadPlugins() failed: %v", err)
 		}
 
 		// Hidden plugin should not be registered
@@ -908,9 +912,9 @@ func TestManifest(t *testing.T) {
 		}`
 		os.WriteFile(filepath.Join(pluginDir, "plugin.json"), []byte(manifestJSON), 0644)
 
-		manifest, err := LoadManifest(pluginDir)
+		manifest, err := plugins.LoadManifest(pluginDir)
 		if err != nil {
-			t.Fatalf("LoadManifest() failed: %v", err)
+			t.Fatalf("plugins.LoadManifest() failed: %v", err)
 		}
 
 		if manifest.ID != "test-plugin" {
@@ -942,9 +946,9 @@ func TestManifest(t *testing.T) {
 		}`
 		os.WriteFile(filepath.Join(pluginDir, "plugin.json"), []byte(manifestJSON), 0644)
 
-		manifest, err := LoadManifest(pluginDir)
+		manifest, err := plugins.LoadManifest(pluginDir)
 		if err != nil {
-			t.Fatalf("LoadManifest() failed: %v", err)
+			t.Fatalf("plugins.LoadManifest() failed: %v", err)
 		}
 
 		if manifest.Config == nil {
@@ -962,7 +966,7 @@ func TestManifest(t *testing.T) {
 
 	t.Run("Load Non-Existent Manifest", func(t *testing.T) {
 		pluginDir := t.TempDir()
-		_, err := LoadManifest(pluginDir)
+		_, err := plugins.LoadManifest(pluginDir)
 		if err == nil {
 			t.Fatal("Expected error for non-existent manifest")
 		}
@@ -972,7 +976,7 @@ func TestManifest(t *testing.T) {
 		pluginDir := t.TempDir()
 		os.WriteFile(filepath.Join(pluginDir, "plugin.json"), []byte(`invalid json`), 0644)
 
-		_, err := LoadManifest(pluginDir)
+		_, err := plugins.LoadManifest(pluginDir)
 		if err == nil {
 			t.Fatal("Expected error for invalid JSON")
 		}

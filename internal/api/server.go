@@ -115,6 +115,11 @@ func (s *Server) Router() http.Handler {
 				r.Post("/users", s.handleAdminCreateUser)
 				r.Put("/users/{userID}", s.handleAdminUpdateUser)
 				r.Delete("/users/{userID}", s.handleAdminDeleteUser)
+
+				// Plugin Management Routes
+				r.Post("/plugins/reload", s.handleReloadAllPlugins)
+				r.Post("/plugins/{pluginID}/reload", s.handleReloadPlugin)
+				r.Delete("/plugins/{pluginID}", s.handleUnloadPlugin)
 			})
 
 			// Downloader Routes
@@ -132,6 +137,10 @@ func (s *Server) Router() http.Handler {
 			r.Put("/subscriptions/{subID}/folder-path", s.handleUpdateSubscriptionFolderPath)
 			r.Post("/subscriptions/{subID}/recheck", s.handleRecheckSubscription)
 			r.Delete("/subscriptions/{subID}", s.handleDeleteSubscription)
+
+			// Plugin Management Routes
+			r.Get("/plugins", s.handleListPlugins)
+			r.Get("/plugins/{pluginID}", s.handleGetPluginInfo)
 		})
 	})
 

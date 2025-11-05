@@ -89,6 +89,16 @@ func NewPluginRuntime(app *core.App, manifest *PluginManifest, pluginDir string)
 	}, nil
 }
 
+// Manifest returns the plugin manifest (for testing)
+func (r *PluginRuntime) Manifest() *PluginManifest {
+	return r.manifest
+}
+
+// VM returns the goja runtime (for testing)
+func (r *PluginRuntime) VM() *goja.Runtime {
+	return r.vm
+}
+
 // Call calls a plugin function with error recovery.
 func (r *PluginRuntime) Call(functionName string, args ...interface{}) (goja.Value, error) {
 	return r.CallWithContext(context.Background(), functionName, args...)
