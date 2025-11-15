@@ -10,7 +10,6 @@ import (
 
 	"github.com/vrsandeep/mango-go/internal/models"
 	"github.com/vrsandeep/mango-go/internal/plugins"
-	"github.com/vrsandeep/mango-go/internal/store"
 	"github.com/vrsandeep/mango-go/internal/testutil"
 )
 
@@ -47,7 +46,7 @@ func TestPluginRepositoryHandlers(t *testing.T) {
 			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
 		}
 
-		var repos []store.PluginRepository
+		var repos []*models.PluginRepository
 		if err := json.NewDecoder(rr.Body).Decode(&repos); err != nil {
 			t.Fatalf("Failed to decode response: %v", err)
 		}
@@ -100,7 +99,7 @@ func TestPluginRepositoryHandlers(t *testing.T) {
 			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusCreated)
 		}
 
-		var repo store.PluginRepository
+		var repo *models.PluginRepository
 		if err := json.NewDecoder(rr.Body).Decode(&repo); err != nil {
 			t.Fatalf("Failed to decode response: %v", err)
 		}
@@ -188,7 +187,7 @@ func TestPluginRepositoryHandlers(t *testing.T) {
 		createRR := httptest.NewRecorder()
 		router.ServeHTTP(createRR, createReq)
 
-		var createdRepo store.PluginRepository
+		var createdRepo *models.PluginRepository
 		if err := json.NewDecoder(createRR.Body).Decode(&createdRepo); err != nil {
 			t.Fatalf("Failed to decode created repo: %v", err)
 		}
@@ -243,11 +242,11 @@ func TestPluginRepositoryHandlers(t *testing.T) {
 		createRR := httptest.NewRecorder()
 		router.ServeHTTP(createRR, createReq)
 
-		var createdRepo store.PluginRepository
+		var createdRepo *models.PluginRepository
 		json.NewDecoder(createRR.Body).Decode(&createdRepo)
 
 		// Delete repository (use the created repo's ID)
-		req, _ := http.NewRequest("DELETE", "/api/admin/plugin-repositories/1", nil)
+		req, _ := http.NewRequest("DELETE", fmt.Sprintf("/api/admin/plugin-repositories/%d", createdRepo.ID), nil)
 		req.AddCookie(adminCookie)
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
@@ -278,6 +277,350 @@ func TestPluginRepositoryHandlers(t *testing.T) {
 		// Just verify it's a valid array
 		if updates == nil {
 			t.Error("Expected updates to be an array, got nil")
+		}
+	})
+
+	t.Run("Create Repository - Duplicate URL", func(t *testing.T) {
+		mockManager.ExpectedCalls = nil
+
+		// Setup mock server for repository validation
+		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			manifest := models.RepositoryManifest{
+				Version:    "1.0",
+				Repository: models.RepositoryInfo{Name: "Test Repo", URL: "https://example.com"},
+				Plugins:    []models.RepositoryPlugin{},
+			}
+			json.NewEncoder(w).Encode(manifest)
+		}))
+		defer mockServer.Close()
+
+		// Create first repository
+		reqBody1 := map[string]string{
+			"url":  mockServer.URL,
+			"name": "First Repository",
+		}
+		body1, _ := json.Marshal(reqBody1)
+		req1, _ := http.NewRequest("POST", "/api/admin/plugin-repositories", bytes.NewBuffer(body1))
+		req1.Header.Set("Content-Type", "application/json")
+		req1.AddCookie(adminCookie)
+		rr1 := httptest.NewRecorder()
+		router.ServeHTTP(rr1, req1)
+
+		if rr1.Code != http.StatusCreated {
+			t.Fatalf("Failed to create first repository: got status %d", rr1.Code)
+		}
+
+		// Try to create duplicate
+		reqBody2 := map[string]string{
+			"url":  mockServer.URL,
+			"name": "Duplicate Repository",
+		}
+		body2, _ := json.Marshal(reqBody2)
+		req2, _ := http.NewRequest("POST", "/api/admin/plugin-repositories", bytes.NewBuffer(body2))
+		req2.Header.Set("Content-Type", "application/json")
+		req2.AddCookie(adminCookie)
+		rr2 := httptest.NewRecorder()
+		router.ServeHTTP(rr2, req2)
+
+		if status := rr2.Code; status != http.StatusConflict {
+			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusConflict)
+		}
+
+		var errorResp map[string]string
+		if err := json.NewDecoder(rr2.Body).Decode(&errorResp); err != nil {
+			t.Fatalf("Failed to decode error response: %v", err)
+		}
+
+		if errorResp["error"] != "A repository with this URL already exists" {
+			t.Errorf("Expected humanized error message, got: %s", errorResp["error"])
+		}
+	})
+
+	t.Run("Create Repository - Missing URL", func(t *testing.T) {
+		mockManager.ExpectedCalls = nil
+
+		reqBody := map[string]string{
+			"name": "Repository Without URL",
+		}
+		body, _ := json.Marshal(reqBody)
+		req, _ := http.NewRequest("POST", "/api/admin/plugin-repositories", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(adminCookie)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusBadRequest {
+			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusBadRequest)
+		}
+	})
+
+	t.Run("Get Repository Plugins - Invalid Repository ID", func(t *testing.T) {
+		mockManager.ExpectedCalls = nil
+
+		req, _ := http.NewRequest("GET", "/api/plugin-repositories/invalid-id/plugins", nil)
+		req.AddCookie(adminCookie)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusBadRequest {
+			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusBadRequest)
+		}
+	})
+
+	t.Run("Get Repository Plugins - Non-existent Repository", func(t *testing.T) {
+		mockManager.ExpectedCalls = nil
+
+		req, _ := http.NewRequest("GET", "/api/plugin-repositories/99999/plugins", nil)
+		req.AddCookie(adminCookie)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusInternalServerError {
+			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusInternalServerError)
+		}
+	})
+
+	t.Run("Delete Repository - Invalid Repository ID", func(t *testing.T) {
+		mockManager.ExpectedCalls = nil
+
+		req, _ := http.NewRequest("DELETE", "/api/admin/plugin-repositories/invalid-id", nil)
+		req.AddCookie(adminCookie)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusBadRequest {
+			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusBadRequest)
+		}
+	})
+
+	t.Run("Install Plugin - Missing Plugin ID", func(t *testing.T) {
+		mockManager.ExpectedCalls = nil
+
+		reqBody := map[string]interface{}{
+			"repository_id": 1,
+		}
+		body, _ := json.Marshal(reqBody)
+		req, _ := http.NewRequest("POST", "/api/admin/plugin-repositories/install", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(adminCookie)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusBadRequest {
+			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusBadRequest)
+		}
+	})
+
+	t.Run("Update Plugin - Missing Plugin ID", func(t *testing.T) {
+		mockManager.ExpectedCalls = nil
+
+		reqBody := map[string]interface{}{
+			"repository_id": 1,
+		}
+		body, _ := json.Marshal(reqBody)
+		req, _ := http.NewRequest("POST", "/api/admin/plugin-repositories/update", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(adminCookie)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusBadRequest {
+			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusBadRequest)
+		}
+	})
+
+	t.Run("Update Plugin - Plugin Not Installed", func(t *testing.T) {
+		mockManager.ExpectedCalls = nil
+
+		reqBody := models.PluginInstallRequest{
+			PluginID:    "non-existent-plugin",
+			RepositoryID: 1,
+		}
+		body, _ := json.Marshal(reqBody)
+		req, _ := http.NewRequest("POST", "/api/admin/plugin-repositories/update", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(adminCookie)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusNotFound {
+			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusNotFound)
+		}
+	})
+
+	t.Run("Check Updates - Manager Not Initialized", func(t *testing.T) {
+		// Temporarily set manager to nil
+		originalManager := plugins.GetGlobalManager()
+		plugins.SetGlobalManager(nil)
+
+		t.Cleanup(func() {
+			if originalManager != nil {
+				plugins.SetGlobalManager(originalManager)
+			} else {
+				plugins.SetGlobalManager(mockManager)
+			}
+		})
+
+		req, _ := http.NewRequest("POST", "/api/admin/plugin-repositories/check-updates", nil)
+		req.AddCookie(adminCookie)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusInternalServerError {
+			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusInternalServerError)
+		}
+	})
+
+	t.Run("Update Plugin - Manager Not Initialized", func(t *testing.T) {
+		// Temporarily set manager to nil
+		originalManager := plugins.GetGlobalManager()
+		plugins.SetGlobalManager(nil)
+
+		t.Cleanup(func() {
+			if originalManager != nil {
+				plugins.SetGlobalManager(originalManager)
+			} else {
+				plugins.SetGlobalManager(mockManager)
+			}
+		})
+
+		reqBody := models.PluginInstallRequest{
+			PluginID:    "test-plugin",
+			RepositoryID: 1,
+		}
+		body, _ := json.Marshal(reqBody)
+		req, _ := http.NewRequest("POST", "/api/admin/plugin-repositories/update", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(adminCookie)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusInternalServerError {
+			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusInternalServerError)
+		}
+	})
+
+	t.Run("Install Plugin - Manager Not Initialized", func(t *testing.T) {
+		// Temporarily set manager to nil
+		originalManager := plugins.GetGlobalManager()
+		plugins.SetGlobalManager(nil)
+
+		t.Cleanup(func() {
+			if originalManager != nil {
+				plugins.SetGlobalManager(originalManager)
+			} else {
+				plugins.SetGlobalManager(mockManager)
+			}
+		})
+
+		reqBody := models.PluginInstallRequest{
+			PluginID:    "test-plugin",
+			RepositoryID: 1,
+		}
+		body, _ := json.Marshal(reqBody)
+		req, _ := http.NewRequest("POST", "/api/admin/plugin-repositories/install", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(adminCookie)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusInternalServerError {
+			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusInternalServerError)
+		}
+	})
+
+	t.Run("Get Repository Plugins - Manager Not Initialized", func(t *testing.T) {
+		// Temporarily set manager to nil
+		originalManager := plugins.GetGlobalManager()
+		plugins.SetGlobalManager(nil)
+
+		t.Cleanup(func() {
+			if originalManager != nil {
+				plugins.SetGlobalManager(originalManager)
+			} else {
+				plugins.SetGlobalManager(mockManager)
+			}
+		})
+
+		req, _ := http.NewRequest("GET", "/api/plugin-repositories/1/plugins", nil)
+		req.AddCookie(adminCookie)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusInternalServerError {
+			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusInternalServerError)
+		}
+	})
+
+	t.Run("Create Repository - Manager Not Initialized", func(t *testing.T) {
+		// Temporarily set manager to nil
+		originalManager := plugins.GetGlobalManager()
+		plugins.SetGlobalManager(nil)
+
+		t.Cleanup(func() {
+			if originalManager != nil {
+				plugins.SetGlobalManager(originalManager)
+			} else {
+				plugins.SetGlobalManager(mockManager)
+			}
+		})
+
+		reqBody := map[string]string{
+			"url":  "https://example.com/repo.json",
+			"name": "Test Repo",
+		}
+		body, _ := json.Marshal(reqBody)
+		req, _ := http.NewRequest("POST", "/api/admin/plugin-repositories", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(adminCookie)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusInternalServerError {
+			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusInternalServerError)
+		}
+	})
+
+	t.Run("Create Repository - Invalid JSON", func(t *testing.T) {
+		mockManager.ExpectedCalls = nil
+
+		req, _ := http.NewRequest("POST", "/api/admin/plugin-repositories", bytes.NewBufferString("invalid json"))
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(adminCookie)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusBadRequest {
+			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusBadRequest)
+		}
+	})
+
+	t.Run("Install Plugin - Invalid JSON", func(t *testing.T) {
+		mockManager.ExpectedCalls = nil
+
+		req, _ := http.NewRequest("POST", "/api/admin/plugin-repositories/install", bytes.NewBufferString("invalid json"))
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(adminCookie)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusBadRequest {
+			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusBadRequest)
+		}
+	})
+
+	t.Run("Update Plugin - Invalid JSON", func(t *testing.T) {
+		mockManager.ExpectedCalls = nil
+
+		req, _ := http.NewRequest("POST", "/api/admin/plugin-repositories/update", bytes.NewBufferString("invalid json"))
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(adminCookie)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusBadRequest {
+			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusBadRequest)
 		}
 	})
 }
