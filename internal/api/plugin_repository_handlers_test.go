@@ -256,6 +256,30 @@ func TestPluginRepositoryHandlers(t *testing.T) {
 		}
 	})
 
+	t.Run("Delete Repository - Default Repository Protected", func(t *testing.T) {
+		mockManager.ExpectedCalls = nil
+
+		// Get the default repository (ID 1 from migration)
+		req, _ := http.NewRequest("DELETE", "/api/admin/plugin-repositories/1", nil)
+		req.AddCookie(adminCookie)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusForbidden {
+			body := rr.Body.String()
+			t.Errorf("handler returned wrong status code: got %v want %v, body: %s", status, http.StatusForbidden, body)
+		}
+
+		var errorResp map[string]string
+		if err := json.NewDecoder(rr.Body).Decode(&errorResp); err != nil {
+			t.Fatalf("Failed to decode response: %v", err)
+		}
+
+		if errorResp["error"] != "Cannot delete the default repository" {
+			t.Errorf("Expected error message about default repository, got: %s", errorResp["error"])
+		}
+	})
+
 	t.Run("Check Updates - Admin", func(t *testing.T) {
 		mockManager.ExpectedCalls = nil
 

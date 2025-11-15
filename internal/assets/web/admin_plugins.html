@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plugin Management - Mango Admin</title>
+    <link rel="stylesheet" href="/static/css/ext/phosphor-icons.css">
+    <link rel="stylesheet" href="/static/css/base.css">
+    <link rel="stylesheet" href="/static/css/admin.css">
+    <link rel="stylesheet" href="/static/css/admin_plugins.css">
+</head>
+<body>
+    <header class="main-header">
+        <div class="header-left">
+            <button class="menu-toggle" id="menu-toggle-btn"><i class="ph-bold ph-list"></i></button>
+            <nav class="nav-links" id="nav-links">
+                <div class="sidebar-logo">
+                    <img src="/static/images/logo.svg" alt="Mango Logo" class="header-logo">
+                </div>
+                <a href="/">Home</a>
+                <a href="/library">Library</a>
+                <a href="/admin" class="admin-only" style="display: none;">Admin</a>
+                <a href="/tags">Tags</a>
+                <div class="header-dropdown">
+                    <button class="header-dropdown-btn" tabindex="0">Download <i class="ph-bold ph-caret-down"></i></button>
+                    <div class="header-dropdown-content">
+                        <a href="/downloads/plugins">Plugins</a>
+                        <hr>
+                        <a href="/downloads/manager">Download Manager</a>
+                        <a href="/downloads/subscriptions">Subscription Manager</a>
+                    </div>
+                </div>
+            </nav>
+        </div>
+        <div class="header-right">
+            <button id="theme-toggle-btn"><i class="ph-bold ph-sun"></i></button>
+            <button id="logout-btn" class="auth-only" style="display: none;">Logout</button>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="page-header">
+            <h1>Plugin Management</h1>
+            <div class="page-actions">
+                <button class="btn btn-primary" id="browse-plugins-btn">
+                    <i class="ph-bold ph-magnifying-glass"></i>
+                    Browse & Install Plugins
+                </button>
+                <button class="btn btn-secondary" id="check-updates-btn">
+                    <i class="ph-bold ph-arrow-clockwise"></i>
+                    Check for Updates
+                </button>
+                <button class="btn btn-secondary" id="reload-all-btn">
+                    <i class="ph-bold ph-arrow-clockwise"></i>
+                    Reload All Plugins
+                </button>
+            </div>
+        </div>
+
+        <!-- Installed Plugins List -->
+        <div class="plugins-list" id="plugins-list">
+            <div class="loading-state">
+                <i class="ph-bold ph-spinner ph-spin"></i> Loading plugins...
+            </div>
+        </div>
+
+        <!-- Update Notifications -->
+        <div class="updates-section" id="updates-section" style="display: none;">
+            <h3>Available Updates</h3>
+            <div class="updates-list" id="updates-list"></div>
+        </div>
+    </main>
+
+    <!-- Browse Plugins Modal -->
+    <div class="modal-overlay" id="browse-plugins-modal" style="display: none;">
+        <div class="modal modal-large">
+            <div class="modal-header">
+                <h3 id="browse-plugins-title">Browse & Install Plugins</h3>
+                <button class="modal-close" id="browse-plugins-modal-close">
+                    <i class="ph-bold ph-x"></i>
+                </button>
+            </div>
+            <div class="modal-content">
+                <div class="repositories-selector" id="repositories-selector" style="margin-bottom: 1rem;">
+                    <label for="repository-select">Select Repository:</label>
+                    <select id="repository-select">
+                        <option value="">Loading repositories...</option>
+                    </select>
+                </div>
+                <div class="plugins-grid" id="plugins-grid">
+                    <div class="empty-state">
+                        <i class="ph-bold ph-package"></i>
+                        <h3>Select a repository to browse plugins</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="main-footer">
+        <span id="version-footer"></span>
+    </footer>
+    <script src="/static/js/header.js"></script>
+    <script src="/static/js/toast.js"></script>
+    <script type="module" src="/static/js/admin_plugins.js"></script>
+</body>
+</html>
+

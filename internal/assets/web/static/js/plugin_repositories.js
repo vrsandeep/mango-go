@@ -236,12 +236,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
+    const defaultRepositoryURL =
+      'https://raw.githubusercontent.com/vrsandeep/mango-go-plugins/master/repository.json';
+
     repositoriesList.innerHTML = state.repositories
-      .map(
-        repo => `
-      <div class="repository-card">
+      .map(repo => {
+        const isDefault = repo.url === defaultRepositoryURL;
+        return `
+      <div class="repository-card ${isDefault ? 'default-repository' : ''}">
         <div class="repository-info">
-          <h3>${escapeHtml(repo.name || 'Unnamed Repository')}</h3>
+          <h3>${escapeHtml(repo.name || 'Unnamed Repository')}${isDefault ? ' <span class="default-badge">Default</span>' : ''}</h3>
           <p class="repository-url">${escapeHtml(repo.url)}</p>
           ${repo.description ? `<p class="repository-description">${escapeHtml(repo.description)}</p>` : ''}
         </div>
@@ -250,14 +254,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             <i class="ph-bold ph-magnifying-glass"></i>
             Browse Plugins
           </button>
-          <button class="btn btn-danger delete-repo-btn" data-repo-id="${repo.id}">
+          ${
+            isDefault
+              ? ''
+              : `<button class="btn btn-danger delete-repo-btn" data-repo-id="${repo.id}">
             <i class="ph-bold ph-trash"></i>
             Delete
-          </button>
+          </button>`
+          }
         </div>
       </div>
-    `
-      )
+    `;
+      })
       .join('');
 
     // Attach event listeners

@@ -273,6 +273,23 @@
   transition: all 0.2s ease;
 }
 
+.repository-card.default-repository {
+  border-color: var(--accent-color);
+  background: rgba(0, 123, 255, 0.05);
+}
+
+.default-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  margin-left: 0.5rem;
+  background: var(--accent-color);
+  color: white;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
 .repository-card:hover {
   border-color: var(--accent-color);
   transform: translateY(-2px);

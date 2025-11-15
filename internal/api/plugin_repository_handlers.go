@@ -207,6 +207,20 @@ func (s *Server) handleDeleteRepository(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Get repository to check if it's the default one
+	repo, err := s.store.GetRepositoryByID(repoID)
+	if err != nil {
+		RespondWithError(w, http.StatusNotFound, "Repository not found")
+		return
+	}
+
+	// Prevent deletion of the default repository
+	defaultRepositoryURL := "https://raw.githubusercontent.com/vrsandeep/mango-go-plugins/master/repository.json"
+	if repo.URL == defaultRepositoryURL {
+		RespondWithError(w, http.StatusForbidden, "Cannot delete the default repository")
+		return
+	}
+
 	if err := s.store.DeleteRepository(repoID); err != nil {
 		RespondWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to delete repository: %v", err))
 		return

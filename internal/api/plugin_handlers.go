@@ -17,6 +17,17 @@ func (s *Server) handleListPlugins(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pluginList := manager.ListPlugins()
+
+	// Enrich plugin info with installed version from database if manifest version is missing
+	for i := range pluginList {
+		if pluginList[i].Version == "" {
+			installed, err := s.store.GetInstalledPlugin(pluginList[i].ID)
+			if err == nil && installed != nil {
+				pluginList[i].Version = installed.InstalledVersion
+			}
+		}
+	}
+
 	RespondWithJSON(w, http.StatusOK, pluginList)
 }
 
@@ -34,6 +45,14 @@ func (s *Server) handleGetPluginInfo(w http.ResponseWriter, r *http.Request) {
 	if !exists {
 		RespondWithError(w, http.StatusNotFound, "Plugin not found")
 		return
+	}
+
+	// Enrich plugin info with installed version from database if manifest version is missing
+	if pluginInfo.Version == "" {
+		installed, err := s.store.GetInstalledPlugin(pluginID)
+		if err == nil && installed != nil {
+			pluginInfo.Version = installed.InstalledVersion
+		}
 	}
 
 	RespondWithJSON(w, http.StatusOK, pluginInfo)
