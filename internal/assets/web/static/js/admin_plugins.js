@@ -14,13 +14,28 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // --- DOM Elements ---
   const pluginsList = document.getElementById('plugins-list');
+  const repositoriesList = document.getElementById('repositories-list');
+  const addRepoBtn = document.getElementById('add-repo-btn');
   const browsePluginsBtn = document.getElementById('browse-plugins-btn');
   const checkUpdatesBtn = document.getElementById('check-updates-btn');
   const reloadAllBtn = document.getElementById('reload-all-btn');
   const updatesSection = document.getElementById('updates-section');
   const updatesList = document.getElementById('updates-list');
 
+  // Tab elements
+  const tabBtns = document.querySelectorAll('.tab-btn');
+  const tabContents = document.querySelectorAll('.tab-content');
+
   // Modal elements
+  const addRepoModal = document.getElementById('add-repo-modal');
+  const addRepoModalClose = document.getElementById('add-repo-modal-close');
+  const addRepoCancel = document.getElementById('add-repo-cancel');
+  const addRepoSubmit = document.getElementById('add-repo-submit');
+  const addRepoForm = document.getElementById('add-repo-form');
+  const repoUrlInput = document.getElementById('repo-url');
+  const repoNameInput = document.getElementById('repo-name');
+  const repoDescriptionInput = document.getElementById('repo-description');
+
   const browsePluginsModal = document.getElementById('browse-plugins-modal');
   const browsePluginsModalClose = document.getElementById('browse-plugins-modal-close');
   const browsePluginsTitle = document.getElementById('browse-plugins-title');
@@ -33,6 +48,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     div.textContent = text;
     return div.innerHTML;
   };
+
+  // --- Tab Management ---
+  const switchTab = tabName => {
+    tabBtns.forEach(btn => {
+      if (btn.dataset.tab === tabName) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+
+    tabContents.forEach(content => {
+      if (content.id === `tab-${tabName}`) {
+        content.classList.add('active');
+      } else {
+        content.classList.remove('active');
+      }
+    });
+  };
+
+  tabBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      switchTab(btn.dataset.tab);
+    });
+  });
 
   // --- API Functions ---
   const fetchInstalledPlugins = async () => {
@@ -54,9 +94,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       const response = await fetch('/api/plugin-repositories');
       if (!response.ok) throw new Error('Failed to fetch repositories');
       state.repositories = await response.json();
+      renderRepositories();
       renderRepositorySelector();
     } catch (error) {
       console.error('Error fetching repositories:', error);
+      if (window.toast) {
+        toast.error('Failed to load repositories');
+      }
     }
   };
 
@@ -71,6 +115,57 @@ document.addEventListener('DOMContentLoaded', async () => {
         toast.error('Failed to load available plugins');
       }
       return [];
+    }
+  };
+
+  const addRepository = async (url, name, description) => {
+    try {
+      const response = await fetch('/api/admin/plugin-repositories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, name, description }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to add repository');
+      }
+
+      const repo = await response.json();
+      if (window.toast) {
+        toast.success('Repository added successfully');
+      }
+      closeAddRepoModal();
+      await fetchRepositories();
+      return repo;
+    } catch (error) {
+      console.error('Error adding repository:', error);
+      if (window.toast) {
+        toast.error(error.message || 'Failed to add repository');
+      }
+      throw error;
+    }
+  };
+
+  const deleteRepository = async repositoryId => {
+    if (!confirm('Are you sure you want to delete this repository?')) return;
+
+    try {
+      const response = await fetch(`/api/admin/plugin-repositories/${repositoryId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) throw new Error('Failed to delete repository');
+
+      if (window.toast) {
+        toast.success('Repository deleted successfully');
+      }
+      await fetchRepositories();
+    } catch (error) {
+      console.error('Error deleting repository:', error);
+      if (window.toast) {
+        toast.error('Failed to delete repository');
+      }
     }
   };
 
@@ -91,7 +186,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         toast.success(`Plugin ${pluginId} installed successfully`);
       }
       await fetchInstalledPlugins();
-      await loadPluginsForRepository(repositoryId);
+      // Refresh the plugins grid if modal is open
+      if (browsePluginsModal.style.display !== 'none') {
+        const currentRepoId = repositorySelect.value;
+        if (currentRepoId) {
+          await loadPluginsForRepository(parseInt(currentRepoId));
+        }
+      }
     } catch (error) {
       console.error('Error installing plugin:', error);
       if (window.toast) {
@@ -118,7 +219,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       await fetchInstalledPlugins();
       await checkForUpdates();
-      await loadPluginsForRepository(repositoryId);
+      // Refresh the plugins grid if modal is open
+      if (browsePluginsModal.style.display !== 'none') {
+        const currentRepoId = repositorySelect.value;
+        if (currentRepoId) {
+          await loadPluginsForRepository(parseInt(currentRepoId));
+        }
+      }
     } catch (error) {
       console.error('Error updating plugin:', error);
       if (window.toast) {
@@ -329,6 +436,66 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   };
 
+  const renderRepositories = () => {
+    if (state.repositories.length === 0) {
+      repositoriesList.innerHTML = `
+        <div class="empty-state">
+          <i class="ph-bold ph-package"></i>
+          <h3>No repositories</h3>
+          <p>Add a repository to browse and install plugins</p>
+        </div>
+      `;
+      return;
+    }
+
+    const defaultRepositoryURL =
+      'https://raw.githubusercontent.com/vrsandeep/mango-go-plugins/master/repository.json';
+
+    repositoriesList.innerHTML = state.repositories
+      .map(repo => {
+        const isDefault = repo.url === defaultRepositoryURL;
+        return `
+      <div class="repository-card ${isDefault ? 'default-repository' : ''}">
+        <div class="repository-info">
+          <h3>${escapeHtml(repo.name || 'Unnamed Repository')}${isDefault ? ' <span class="default-badge">Default</span>' : ''}</h3>
+          <p class="repository-url">${escapeHtml(repo.url)}</p>
+          ${repo.description ? `<p class="repository-description">${escapeHtml(repo.description)}</p>` : ''}
+        </div>
+        <div class="repository-actions">
+          <button class="btn btn-secondary browse-plugins-btn" data-repo-id="${repo.id}" data-repo-name="${escapeHtml(repo.name || 'Repository')}">
+            <i class="ph-bold ph-magnifying-glass"></i>
+            Browse Plugins
+          </button>
+          ${isDefault ? '' : `<button class="btn btn-danger delete-repo-btn" data-repo-id="${repo.id}">
+            <i class="ph-bold ph-trash"></i>
+            Delete
+          </button>`}
+        </div>
+      </div>
+    `;
+      })
+      .join('');
+
+    // Attach event listeners
+    document.querySelectorAll('.browse-plugins-btn').forEach(btn => {
+      btn.addEventListener('click', async e => {
+        const repoId = parseInt(e.target.closest('.browse-plugins-btn').dataset.repoId);
+        const repoName = e.target.closest('.browse-plugins-btn').dataset.repoName;
+        openBrowsePluginsModal();
+        repositorySelect.value = repoId;
+        browsePluginsTitle.textContent = `Browse Plugins - ${repoName}`;
+        await loadPluginsForRepository(repoId);
+      });
+    });
+
+    document.querySelectorAll('.delete-repo-btn').forEach(btn => {
+      btn.addEventListener('click', e => {
+        const repoId = parseInt(e.target.closest('.delete-repo-btn').dataset.repoId);
+        deleteRepository(repoId);
+      });
+    });
+  };
+
   const renderRepositorySelector = () => {
     if (state.repositories.length === 0) {
       repositorySelect.innerHTML = '<option value="">No repositories available</option>';
@@ -488,6 +655,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   // --- Modal Functions ---
+  const openAddRepoModal = () => {
+    addRepoModal.style.display = 'flex';
+    addRepoForm.reset();
+  };
+
+  const closeAddRepoModal = () => {
+    addRepoModal.style.display = 'none';
+    addRepoForm.reset();
+  };
+
   const openBrowsePluginsModal = () => {
     browsePluginsModal.style.display = 'flex';
     repositorySelect.value = '';
@@ -504,6 +681,33 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   // --- Event Listeners ---
+  addRepoBtn.addEventListener('click', openAddRepoModal);
+  addRepoModalClose.addEventListener('click', closeAddRepoModal);
+  addRepoCancel.addEventListener('click', closeAddRepoModal);
+  addRepoSubmit.addEventListener('click', async e => {
+    e.preventDefault();
+    const url = repoUrlInput.value.trim();
+    const name = repoNameInput.value.trim();
+    const description = repoDescriptionInput.value.trim();
+
+    if (!url) {
+      if (window.toast) {
+        toast.error('Repository URL is required');
+      }
+      return;
+    }
+
+    addRepoSubmit.disabled = true;
+    addRepoSubmit.innerHTML = '<i class="ph-bold ph-spinner ph-spin"></i> Adding...';
+
+    try {
+      await addRepository(url, name || null, description || null);
+    } finally {
+      addRepoSubmit.disabled = false;
+      addRepoSubmit.innerHTML = 'Add Repository';
+    }
+  });
+
   browsePluginsBtn.addEventListener('click', openBrowsePluginsModal);
   browsePluginsModalClose.addEventListener('click', closeBrowsePluginsModal);
   checkUpdatesBtn.addEventListener('click', checkForUpdates);
@@ -512,6 +716,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   repositorySelect.addEventListener('change', async e => {
     const repoId = e.target.value;
     if (repoId) {
+      const repo = state.repositories.find(r => r.id == repoId);
+      if (repo) {
+        browsePluginsTitle.textContent = `Browse Plugins - ${repo.name || 'Repository'}`;
+      }
       await loadPluginsForRepository(parseInt(repoId));
     } else {
       pluginsGrid.innerHTML = `
@@ -523,7 +731,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Close modal when clicking overlay
+  // Close modals when clicking overlay
+  addRepoModal.addEventListener('click', e => {
+    if (e.target === addRepoModal) closeAddRepoModal();
+  });
+
   browsePluginsModal.addEventListener('click', e => {
     if (e.target === browsePluginsModal) closeBrowsePluginsModal();
   });
@@ -533,4 +745,3 @@ document.addEventListener('DOMContentLoaded', async () => {
   await fetchRepositories();
   await checkForUpdates();
 });
-

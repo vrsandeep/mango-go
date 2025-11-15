@@ -42,9 +42,9 @@
         <div class="page-header">
             <h1>Plugin Management</h1>
             <div class="page-actions">
-                <button class="btn btn-primary" id="browse-plugins-btn">
-                    <i class="ph-bold ph-magnifying-glass"></i>
-                    Browse & Install Plugins
+                <button class="btn btn-primary" id="add-repo-btn">
+                    <i class="ph-bold ph-plus"></i>
+                    Add Repository
                 </button>
                 <button class="btn btn-secondary" id="check-updates-btn">
                     <i class="ph-bold ph-arrow-clockwise"></i>
@@ -57,10 +57,31 @@
             </div>
         </div>
 
-        <!-- Installed Plugins List -->
-        <div class="plugins-list" id="plugins-list">
-            <div class="loading-state">
-                <i class="ph-bold ph-spinner ph-spin"></i> Loading plugins...
+        <!-- Tabs -->
+        <div class="tabs-container">
+            <button class="tab-btn active" data-tab="installed">Installed Plugins</button>
+            <button class="tab-btn" data-tab="repositories">Repositories</button>
+        </div>
+
+        <!-- Installed Plugins Tab -->
+        <div class="tab-content active" id="tab-installed">
+            <div style="margin-bottom: 1rem;">
+                <button class="btn btn-primary" id="browse-plugins-btn">
+                    <i class="ph-bold ph-magnifying-glass"></i>
+                    Browse & Install Plugins
+                </button>
+            </div>
+            <div class="plugins-list" id="plugins-list">
+                <div class="loading-state">
+                    <i class="ph-bold ph-spinner ph-spin"></i> Loading plugins...
+                </div>
+            </div>
+        </div>
+
+        <!-- Repositories Tab -->
+        <div class="tab-content" id="tab-repositories">
+            <div class="repositories-list" id="repositories-list">
+                <!-- Repositories will be loaded here -->
             </div>
         </div>
 
@@ -70,6 +91,39 @@
             <div class="updates-list" id="updates-list"></div>
         </div>
     </main>
+
+    <!-- Add Repository Modal -->
+    <div class="modal-overlay" id="add-repo-modal" style="display: none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Add Plugin Repository</h3>
+                <button class="modal-close" id="add-repo-modal-close">
+                    <i class="ph-bold ph-x"></i>
+                </button>
+            </div>
+            <div class="modal-content">
+                <form id="add-repo-form">
+                    <div class="form-group">
+                        <label for="repo-url">Repository URL</label>
+                        <input type="url" id="repo-url" required placeholder="https://raw.githubusercontent.com/user/repo/master/repository.json">
+                        <small>URL to the repository.json file</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="repo-name">Name (Optional)</label>
+                        <input type="text" id="repo-name" placeholder="My Plugin Repository">
+                    </div>
+                    <div class="form-group">
+                        <label for="repo-description">Description (Optional)</label>
+                        <textarea id="repo-description" rows="3" placeholder="Repository description"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="add-repo-cancel">Cancel</button>
+                <button class="btn btn-primary" id="add-repo-submit">Add Repository</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Browse Plugins Modal -->
     <div class="modal-overlay" id="browse-plugins-modal" style="display: none;">
@@ -105,4 +159,3 @@
     <script type="module" src="/static/js/admin_plugins.js"></script>
 </body>
 </html>
-
