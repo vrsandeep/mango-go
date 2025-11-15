@@ -75,10 +75,15 @@ func main() {
 	providers.Register(mangadex.New())
 	providers.Register(weebcentral.New())
 
-	// Load plugins from plugins directory
-	if err := plugins.LoadPlugins(app, app.Config().Plugins.Path); err != nil {
+	// Initialize plugin manager and load plugins
+	pluginManager := plugins.NewPluginManager(app, app.Config().Plugins.Path)
+	plugins.SetGlobalManager(pluginManager)
+	if err := pluginManager.LoadPlugins(); err != nil {
 		log.Printf("Warning: failed to load plugins: %v", err)
 	}
+
+	// Check for plugin updates on startup (in background, non-blocking)
+	go checkForPluginUpdates(app, pluginManager)
 
 	// Start the download worker pool
 	downloader.StartWorkerPool(app)
@@ -129,4 +134,22 @@ func generateRandomPassword(length int) string {
 		b[i] = charset[seededRand.Intn(len(charset))]
 	}
 	return string(b)
+}
+
+func checkForPluginUpdates(app *core.App, pluginManager *plugins.PluginManager) {
+	log.Println("Checking for plugin updates on startup...")
+	repoService := plugins.NewRepositoryService(app, store.New(app.DB()), pluginManager)
+	updates, err := repoService.CheckForUpdates()
+	if err != nil {
+		log.Printf("Warning: failed to check for plugin updates on startup: %v", err)
+		return
+	}
+	if len(updates) > 0 {
+		log.Printf("Found %d plugin update(s) available:", len(updates))
+		for _, update := range updates {
+			log.Printf("  - %s: %s -> %s", update.Name, update.InstalledVersion, update.AvailableVersion)
+		}
+	} else {
+		log.Println("All plugins are up to date.")
+	}
 }

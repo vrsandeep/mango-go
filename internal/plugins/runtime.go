@@ -74,7 +74,8 @@ func NewPluginRuntime(app *core.App, manifest *PluginManifest, pluginDir string)
 	}
 
 	exportsObj := exportsVal.ToObject(vm)
-	requiredExports := []string{"getInfo", "search", "getChapters", "getPageURLs"}
+	// getInfo is optional - we use manifest directly now
+	requiredExports := []string{"search", "getChapters", "getPageURLs"}
 	for _, exp := range requiredExports {
 		if exportsObj.Get(exp) == nil {
 			return nil, fmt.Errorf("plugin missing required export: %s", exp)
@@ -87,6 +88,16 @@ func NewPluginRuntime(app *core.App, manifest *PluginManifest, pluginDir string)
 		api:       api,
 		pluginDir: pluginDir,
 	}, nil
+}
+
+// Manifest returns the plugin manifest (for testing)
+func (r *PluginRuntime) Manifest() *PluginManifest {
+	return r.manifest
+}
+
+// VM returns the goja runtime (for testing)
+func (r *PluginRuntime) VM() *goja.Runtime {
+	return r.vm
 }
 
 // Call calls a plugin function with error recovery.

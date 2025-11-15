@@ -115,6 +115,18 @@ func (s *Server) Router() http.Handler {
 				r.Post("/users", s.handleAdminCreateUser)
 				r.Put("/users/{userID}", s.handleAdminUpdateUser)
 				r.Delete("/users/{userID}", s.handleAdminDeleteUser)
+
+				// Plugin Management Routes
+				r.Post("/plugins/reload", s.handleReloadAllPlugins)
+				r.Post("/plugins/{pluginID}/reload", s.handleReloadPlugin)
+				r.Delete("/plugins/{pluginID}", s.handleUnloadPlugin)
+
+				// Plugin Repository Management Routes (Admin only)
+				r.Post("/plugin-repositories", s.handleCreateRepository)
+				r.Delete("/plugin-repositories/{repositoryID}", s.handleDeleteRepository)
+				r.Post("/plugin-repositories/install", s.handleInstallPlugin)
+				r.Post("/plugin-repositories/update", s.handleUpdatePlugin)
+				r.Post("/plugin-repositories/check-updates", s.handleCheckUpdates)
 			})
 
 			// Downloader Routes
@@ -132,6 +144,14 @@ func (s *Server) Router() http.Handler {
 			r.Put("/subscriptions/{subID}/folder-path", s.handleUpdateSubscriptionFolderPath)
 			r.Post("/subscriptions/{subID}/recheck", s.handleRecheckSubscription)
 			r.Delete("/subscriptions/{subID}", s.handleDeleteSubscription)
+
+			// Plugin Management Routes
+			r.Get("/plugins", s.handleListPlugins)
+			r.Get("/plugins/{pluginID}", s.handleGetPluginInfo)
+
+			// Plugin Repository Routes
+			r.Get("/plugin-repositories", s.handleListRepositories)
+			r.Get("/plugin-repositories/{repositoryID}/plugins", s.handleGetRepositoryPlugins)
 		})
 	})
 
@@ -189,6 +209,7 @@ func (s *Server) Router() http.Handler {
 	r.Get("/admin", serveHTML("admin.html"))
 	r.Get("/admin/users", serveHTML("admin_users.html"))
 	r.Get("/admin/bad-files", serveHTML("bad_files.html"))
+	r.Get("/admin/plugins", serveHTML("admin_plugins.html"))
 	r.Get("/downloads/plugins", serveHTML("plugins.html"))
 	r.Get("/downloads/manager", serveHTML("download_manager.html"))
 	r.Get("/downloads/subscriptions", serveHTML("subscription_manager.html"))

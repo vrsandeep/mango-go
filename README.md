@@ -45,12 +45,15 @@ The recommended way to run Mango-Go in production is using Docker and Docker Com
          environment:
             - MANGO_DATABASE_PATH=/app/data/mango.db
             - MANGO_LIBRARY_PATH=/manga
+            - MANGO_PLUGINS_PATH=/app/plugins
          #user: 1000:1000  # Add this optionally on linux systems
          volumes:
             # This will store the SQLite database
             - ./data:/app/data
             # Mount your actual manga library on your host machine to /manga inside the container.
             - ./manga:/manga # 👈  This is safe. This project does not modify the manga folder.
+            # Mount plugins directory to persist installed plugins
+            - ./plugins:/app/plugins
          healthcheck:
             test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
             interval: 30s
@@ -99,6 +102,8 @@ The application can be compiled into a single, portable binary file that contain
      path: "/path/to/your/manga"
    database:
      path: "./mango.db"
+   plugins:
+     path: "./plugins"  # Path to plugins directory
    port: 8080
    scan_interval: 30
    ```
@@ -143,12 +148,22 @@ You can configure Mango-Go using environment variables:
 |----------|-------------|---------|
 | `MANGO_LIBRARY_PATH` | Path to manga library | `./manga` |
 | `MANGO_DATABASE_PATH` | SQLite database path | `./mango.db` |
+| `MANGO_PLUGINS_PATH` | Path to plugins directory | `../mango-go-plugins` |
 | `MANGO_PORT` | Web server port | `8080` |
 | `MANGO_SCAN_INTERVAL` | Library scan interval (minutes) | `30` |
 
 ## Data Persistence
 
 When using Docker, the `docker-compose.yml` file is configured to store all application data in a `./data` directory on your host machine. Your manga library is mounted directly into the container and is never modified, ensuring your data is safe even if you update or restart the container.
+
+### Plugin Storage
+
+Plugins installed via the Plugin Repositories interface are stored in the `./plugins` directory (mounted to `/app/plugins` inside the container). This ensures that:
+- Installed plugins persist across container restarts
+- Plugin updates and installations are saved to your host machine
+- You can manually manage plugins by adding/removing directories in the `./plugins` folder
+
+**Note**: The plugins directory will be created automatically if it doesn't exist. Make sure the directory has proper write permissions for the container user.
 
 
 ## Troubleshooting
