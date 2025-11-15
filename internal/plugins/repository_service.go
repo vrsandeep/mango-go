@@ -195,7 +195,7 @@ func (rs *RepositoryService) CheckForUpdates() ([]models.PluginUpdateInfo, error
 	}
 
 	// Create a map of installed plugins by ID
-	installedMap := make(map[string]*store.InstalledPlugin)
+	installedMap := make(map[string]*models.InstalledPlugin)
 	for _, inst := range installedPlugins {
 		installedMap[inst.PluginID] = inst
 	}

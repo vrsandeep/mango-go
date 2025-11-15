@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/vrsandeep/mango-go/internal/models"
@@ -54,6 +55,11 @@ func (s *Server) handleCreateRepository(w http.ResponseWriter, r *http.Request) 
 
 	repo, err := s.store.CreateRepository(req.URL, req.Name, req.Description)
 	if err != nil {
+		// Check for UNIQUE constraint violation (duplicate URL)
+		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			RespondWithError(w, http.StatusConflict, "A repository with this URL already exists")
+			return
+		}
 		RespondWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to create repository: %v", err))
 		return
 	}

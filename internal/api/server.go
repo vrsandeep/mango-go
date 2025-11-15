@@ -209,6 +209,7 @@ func (s *Server) Router() http.Handler {
 	r.Get("/admin", serveHTML("admin.html"))
 	r.Get("/admin/users", serveHTML("admin_users.html"))
 	r.Get("/admin/bad-files", serveHTML("bad_files.html"))
+	r.Get("/admin/plugin-repositories", serveHTML("plugin_repositories.html"))
 	r.Get("/downloads/plugins", serveHTML("plugins.html"))
 	r.Get("/downloads/manager", serveHTML("download_manager.html"))
 	r.Get("/downloads/subscriptions", serveHTML("subscription_manager.html"))

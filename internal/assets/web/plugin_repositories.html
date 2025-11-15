@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plugin Repositories - Mango Admin</title>
+    <link rel="stylesheet" href="/static/css/ext/phosphor-icons.css">
+    <link rel="stylesheet" href="/static/css/base.css">
+    <link rel="stylesheet" href="/static/css/admin.css">
+    <link rel="stylesheet" href="/static/css/bad_files.css">
+</head>
+<body>
+    <header class="main-header">
+        <div class="header-left">
+            <button class="menu-toggle" id="menu-toggle-btn"><i class="ph-bold ph-list"></i></button>
+            <nav class="nav-links" id="nav-links">
+                <div class="sidebar-logo">
+                    <img src="/static/images/logo.svg" alt="Mango Logo" class="header-logo">
+                </div>
+                <a href="/">Home</a>
+                <a href="/library">Library</a>
+                <a href="/admin" class="admin-only" style="display: none;">Admin</a>
+                <a href="/tags">Tags</a>
+                <div class="header-dropdown">
+                    <button class="header-dropdown-btn" tabindex="0">Download <i class="ph-bold ph-caret-down"></i></button>
+                    <div class="header-dropdown-content">
+                        <a href="/downloads/plugins">Plugins</a>
+                        <hr>
+                        <a href="/downloads/manager">Download Manager</a>
+                        <a href="/downloads/subscriptions">Subscription Manager</a>
+                    </div>
+                </div>
+            </nav>
+        </div>
+        <div class="header-right">
+            <button id="theme-toggle-btn"><i class="ph-bold ph-sun"></i></button>
+            <button id="logout-btn" class="auth-only" style="display: none;">Logout</button>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="page-header">
+            <h1>Plugin Repositories</h1>
+            <div class="page-actions">
+                <button class="btn btn-primary" id="add-repo-btn">
+                    <i class="ph-bold ph-plus"></i>
+                    Add Repository
+                </button>
+                <button class="btn btn-secondary" id="check-updates-btn">
+                    <i class="ph-bold ph-arrow-clockwise"></i>
+                    Check for Updates
+                </button>
+            </div>
+        </div>
+
+        <!-- Repositories List -->
+        <div class="repositories-list" id="repositories-list">
+            <!-- Repositories will be loaded here -->
+        </div>
+
+        <!-- Update Notifications -->
+        <div class="updates-section" id="updates-section" style="display: none;">
+            <h3>Available Updates</h3>
+            <div class="updates-list" id="updates-list"></div>
+        </div>
+    </main>
+
+    <!-- Add Repository Modal -->
+    <div class="modal-overlay" id="add-repo-modal" style="display: none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Add Plugin Repository</h3>
+                <button class="modal-close" id="add-repo-modal-close">
+                    <i class="ph-bold ph-x"></i>
+                </button>
+            </div>
+            <div class="modal-content">
+                <form id="add-repo-form">
+                    <div class="form-group">
+                        <label for="repo-url">Repository URL</label>
+                        <input type="url" id="repo-url" required placeholder="https://raw.githubusercontent.com/user/repo/master/repository.json">
+                        <small>URL to the repository.json file</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="repo-name">Name (Optional)</label>
+                        <input type="text" id="repo-name" placeholder="My Plugin Repository">
+                    </div>
+                    <div class="form-group">
+                        <label for="repo-description">Description (Optional)</label>
+                        <textarea id="repo-description" rows="3" placeholder="Repository description"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="add-repo-cancel">Cancel</button>
+                <button class="btn btn-primary" id="add-repo-submit">Add Repository</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Browse Plugins Modal -->
+    <div class="modal-overlay" id="browse-plugins-modal" style="display: none;">
+        <div class="modal modal-large">
+            <div class="modal-header">
+                <h3 id="browse-plugins-title">Available Plugins</h3>
+                <button class="modal-close" id="browse-plugins-modal-close">
+                    <i class="ph-bold ph-x"></i>
+                </button>
+            </div>
+            <div class="modal-content">
+                <div class="plugins-grid" id="plugins-grid">
+                    <!-- Plugins will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="main-footer">
+        <span id="version-footer"></span>
+    </footer>
+    <script src="/static/js/header.js"></script>
+    <script src="/static/js/toast.js"></script>
+    <script src="/static/js/plugin_repositories.js"></script>
+</body>
+</html>
+

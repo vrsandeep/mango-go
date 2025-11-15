@@ -1,5 +1,10 @@
 package models
 
+import (
+	"database/sql"
+	"time"
+)
+
 // RepositoryPlugin represents a plugin available in a repository
 type RepositoryPlugin struct {
 	ID          string                 `json:"id"`
@@ -48,3 +53,22 @@ type PluginUpdateInfo struct {
 	HasUpdate      bool   `json:"has_update"`
 }
 
+// PluginRepository represents a plugin repository in the database
+type PluginRepository struct {
+	ID          int64 `json:"id"`
+	URL         string `json:"url"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+// InstalledPlugin represents an installed plugin tracking entry
+type InstalledPlugin struct {
+	ID             int64 `json:"id"`
+	PluginID       string
+	RepositoryID   sql.NullInt64 `json:"repository_id"`
+	InstalledVersion string `json:"installed_version"`
+	InstalledAt    time.Time `json:"installed_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+}

@@ -2,31 +2,12 @@ package store
 
 import (
 	"database/sql"
-	"time"
+
+	"github.com/vrsandeep/mango-go/internal/models"
 )
 
-// PluginRepository represents a plugin repository in the database
-type PluginRepository struct {
-	ID          int64
-	URL         string
-	Name        string
-	Description string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-}
-
-// InstalledPlugin represents an installed plugin tracking entry
-type InstalledPlugin struct {
-	ID             int64
-	PluginID       string
-	RepositoryID   sql.NullInt64
-	InstalledVersion string
-	InstalledAt    time.Time
-	UpdatedAt      time.Time
-}
-
 // GetAllRepositories returns all plugin repositories
-func (s *Store) GetAllRepositories() ([]*PluginRepository, error) {
+func (s *Store) GetAllRepositories() ([]*models.PluginRepository, error) {
 	rows, err := s.db.Query(`
 		SELECT id, url, name, description, created_at, updated_at
 		FROM plugin_repositories
@@ -37,9 +18,9 @@ func (s *Store) GetAllRepositories() ([]*PluginRepository, error) {
 	}
 	defer rows.Close()
 
-	var repositories []*PluginRepository
+	var repositories []*models.PluginRepository
 	for rows.Next() {
-		var repo PluginRepository
+		var repo models.PluginRepository
 		err := rows.Scan(
 			&repo.ID,
 			&repo.URL,
@@ -58,8 +39,8 @@ func (s *Store) GetAllRepositories() ([]*PluginRepository, error) {
 }
 
 // GetRepositoryByID returns a repository by ID
-func (s *Store) GetRepositoryByID(id int64) (*PluginRepository, error) {
-	var repo PluginRepository
+func (s *Store) GetRepositoryByID(id int64) (*models.PluginRepository, error) {
+	var repo models.PluginRepository
 	err := s.db.QueryRow(`
 		SELECT id, url, name, description, created_at, updated_at
 		FROM plugin_repositories
@@ -79,8 +60,8 @@ func (s *Store) GetRepositoryByID(id int64) (*PluginRepository, error) {
 }
 
 // GetRepositoryByURL returns a repository by URL
-func (s *Store) GetRepositoryByURL(url string) (*PluginRepository, error) {
-	var repo PluginRepository
+func (s *Store) GetRepositoryByURL(url string) (*models.PluginRepository, error) {
+	var repo models.PluginRepository
 	err := s.db.QueryRow(`
 		SELECT id, url, name, description, created_at, updated_at
 		FROM plugin_repositories
@@ -100,7 +81,7 @@ func (s *Store) GetRepositoryByURL(url string) (*PluginRepository, error) {
 }
 
 // CreateRepository creates a new plugin repository
-func (s *Store) CreateRepository(url, name, description string) (*PluginRepository, error) {
+func (s *Store) CreateRepository(url, name, description string) (*models.PluginRepository, error) {
 	result, err := s.db.Exec(`
 		INSERT INTO plugin_repositories (url, name, description, created_at, updated_at)
 		VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
@@ -134,8 +115,8 @@ func (s *Store) DeleteRepository(id int64) error {
 }
 
 // GetInstalledPlugin returns an installed plugin entry by plugin ID
-func (s *Store) GetInstalledPlugin(pluginID string) (*InstalledPlugin, error) {
-	var installed InstalledPlugin
+func (s *Store) GetInstalledPlugin(pluginID string) (*models.InstalledPlugin, error) {
+	var installed models.InstalledPlugin
 	err := s.db.QueryRow(`
 		SELECT id, plugin_id, repository_id, installed_version, installed_at, updated_at
 		FROM installed_plugins
@@ -187,7 +168,7 @@ func (s *Store) DeleteInstalledPlugin(pluginID string) error {
 }
 
 // GetAllInstalledPlugins returns all installed plugin entries
-func (s *Store) GetAllInstalledPlugins() ([]*InstalledPlugin, error) {
+func (s *Store) GetAllInstalledPlugins() ([]*models.InstalledPlugin, error) {
 	rows, err := s.db.Query(`
 		SELECT id, plugin_id, repository_id, installed_version, installed_at, updated_at
 		FROM installed_plugins
@@ -198,9 +179,9 @@ func (s *Store) GetAllInstalledPlugins() ([]*InstalledPlugin, error) {
 	}
 	defer rows.Close()
 
-	var installed []*InstalledPlugin
+	var installed []*models.InstalledPlugin
 	for rows.Next() {
-		var inst InstalledPlugin
+		var inst models.InstalledPlugin
 		err := rows.Scan(
 			&inst.ID,
 			&inst.PluginID,
