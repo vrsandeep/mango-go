@@ -22,21 +22,16 @@ func NewPluginProviderAdapter(runtime *PluginRuntime) *PluginProviderAdapter {
 }
 
 // GetInfo returns plugin information.
+// Uses manifest directly
 func (a *PluginProviderAdapter) GetInfo() models.ProviderInfo {
-	val, err := a.runtime.Call("getInfo")
-	if err != nil {
-		return models.ProviderInfo{
-			ID:   a.runtime.manifest.ID,
-			Name: a.runtime.manifest.Name,
-		}
+	name := a.runtime.manifest.Name
+	if name == "" {
+		// If name is not in manifest, use ID as fallback
+		name = a.runtime.manifest.ID
 	}
 
-	infoObj := val.ToObject(a.runtime.vm)
-	id := infoObj.Get("id").String()
-	name := infoObj.Get("name").String()
-
 	return models.ProviderInfo{
-		ID:   id,
+		ID:   a.runtime.manifest.ID,
 		Name: name,
 	}
 }

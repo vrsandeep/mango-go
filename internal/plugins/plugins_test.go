@@ -48,7 +48,6 @@ func TestPluginRuntime(t *testing.T) {
 	t.Run("Create Runtime", func(t *testing.T) {
 		pluginDir := t.TempDir()
 		pluginJS := `
-exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
 exports.search = async () => [];
 exports.getChapters = async () => [];
 exports.getPageURLs = async () => [];
@@ -68,7 +67,7 @@ exports.getPageURLs = async () => [];
 	t.Run("Call Synchronous Function", func(t *testing.T) {
 		pluginDir := t.TempDir()
 		pluginJS := `
-exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
+exports.testFunction = () => ({ result: "success", value: 42 });
 exports.search = async () => [];
 exports.getChapters = async () => [];
 exports.getPageURLs = async () => [];
@@ -78,22 +77,21 @@ exports.getPageURLs = async () => [];
 			t.Fatalf("Failed to create runtime: %v", err)
 		}
 
-		val, err := runtime.Call("getInfo")
+		val, err := runtime.Call("testFunction")
 		if err != nil {
 			t.Fatalf("Call() failed: %v", err)
 		}
 
 		infoObj := val.ToObject(runtime.VM())
-		id := infoObj.Get("id").String()
-		if id != "test" {
-			t.Errorf("Expected id 'test', got '%s'", id)
+		result := infoObj.Get("result").String()
+		if result != "success" {
+			t.Errorf("Expected result 'success', got '%s'", result)
 		}
 	})
 
 	t.Run("Call Async Function", func(t *testing.T) {
 		pluginDir := t.TempDir()
 		pluginJS := `
-exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
 exports.search = async (query, mango) => {
 	return [{ title: "Test Series", identifier: "1", cover_url: "" }];
 };
@@ -119,7 +117,6 @@ exports.getPageURLs = async () => [];
 	t.Run("Function Not Found", func(t *testing.T) {
 		pluginDir := t.TempDir()
 		pluginJS := `
-exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
 exports.search = async () => [];
 exports.getChapters = async () => [];
 exports.getPageURLs = async () => [];
@@ -138,7 +135,6 @@ exports.getPageURLs = async () => [];
 	t.Run("Panic Recovery", func(t *testing.T) {
 		pluginDir := t.TempDir()
 		pluginJS := `
-exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
 exports.search = async () => {
 	throw new Error("Intentional error");
 };
@@ -167,7 +163,6 @@ exports.getPageURLs = async () => [];
 	t.Run("Timeout", func(t *testing.T) {
 		pluginDir := t.TempDir()
 		pluginJS := `
-exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
 exports.search = async () => {
 	return new Promise(resolve => setTimeout(() => resolve([]), 60000));
 };
@@ -218,7 +213,6 @@ exports.getPageURLs = async () => [];
 		}
 
 		pluginJS := `
-exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
 // Missing search, getChapters, getPageURLs
 `
 		scriptPath := filepath.Join(pluginDir, "index.js")
@@ -257,10 +251,9 @@ exports.getPageURLs = async () => [];
 		}
 	})
 
-	t.Run("GetInfo Fallback", func(t *testing.T) {
+	t.Run("GetInfo from Manifest", func(t *testing.T) {
 		pluginDir := t.TempDir()
 		pluginJS := `
-exports.getInfo = () => { throw new Error("Error in getInfo"); };
 exports.search = async () => [];
 exports.getChapters = async () => [];
 exports.getPageURLs = async () => [];
@@ -273,16 +266,18 @@ exports.getPageURLs = async () => [];
 		adapter := plugins.NewPluginProviderAdapter(runtime)
 		info := adapter.GetInfo()
 
-		// Should fallback to manifest values
+		// Should use manifest values directly
 		if info.ID != "test-plugin" {
 			t.Errorf("Expected ID 'test-plugin', got '%s'", info.ID)
+		}
+		if info.Name != "Test Plugin" {
+			t.Errorf("Expected Name 'Test Plugin', got '%s'", info.Name)
 		}
 	})
 
 	t.Run("Search", func(t *testing.T) {
 		pluginDir := t.TempDir()
 		pluginJS := `
-exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
 exports.search = async (query, mango) => {
 	return [
 		{ title: "Series 1", identifier: "1", cover_url: "http://example.com/cover1.jpg" },
@@ -317,7 +312,6 @@ exports.getPageURLs = async () => [];
 	t.Run("Search Empty Results", func(t *testing.T) {
 		pluginDir := t.TempDir()
 		pluginJS := `
-exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
 exports.search = async (query, mango) => [];
 exports.getChapters = async () => [];
 exports.getPageURLs = async () => [];
@@ -341,7 +335,6 @@ exports.getPageURLs = async () => [];
 	t.Run("GetChapters", func(t *testing.T) {
 		pluginDir := t.TempDir()
 		pluginJS := `
-exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
 exports.search = async () => [];
 exports.getChapters = async (seriesId, mango) => {
 	return [
@@ -394,7 +387,6 @@ exports.getPageURLs = async () => [];
 	t.Run("GetPageURLs", func(t *testing.T) {
 		pluginDir := t.TempDir()
 		pluginJS := `
-exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
 exports.search = async () => [];
 exports.getChapters = async () => [];
 exports.getPageURLs = async (chapterId, mango) => {
@@ -427,7 +419,6 @@ exports.getPageURLs = async (chapterId, mango) => {
 	t.Run("Error Handling in Search", func(t *testing.T) {
 		pluginDir := t.TempDir()
 		pluginJS := `
-exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
 exports.search = async () => {
 	throw new Error("Search failed");
 };
@@ -451,7 +442,6 @@ func TestPluginAPI(t *testing.T) {
 	t.Run("Config", func(t *testing.T) {
 		pluginDir := t.TempDir()
 		pluginJS := `
-exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
 exports.search = async (query, mango) => {
 	return [{ title: mango.config.test_value, identifier: "1", cover_url: "" }];
 };
@@ -497,7 +487,6 @@ exports.getPageURLs = async () => [];
 	t.Run("State Persistence", func(t *testing.T) {
 		pluginDir := t.TempDir()
 		pluginJS := `
-exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
 exports.search = async (query, mango) => {
 	mango.state.set("last_query", query);
 	const lastQuery = mango.state.get("last_query");
@@ -554,7 +543,6 @@ exports.getPageURLs = async () => [];
 
 		pluginDir := t.TempDir()
 		pluginJS := `
-exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
 exports.search = async (query, mango) => {
 	const response = await mango.http.get("` + mockServer.URL + `/test");
 	return [{ title: response.data.data.title, identifier: "1", cover_url: "" }];
@@ -588,7 +576,6 @@ exports.getPageURLs = async () => [];
 
 		pluginDir := t.TempDir()
 		pluginJS := `
-exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
 exports.search = async (query, mango) => {
 	const response = await mango.http.get("` + mockServer.URL + `/test", { timeout: 0.5 });
 	return [{ title: "timeout-test", identifier: "1", cover_url: "" }];
@@ -615,7 +602,6 @@ exports.getPageURLs = async () => [];
 	t.Run("HTML Parsing - parseHTML and querySelector", func(t *testing.T) {
 		pluginDir := t.TempDir()
 		pluginJS := `
-exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
 exports.search = async (query, mango) => {
 	const html = '<html><body><h1 class="title">Test Title</h1><p>Content</p></body></html>';
 	const doc = mango.utils.parseHTML(html);
@@ -644,7 +630,6 @@ exports.getPageURLs = async () => [];
 	t.Run("HTML Parsing - querySelectorAll", func(t *testing.T) {
 		pluginDir := t.TempDir()
 		pluginJS := `
-exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
 exports.search = async (query, mango) => {
 	const html = '<html><body><div class="item">Item 1</div><div class="item">Item 2</div></body></html>';
 	const doc = mango.utils.parseHTML(html);
@@ -673,7 +658,6 @@ exports.getPageURLs = async () => [];
 	t.Run("HTML Parsing - getAttribute", func(t *testing.T) {
 		pluginDir := t.TempDir()
 		pluginJS := `
-exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
 exports.search = async (query, mango) => {
 	const html = '<html><body><a href="/test" data-id="123">Link</a></body></html>';
 	const doc = mango.utils.parseHTML(html);
@@ -705,7 +689,6 @@ exports.getPageURLs = async () => [];
 	t.Run("HTML Parsing - XPath", func(t *testing.T) {
 		pluginDir := t.TempDir()
 		pluginJS := `
-exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
 exports.search = async (query, mango) => {
 	const html = '<html><body><div class="chapter-item" data-id="ch1">Chapter 1</div><div class="chapter-item" data-id="ch2">Chapter 2</div></body></html>';
 	const doc = mango.utils.parseHTML(html);
@@ -734,7 +717,6 @@ exports.getPageURLs = async () => [];
 	t.Run("HTML Parsing - Element querySelector", func(t *testing.T) {
 		pluginDir := t.TempDir()
 		pluginJS := `
-exports.getInfo = () => ({ id: "test", name: "Test", version: "1.0.0" });
 exports.search = async (query, mango) => {
 	const html = '<html><body><div class="container"><span class="title">Nested Title</span></div></body></html>';
 	const doc = mango.utils.parseHTML(html);

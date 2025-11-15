@@ -249,10 +249,6 @@ func (m *MangoAPI) httpPost(call goja.FunctionCall) goja.Value {
 				req.Header.Set(k, fmt.Sprint(v))
 			}
 		}
-		// Override Content-Type if specified in headers
-		if req.Header.Get("Content-Type") != "" {
-			contentType = req.Header.Get("Content-Type")
-		}
 	}
 
 	resp, err := client.Do(req)

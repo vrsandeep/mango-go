@@ -130,37 +130,72 @@ func (rs *RepositoryService) InstallPlugin(pluginID string, repositoryID int64) 
 		return fmt.Errorf("failed to download plugin.json: %w", err)
 	}
 
-	manifestPath := filepath.Join(pluginDir, "plugin.json")
-	if err := os.WriteFile(manifestPath, manifestData, 0644); err != nil {
-		return fmt.Errorf("failed to write plugin.json: %w", err)
+	// Parse downloaded plugin.json to extract config
+	var downloadedManifest struct {
+		EntryPoint string                 `json:"entry_point"`
+		Config     map[string]interface{} `json:"config,omitempty"`
 	}
-
-	// Parse manifest to get entry point
-	var pluginManifest struct {
-		EntryPoint string `json:"entry_point"`
-	}
-	if err := json.Unmarshal(manifestData, &pluginManifest); err != nil {
+	if err := json.Unmarshal(manifestData, &downloadedManifest); err != nil {
 		return fmt.Errorf("failed to parse plugin.json: %w", err)
 	}
 
-	if pluginManifest.EntryPoint == "" {
-		pluginManifest.EntryPoint = "index.js"
+	// Determine entry point (from downloaded manifest, repository, or default)
+	entryPoint := downloadedManifest.EntryPoint
+	if entryPoint == "" {
+		entryPoint = plugin.EntryPoint
 	}
+	if entryPoint == "" {
+		entryPoint = "index.js"
+	}
+
+	manifestPath := filepath.Join(pluginDir, "plugin.json")
+	// We'll write the enriched manifest after downloading the entry point
 
 	// Download entry point file
-	entryPointURL := strings.TrimSuffix(plugin.DownloadURL, "/") + "/" + pluginManifest.EntryPoint
+	entryPointURL := strings.TrimSuffix(plugin.DownloadURL, "/") + "/" + entryPoint
 	entryPointData, err := rs.downloadFile(entryPointURL)
 	if err != nil {
-		return fmt.Errorf("failed to download %s: %w", pluginManifest.EntryPoint, err)
+		return fmt.Errorf("failed to download %s: %w", entryPoint, err)
 	}
 
-	entryPointPath := filepath.Join(pluginDir, pluginManifest.EntryPoint)
+	entryPointPath := filepath.Join(pluginDir, entryPoint)
 	if err := os.WriteFile(entryPointPath, entryPointData, 0644); err != nil {
-		return fmt.Errorf("failed to write %s: %w", pluginManifest.EntryPoint, err)
+		return fmt.Errorf("failed to write %s: %w", entryPoint, err)
 	}
 
 	// Download any additional files referenced in the manifest (if needed in future)
 	// For now, we only download plugin.json and entry_point file
+
+	// Enrich minimal plugin.json with repository metadata before loading
+	// This ensures the manifest has all metadata even though plugin.json is minimal
+	enrichedManifest := map[string]interface{}{
+		"id":          plugin.ID,
+		"name":        plugin.Name,
+		"version":     plugin.Version,
+		"description": plugin.Description,
+		"author":      plugin.Author,
+		"license":     plugin.License,
+		"api_version": plugin.APIVersion,
+		"plugin_type": plugin.PluginType,
+	}
+	if entryPoint != "index.js" {
+		enrichedManifest["entry_point"] = entryPoint
+	}
+	if len(plugin.Capabilities) > 0 {
+		enrichedManifest["capabilities"] = plugin.Capabilities
+	}
+	if len(downloadedManifest.Config) > 0 {
+		enrichedManifest["config"] = downloadedManifest.Config
+	}
+
+	enrichedManifestJSON, err := json.MarshalIndent(enrichedManifest, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal enriched plugin.json: %w", err)
+	}
+
+	if err := os.WriteFile(manifestPath, enrichedManifestJSON, 0644); err != nil {
+		return fmt.Errorf("failed to write enriched plugin.json: %w", err)
+	}
 
 	// Load the plugin
 	if err := rs.manager.LoadPlugin(pluginDir); err != nil {

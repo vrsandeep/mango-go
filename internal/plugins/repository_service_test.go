@@ -300,7 +300,6 @@ func TestRepositoryService_InstallPlugin(t *testing.T) {
 				json.NewEncoder(w).Encode(pluginManifest)
 			} else if r.URL.Path == "/plugin/index.js" {
 				w.Write([]byte(`
-exports.getInfo = () => ({ id: "test-plugin", name: "Test Plugin", version: "1.0.0" });
 exports.search = async () => [];
 exports.getChapters = async () => [];
 exports.getPageURLs = async () => [];
@@ -477,7 +476,7 @@ exports.getPageURLs = async () => [];
 				w.Header().Set("Content-Type", "application/json")
 				json.NewEncoder(w).Encode(pluginManifest)
 			} else if r.URL.Path == "/plugin/index.js" {
-				w.Write([]byte("exports.getInfo = () => {};"))
+				w.Write([]byte(""))
 			}
 		}))
 		defer manifestServer.Close()

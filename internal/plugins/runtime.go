@@ -74,7 +74,8 @@ func NewPluginRuntime(app *core.App, manifest *PluginManifest, pluginDir string)
 	}
 
 	exportsObj := exportsVal.ToObject(vm)
-	requiredExports := []string{"getInfo", "search", "getChapters", "getPageURLs"}
+	// getInfo is optional - we use manifest directly now
+	requiredExports := []string{"search", "getChapters", "getPageURLs"}
 	for _, exp := range requiredExports {
 		if exportsObj.Get(exp) == nil {
 			return nil, fmt.Errorf("plugin missing required export: %s", exp)
