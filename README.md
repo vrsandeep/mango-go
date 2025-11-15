@@ -37,7 +37,7 @@ The recommended way to run Mango-Go in production is using Docker and Docker Com
    ```yaml
    services:
       mango:
-         image: ghcr.io/vrsandeep/mango-go:dev
+         image: ghcr.io/vrsandeep/mango-go
          container_name: mango
          restart: unless-stopped
          ports:
@@ -53,7 +53,7 @@ The recommended way to run Mango-Go in production is using Docker and Docker Com
             # Mount your actual manga library on your host machine to /manga inside the container.
             - ./manga:/manga # 👈  This is safe. This project does not modify the manga folder.
             # Mount plugins directory to persist installed plugins
-            - ./plugins:/app/plugins
+            - ./plugins:/app/plugins # This is where plugins will be stored
          healthcheck:
             test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
             interval: 30s
