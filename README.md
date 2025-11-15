@@ -23,7 +23,7 @@ A self-hosted manga server and web reader written in Go. This is a modern rewrit
 ![Admin](screenshots/admin.png)
 ![Dark theme](screenshots/home_dark.png)
 
-## 🚀 Installation & Usage
+## 🚀 Installation
 
 There are two primary ways to run Mango-Go: via Docker (recommended for production) or as a standalone binary.
 
@@ -82,7 +82,7 @@ The recommended way to run Mango-Go in production is using Docker and Docker Com
 4. **Access Mango-Go:**
    Open your web browser and navigate to `http://localhost:8080`. Log in with the admin credentials and change the password immediately via the Admin > User Management page.
 
-## Option 2: Use binary from release
+### Option 2: Use binary from release
 
 Go to [Releases](https://github.com/vrsandeep/mango-go/releases) and download a binary of your OS. Follow Configure section from next option.
 
@@ -96,17 +96,7 @@ The application can be compiled into a single, portable binary file that contain
    ```
 
 2. **Configure:**
-   Create a `config.yml` file in the same directory as the binary:
-   ```yml
-   library:
-     path: "/path/to/your/manga"
-   database:
-     path: "./mango.db"
-   plugins:
-     path: "./plugins"  # Path to plugins directory
-   port: 8080
-   scan_interval: 30
-   ```
+   Create a `config.yml` file in the same directory as the binary as seen in [config.yml](./config.yml)
 
 3. **Run the Application:**
    ```sh
