@@ -54,12 +54,6 @@ The recommended way to run Mango-Go in production is using Docker and Docker Com
             - ./manga:/manga # 👈  This is safe. This project does not modify the manga folder.
             # Mount plugins directory to persist installed plugins
             - ./plugins:/app/plugins # This is where plugins will be stored
-         healthcheck:
-            test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
-            interval: 30s
-            timeout: 10s
-            retries: 3
-            start_period: 40s
    ```
 
 2. **Start the Application:**
