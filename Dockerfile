@@ -41,4 +41,6 @@ RUN mkdir -p /app/data
 # Expose the port the application will run on.
 EXPOSE 8080
 
+HEALTHCHECK --interval=30s --timeout=15s --start-period=40s --retries=3 CMD curl -fsS http://localhost:8080/api/health || exit 1
+
 ENTRYPOINT ["/mango-go"]
