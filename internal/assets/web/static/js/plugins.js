@@ -4,17 +4,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   const currentUser = await checkAuth();
   if (!currentUser) return;
 
-  // --- State Management ---
+  // ============================================================================
+  // STATE MANAGEMENT
+  // ============================================================================
   let state = {
     chapters: [],
     filteredChapters: [],
     selectedSeries: null,
     selectedProvider: null,
     selectedChapterRows: new Set(),
-    sort: { by: 'chapter', dir: 'desc' },
+    sort: { key: 'chapter', dir: 'desc' },
   };
 
-  // --- DOM Elements ---
+  let searchTimeout;
+  let lastSelectedRowIndex = null;
+
+  // ============================================================================
+  // DOM ELEMENTS
+  // ============================================================================
   const providerSelect = document.getElementById('provider-select');
   const searchInput = document.getElementById('search-input');
   const clearSearchBtn = document.getElementById('clear-search-btn');
@@ -64,7 +71,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const pathPreview = document.getElementById('path-preview');
   const previewText = document.getElementById('preview-text');
 
-  // --- Core Functions ---
+  // ============================================================================
+  // DATA LOADING
+  // ============================================================================
   const loadProviders = async () => {
     try {
       const response = await fetch('/api/providers');
@@ -80,7 +89,60 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   };
 
-  let searchTimeout;
+  const loadFolders = async () => {
+    try {
+      const response = await fetch('/api/folders');
+      const folders = await response.json();
+      state.availableFolders = folders || [];
+    } catch (error) {
+      console.error('Failed to load folders:', error);
+      state.availableFolders = [];
+    }
+  };
+
+  // ============================================================================
+  // SEARCH FUNCTIONALITY
+  // ============================================================================
+  const performSearch = async () => {
+    const query = searchInput.value.trim();
+    if (query.length < 3) {
+      searchResultsSection.style.display = 'none';
+      return;
+    }
+
+    if (!state.selectedProvider) {
+      toast.error('Please select a provider first');
+      return;
+    }
+
+    // Clear state when performing a new search
+    clearPathPreview();
+    clearSelections();
+    state.selectedSeries = null;
+    state.chapters = [];
+    updatePanelButtonsState();
+
+    try {
+      const response = await fetch(
+        `/api/providers/${state.selectedProvider}/search?q=${encodeURIComponent(query)}`
+      );
+      const results = await response.json();
+      renderSearchResults(results);
+    } catch (error) {
+      console.error('Search failed:', error);
+      toast.error('Search failed. Please try again.');
+    }
+  };
+
+  const clearSearch = () => {
+    searchInput.value = '';
+    clearSearchBtn.style.display = 'none';
+    searchResultsSection.style.display = 'none';
+    chaptersSection.style.display = 'none';
+    clearPathPreview();
+    clearSelections();
+    updatePanelButtonsState();
+  };
 
   const renderSearchResults = results => {
     searchResultsSection.style.display = 'block';
@@ -114,6 +176,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   };
 
+  // ============================================================================
+  // SERIES & CHAPTERS
+  // ============================================================================
   const handleSeriesSelect = async series => {
     state.selectedSeries = series;
     searchResultsSection.style.display = 'none';
@@ -122,18 +187,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     providerBadge.textContent = state.selectedProvider;
     chapterTableBody.innerHTML = '<tr><td colspan="6">Loading chapters...</td></tr>';
 
-    // Clear previous selections when selecting a new series
     clearSelections();
 
-    const response = await fetch(
-      `/api/providers/${state.selectedProvider}/series/${encodeURIComponent(series.identifier)}`
-    );
-    state.chapters = await response.json();
-    state.filteredChapters = [...state.chapters];
-    populateLanguageFilter();
-    applyFiltersAndSort();
-    // Enable filters button after chapters are loaded
-    updateFiltersButtonState();
+    try {
+      const response = await fetch(
+        `/api/providers/${state.selectedProvider}/series/${encodeURIComponent(series.identifier)}`
+      );
+      state.chapters = await response.json();
+      state.filteredChapters = [...state.chapters];
+      populateLanguageFilter();
+      applyFiltersAndSort();
+      updatePanelButtonsState();
+    } catch (error) {
+      console.error('Failed to load chapters:', error);
+      toast.error('Failed to load chapters');
+    }
   };
 
   const renderChapterTable = () => {
@@ -192,8 +260,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   };
 
+  // ============================================================================
+  // FILTERING & SORTING
+  // ============================================================================
   const applyFiltersAndSort = () => {
-    // Apply Filters
+    // Apply filters
     const titleFilter = document.querySelector('[data-filter="title"]').value;
     const langFilter = document.querySelector('[data-filter="language"]').value;
     const volumeMin = document.querySelector('[data-filter="volume-min"]').value;
@@ -204,45 +275,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     state.filteredChapters = state.chapters.filter(ch => {
       const fullTitle = (ch.title || `Vol. ${ch.volume} Ch. ${ch.chapter}`).toLowerCase();
 
-      // Title filter
-      if (titleFilter && !fullTitle.includes(titleFilter.toLowerCase())) {
-        return false;
-      }
+      if (titleFilter && !fullTitle.includes(titleFilter.toLowerCase())) return false;
+      if (langFilter && ch.language !== langFilter) return false;
 
-      // Language filter
-      if (langFilter && ch.language !== langFilter) {
-        return false;
-      }
-
-      // Volume range filter
       const volume = parseFloat(ch.volume) || 0;
-      if (volumeMin && volume < parseFloat(volumeMin)) {
-        return false;
-      }
-      if (volumeMax && volume > parseFloat(volumeMax)) {
-        return false;
-      }
+      if (volumeMin && volume < parseFloat(volumeMin)) return false;
+      if (volumeMax && volume > parseFloat(volumeMax)) return false;
 
-      // Chapter range filter
       const chapter = parseFloat(ch.chapter) || 0;
-      if (chapterMin && chapter < parseFloat(chapterMin)) {
-        return false;
-      }
-      if (chapterMax && chapter > parseFloat(chapterMax)) {
-        return false;
-      }
+      if (chapterMin && chapter < parseFloat(chapterMin)) return false;
+      if (chapterMax && chapter > parseFloat(chapterMax)) return false;
 
       return true;
     });
 
-    // Apply Sort
+    // Apply sort
     const { key, dir } = state.sort;
     const dirMultiplier = dir === 'asc' ? 1 : -1;
     state.filteredChapters.sort((a, b) => {
       let valA = a[key];
       let valB = b[key];
 
-      // Special handling for numeric and date fields
       if (key === 'pages' || key === 'volume' || key === 'chapter') {
         valA = parseFloat(valA) || 0;
         valB = parseFloat(valB) || 0;
@@ -265,123 +318,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     closePanel(filtersPanel);
   };
 
-  const loadFolders = async () => {
-    try {
-      const response = await fetch('/api/folders');
-      const folders = await response.json();
-
-      // Store folders for later use
-      state.availableFolders = folders;
-    } catch (error) {
-      console.error('Failed to load folders:', error);
-      state.availableFolders = [];
-    }
+  const clearFilters = () => {
+    filterTitle.value = '';
+    filterLanguage.value = '';
+    filterVolumeMin.value = '';
+    filterVolumeMax.value = '';
+    filterChapterMin.value = '';
+    filterChapterMax.value = '';
+    state.filteredChapters = [...state.chapters];
+    renderChapterTable();
+    updateFilterBadge();
   };
 
-  // Search functionality
-  const performSearch = async () => {
-    const query = searchInput.value.trim();
-    if (query.length < 3) {
-      searchResultsSection.style.display = 'none';
-      return;
-    }
-
-    if (!state.selectedProvider) {
-      toast.error('Please select a provider first');
-      return;
-    }
-
-    // Clear preview box when new search is performed
-    clearPathPreview();
-    // Clear previous selections when performing a new search
-    clearSelections();
-    // Clear selected series when performing a new search
-    state.selectedSeries = null;
-    state.chapters = [];
-    // Disable filters button when performing a new search
-    updateFiltersButtonState();
-
-    try {
-      const response = await fetch(
-        `/api/providers/${state.selectedProvider}/search?q=${encodeURIComponent(query)}`
-      );
-      const results = await response.json();
-      renderSearchResults(results);
-    } catch (error) {
-      console.error('Search failed:', error);
-      toast.error('Search failed. Please try again.');
-    }
-  };
-
-  const clearSearch = () => {
-    searchInput.value = '';
-    clearSearchBtn.style.display = 'none';
-    searchResultsSection.style.display = 'none';
-    chaptersSection.style.display = 'none';
-    // Clear preview box in Download settings modal
-    clearPathPreview();
-    // Clear previous selections when clearing search
-    clearSelections();
-    // Disable filters button when search is cleared
-    updateFiltersButtonState();
-  };
-
-  // Download functionality
-  const downloadSelectedChapters = async () => {
-    const selectedChapters = state.chapters.filter(chapter =>
-      state.selectedChapterRows.has(chapter.identifier)
-    );
-
-    if (selectedChapters.length === 0) {
-      toast.error('Please select chapters to download');
-      return;
-    }
-
-    try {
-      const response = await fetch('/api/downloads/queue', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          series_title: state.selectedSeries.title,
-          provider_id: state.selectedProvider,
-          chapters: selectedChapters,
-        }),
-      });
-
-      if (response.ok) {
-        toast.success(`${selectedChapters.length} chapters added to download queue`);
-        clearSelections();
-      } else {
-        throw new Error('Failed to add chapters to queue');
-      }
-    } catch (error) {
-      console.error('Download failed:', error);
-      toast.error('Failed to add chapters to download queue');
-    }
-  };
-
-  // --- Floating Panel Functions ---
-  const openPanel = panel => {
-    panel.classList.add('open');
-    panelOverlay.classList.add('show');
-    document.body.style.overflow = 'hidden';
-  };
-
-  const closePanel = panel => {
-    panel.classList.remove('open');
-    panelOverlay.classList.remove('show');
-    document.body.style.overflow = '';
-  };
-
-  const closeAllPanels = () => {
-    closePanel(filtersPanel);
-    closePanel(settingsPanel);
-    closePanel(helpPanel);
-  };
-
-  // --- Filter Functions ---
   const updateFilterBadge = () => {
     const activeFilters = [
       filterTitle.value,
@@ -402,29 +350,111 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   };
 
-  // Removed duplicate function - using applyFiltersAndSort instead
-
-  const clearFilters = () => {
-    filterTitle.value = '';
-    filterLanguage.value = '';
-    filterVolumeMin.value = '';
-    filterVolumeMax.value = '';
-    filterChapterMin.value = '';
-    filterChapterMax.value = '';
-
-    state.filteredChapters = [...state.chapters];
-    renderChapterTable();
-    updateFilterBadge();
+  // ============================================================================
+  // SELECTION MANAGEMENT
+  // ============================================================================
+  const updateSelectionCount = () => {
+    const count = state.selectedChapterRows.size;
+    selectionCount.textContent = count;
+    downloadSelectedBtn.disabled = count === 0;
   };
 
-  // --- Folder Path Functions ---
+  const toggleChapterSelection = (identifier, row) => {
+    if (state.selectedChapterRows.has(identifier)) {
+      state.selectedChapterRows.delete(identifier);
+      row.classList.remove('selected');
+    } else {
+      state.selectedChapterRows.add(identifier);
+      row.classList.add('selected');
+    }
+    updateSelectionCount();
+  };
+
+  const clearSelections = () => {
+    state.selectedChapterRows.clear();
+    document
+      .querySelectorAll('#chapter-table tbody tr.selected')
+      .forEach(row => row.classList.remove('selected'));
+    updateDownloadButtonState();
+    updateSelectionCount();
+  };
+
+  const selectAllChapters = () => {
+    if (!state.filteredChapters || state.filteredChapters.length === 0) return;
+    state.filteredChapters.forEach(ch => state.selectedChapterRows.add(ch.identifier));
+    document
+      .querySelectorAll('#chapter-table tbody tr')
+      .forEach(row => row.classList.add('selected'));
+    updateDownloadButtonState();
+    updateSelectionCount();
+  };
+
+  // ============================================================================
+  // DOWNLOAD FUNCTIONALITY
+  // ============================================================================
+  const downloadSelectedChapters = async () => {
+    const selectedChapters = state.chapters.filter(chapter =>
+      state.selectedChapterRows.has(chapter.identifier)
+    );
+
+    if (selectedChapters.length === 0) {
+      toast.error('Please select chapters to download');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/downloads/queue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          series_title: state.selectedSeries.title,
+          provider_id: state.selectedProvider,
+          chapters: selectedChapters,
+        }),
+      });
+
+      if (response.ok) {
+        toast.success(`${selectedChapters.length} chapters added to download queue`);
+        clearSelections();
+      } else {
+        throw new Error('Failed to add chapters to queue');
+      }
+    } catch (error) {
+      console.error('Download failed:', error);
+      toast.error('Failed to add chapters to download queue');
+    }
+  };
+
+  // ============================================================================
+  // FLOATING PANELS
+  // ============================================================================
+  const openPanel = panel => {
+    panel.classList.add('open');
+    panelOverlay.classList.add('show');
+    document.body.style.overflow = 'hidden';
+  };
+
+  const closePanel = panel => {
+    panel.classList.remove('open');
+    panelOverlay.classList.remove('show');
+    document.body.style.overflow = '';
+  };
+
+  const closeAllPanels = () => {
+    closePanel(filtersPanel);
+    closePanel(settingsPanel);
+    closePanel(helpPanel);
+  };
+
+  // ============================================================================
+  // FOLDER PATH & SUBSCRIPTION
+  // ============================================================================
   const handleFolderPathChange = () => {
     const isCustom = document.querySelector('input[name="folder-path"]:checked').value === 'custom';
 
     if (isCustom) {
       customFolderPath.style.display = 'block';
       pathPreview.style.display = 'block';
-      // Don't prefill - let user enter custom path
       customFolderPath.value = '';
       customFolderPath.focus();
       updatePathPreview();
@@ -450,7 +480,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     pathPreview.style.display = 'none';
     previewText.textContent = '';
     customFolderPath.value = '';
-    // Reset to default folder path option
     const defaultRadio = document.querySelector('input[name="folder-path"][value="default"]');
     if (defaultRadio) {
       defaultRadio.checked = true;
@@ -463,10 +492,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Check if subscription already exists
     try {
-      const existingSubsResponse = await fetch(`/api/subscriptions?provider_id=${encodeURIComponent(state.selectedProvider)}`);
+      const existingSubsResponse = await fetch(
+        `/api/subscriptions?provider_id=${encodeURIComponent(state.selectedProvider)}`
+      );
       const existingSubs = await existingSubsResponse.json();
       const alreadyExists = existingSubs.some(
-        sub => sub.series_identifier === state.selectedSeries.identifier && sub.provider_id === state.selectedProvider
+        sub =>
+          sub.series_identifier === state.selectedSeries.identifier &&
+          sub.provider_id === state.selectedProvider
       );
 
       if (alreadyExists) {
@@ -475,14 +508,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     } catch (error) {
       console.error('Failed to check existing subscriptions:', error);
-      // Continue with subscription attempt even if check fails
     }
 
     let folderPath = null;
     const selectedFolderPath = document.querySelector('input[name="folder-path"]:checked').value;
 
     if (selectedFolderPath === 'custom') {
-      // Use custom path if custom option is selected and input has value
       const customPath = customFolderPath.value.trim();
       if (customPath) {
         folderPath = window.PathUtils.sanitizePath(customPath);
@@ -491,9 +522,6 @@ document.addEventListener('DOMContentLoaded', async () => {
           return;
         }
       }
-    } else if (selectedFolderPath === 'default') {
-      // Use default path (series name)
-      folderPath = null;
     }
 
     try {
@@ -511,8 +539,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (response.ok) {
         const folderText = folderPath ? ` in folder "${folderPath}"` : '';
         toast.success(`Subscribed to ${state.selectedSeries.title}${folderText}.`);
-
-        // Reset form
         document.querySelector('input[name="folder-path"][value="default"]').checked = true;
         customFolderPath.style.display = 'none';
         customFolderPath.value = '';
@@ -526,29 +552,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   };
 
-  // --- UI Logic & Event Listeners ---
+  // ============================================================================
+  // UI STATE MANAGEMENT
+  // ============================================================================
   const updateDownloadButtonState = () => {
     downloadSelectedBtn.disabled = state.selectedChapterRows.size === 0;
   };
 
-  const updateFiltersButtonState = () => {
-    // Enable filters button only when a manga is selected (has chapters)
+  const updatePanelButtonsState = () => {
     const hasChapters = state.selectedSeries && state.chapters && state.chapters.length > 0;
+
+    // Update filters button
     filtersBtn.disabled = !hasChapters;
     if (hasChapters) {
       filtersBtn.classList.remove('disabled');
     } else {
       filtersBtn.classList.add('disabled');
     }
-  };
 
-  const clearSelections = () => {
-    state.selectedChapterRows.clear();
-    document
-      .querySelectorAll('#chapter-table tbody tr.selected')
-      .forEach(row => row.classList.remove('selected'));
-    updateDownloadButtonState();
-    updateSelectionCount();
+    // Update settings button
+    settingsBtn.disabled = !hasChapters;
+    if (hasChapters) {
+      settingsBtn.classList.remove('disabled');
+    } else {
+      settingsBtn.classList.add('disabled');
+    }
   };
 
   const updateTableHeaderIcons = () => {
@@ -564,54 +592,127 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   };
 
-  // Event listeners for search, providers, buttons
-  providerSelect.addEventListener('change', () => (state.selectedProvider = providerSelect.value));
+  // ============================================================================
+  // KEYBOARD SHORTCUTS
+  // ============================================================================
+  const keyboardShortcuts = {
+    '/': e => {
+      e.preventDefault();
+      searchInput.focus();
+      searchInput.select();
+    },
+    Escape: () => {
+      if (document.querySelector('.floating-panel.open')) {
+        closeAllPanels();
+      }
+    },
+    f: () => {
+      if (!filtersBtn.disabled) {
+        openPanel(filtersPanel);
+      }
+    },
+    s: () => {
+      if (!settingsBtn.disabled) {
+        openPanel(settingsPanel);
+      }
+    },
+    a: e => {
+      e.preventDefault();
+      selectAllChapters();
+    },
+    d: e => {
+      e.preventDefault();
+      clearSelections();
+    },
+    Enter: e => {
+      if (e.ctrlKey || e.metaKey) {
+        if (state.selectedChapterRows.size > 0) {
+          e.preventDefault();
+          downloadSelectedChapters();
+        }
+      } else if (searchInput === document.activeElement) {
+        searchInput.blur();
+        performSearch();
+      }
+    },
+  };
+
+  const handleKeyboardShortcuts = e => {
+    const isModifierPressed = e.ctrlKey || e.metaKey;
+    const key = e.key.toLowerCase();
+    const keyName = e.key;
+
+    // Handle Cmd/Ctrl+Enter (download) - should work even in inputs
+    if (isModifierPressed && (keyName === 'Enter' || key === 'enter')) {
+      const shortcut = keyboardShortcuts['Enter'];
+      if (shortcut) {
+        shortcut(e);
+        return;
+      }
+    }
+
+    // Skip other shortcuts when typing in inputs, textareas, or floating panels
+    if (
+      (e.target.tagName === 'INPUT' ||
+        e.target.tagName === 'TEXTAREA' ||
+        e.target.contentEditable === 'true' ||
+        e.target.closest('.floating-panel')) &&
+      !isModifierPressed
+    ) {
+      // Allow '/' to work even in inputs (to focus search)
+      if (key === '/' || keyName === '/') {
+        const shortcut = keyboardShortcuts['/'];
+        if (shortcut) shortcut(e);
+      }
+      return;
+    }
+
+    // Handle Cmd/Ctrl shortcuts (A, D)
+    if (isModifierPressed && (key === 'a' || key === 'd')) {
+      const shortcut = keyboardShortcuts[key];
+      if (shortcut) {
+        shortcut(e);
+        return;
+      }
+    }
+
+    // Handle other shortcuts (non-modifier keys)
+    if (!isModifierPressed) {
+      const shortcut = keyboardShortcuts[key] || keyboardShortcuts[keyName];
+      if (shortcut) shortcut(e);
+    }
+  };
+
+  // ============================================================================
+  // EVENT LISTENERS
+  // ============================================================================
+  // Provider selection
+  providerSelect.addEventListener('change', () => {
+    state.selectedProvider = providerSelect.value;
+  });
+
+  // Search
+  searchInput.addEventListener('input', () => {
+    clearSearchBtn.style.display = searchInput.value ? 'block' : 'none';
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(performSearch, 500);
+  });
+  clearSearchBtn.addEventListener('click', clearSearch);
+
+  // Search results toggle
   searchSummary.addEventListener('click', () => {
     const grid = searchResultsGrid;
     const isHidden = grid.style.display === 'none' || !grid.style.display;
-    // const isHidden = searchResultsGrid.style.display === 'none';
     grid.style.display = isHidden ? 'grid' : 'none';
-    // searchResultsGrid.style.display = isHidden ? 'grid' : 'none';
     searchToggleIcon.textContent = isHidden ? '▼' : '▶';
   });
 
-  // This line is handled by the floating panel system - filtersBtn opens the filters panel
-  applyFiltersBtn.addEventListener('click', applyFiltersAndSort);
-  clearFiltersBtn.addEventListener('click', () => {
-    document.querySelectorAll('#filters-panel input').forEach(input => (input.value = ''));
-    applyFiltersAndSort();
-  });
-
-  selectAllBtn.addEventListener('click', () => {
-    state.filteredChapters.forEach(ch => state.selectedChapterRows.add(ch.identifier));
-    document
-      .querySelectorAll('#chapter-table tbody tr')
-      .forEach(row => row.classList.add('selected'));
-    updateDownloadButtonState();
-    updateSelectionCount();
-  });
+  // Chapter selection
+  selectAllBtn.addEventListener('click', selectAllChapters);
   clearSelectionsBtn.addEventListener('click', clearSelections);
   downloadSelectedBtn.addEventListener('click', downloadSelectedChapters);
-  subscribeBtn.addEventListener('click', handleSubscribe);
 
-  // Sorting listener
-  chapterTableHeaders.forEach(th => {
-    th.addEventListener('click', () => {
-      const sortKey = th.dataset.sort;
-      if (!sortKey) return;
-
-      if (state.sort.key === sortKey) {
-        state.sort.dir = state.sort.dir === 'asc' ? 'desc' : 'asc';
-      } else {
-        state.sort.key = sortKey;
-        state.sort.dir = 'desc'; // Default to desc for new columns
-      }
-      applyFiltersAndSort();
-    });
-  });
-
-  // Multi-select logic
-  let lastSelectedRowIndex = null;
+  // Table row selection
   chapterTableBody.addEventListener('click', e => {
     const row = e.target.closest('tr');
     if (!row) return;
@@ -641,40 +742,43 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateDownloadButtonState();
   });
 
-  // --- New Event Listeners ---
+  // Table sorting
+  chapterTableHeaders.forEach(th => {
+    th.addEventListener('click', () => {
+      const sortKey = th.dataset.sort;
+      if (!sortKey) return;
 
-  // Clear search button
-  clearSearchBtn.addEventListener('click', clearSearch);
-
-  // Search input changes
-  searchInput.addEventListener('input', () => {
-    clearSearchBtn.style.display = searchInput.value ? 'block' : 'none';
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(performSearch, 500);
+      if (state.sort.key === sortKey) {
+        state.sort.dir = state.sort.dir === 'asc' ? 'desc' : 'asc';
+      } else {
+        state.sort.key = sortKey;
+        state.sort.dir = 'desc';
+      }
+      applyFiltersAndSort();
+    });
   });
 
-  // Floating panel buttons
+  // Floating panels
   filtersBtn.addEventListener('click', () => {
-    // Only open panel if filters button is enabled (manga is selected)
     if (!filtersBtn.disabled) {
       openPanel(filtersPanel);
     }
   });
-  settingsBtn.addEventListener('click', () => openPanel(settingsPanel));
-
-  // Panel close buttons
+  settingsBtn.addEventListener('click', () => {
+    if (!settingsBtn.disabled) {
+      openPanel(settingsPanel);
+    }
+  });
   filtersClose.addEventListener('click', () => closePanel(filtersPanel));
   settingsClose.addEventListener('click', () => closePanel(settingsPanel));
-
-  // Help panel close button
   if (helpClose) {
-    helpClose.addEventListener('click', () => closePanel(document.getElementById('help-panel')));
+    helpClose.addEventListener('click', () => closePanel(helpPanel));
   }
-
-  // Panel overlay
   panelOverlay.addEventListener('click', closeAllPanels);
 
-  // Filter inputs
+  // Filters
+  applyFiltersBtn.addEventListener('click', applyFiltersAndSort);
+  clearFiltersBtn.addEventListener('click', clearFilters);
   [
     filterTitle,
     filterLanguage,
@@ -686,166 +790,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     input.addEventListener('input', updateFilterBadge);
   });
 
-  // Filter buttons (applyFilters handled by applyFiltersAndSort above)
-  clearFiltersBtn.addEventListener('click', clearFilters);
-
-  // Folder path radio buttons
+  // Folder path settings
   folderPathRadios.forEach(radio => {
     radio.addEventListener('change', handleFolderPathChange);
   });
-
-  // Custom folder path input
   customFolderPath.addEventListener('input', updatePathPreview);
+  subscribeBtn.addEventListener('click', handleSubscribe);
 
-  // Selection count update
-  const updateSelectionCount = () => {
-    const count = state.selectedChapterRows.size;
-    selectionCount.textContent = count;
-    downloadSelectedBtn.disabled = count === 0;
-  };
+  // Keyboard shortcuts
+  document.addEventListener('keydown', handleKeyboardShortcuts);
 
-  // Chapter selection function
-  const toggleChapterSelection = (identifier, row) => {
-    if (state.selectedChapterRows.has(identifier)) {
-      state.selectedChapterRows.delete(identifier);
-      row.classList.remove('selected');
-    } else {
-      state.selectedChapterRows.add(identifier);
-      row.classList.add('selected');
-    }
-    updateSelectionCount();
-  };
-
-  // --- Keyboard Shortcuts ---
-  const keyboardShortcuts = {
-    // Search shortcuts
-    '/': () => {
-      searchInput.focus();
-      searchInput.select();
-    },
-    Escape: () => {
-      if (searchInput.value) {
-        searchInput.value = '';
-        clearSearch();
-      } else if (document.querySelector('.floating-panel.open')) {
-        closeAllPanels();
-      }
-    },
-
-    // Panel shortcuts
-    f: () => {
-      // Only open filters panel if enabled (manga is selected)
-      if (!filtersBtn.disabled) {
-        openPanel(filtersPanel);
-      }
-    },
-    s: () => openPanel(settingsPanel),
-
-    // Action shortcuts (handled in the main Enter key below)
-
-    // Selection shortcuts
-    a: e => {
-      e.preventDefault();
-      selectAllChapters();
-    },
-    d: e => {
-      e.preventDefault();
-      deselectAllChapters();
-    },
-
-    // Download shortcut
-    Enter: e => {
-      if (e.ctrlKey || e.metaKey) {
-        if (state.selectedChapterRows.size > 0) {
-          e.preventDefault();
-          downloadSelectedChapters();
-        }
-      } else if (searchInput === document.activeElement) {
-        searchInput.blur();
-        performSearch();
-      }
-    },
-  };
-
-  // Handle keyboard shortcuts
-  document.addEventListener('keydown', e => {
-    // Don't trigger shortcuts when typing in inputs, textareas, or contenteditable elements
-    if (
-      e.target.tagName === 'INPUT' ||
-      e.target.tagName === 'TEXTAREA' ||
-      e.target.contentEditable === 'true' ||
-      e.target.closest('.floating-panel')
-    ) {
-      return;
-    }
-
-    // For Cmd/Ctrl shortcuts, only proceed if modifier is pressed
-    const isModifierPressed = e.ctrlKey || e.metaKey;
-    const key = e.key.toLowerCase();
-
-    // Handle Cmd/Ctrl shortcuts (A, D, Enter)
-    if (isModifierPressed && (key === 'a' || key === 'd' || key === 'enter')) {
-      const shortcut = keyboardShortcuts[key];
-      if (shortcut) {
-        shortcut(e);
-      }
-      return;
-    }
-
-    // Handle other shortcuts (non-modifier keys)
-    if (!isModifierPressed) {
-      const shortcut = keyboardShortcuts[key];
-      if (shortcut) {
-        shortcut(e);
-      }
-    }
-  });
-
-  // Helper functions for keyboard shortcuts
-  function selectAllChapters() {
-    // Use the same logic as the Select All button
-    if (!state.filteredChapters || state.filteredChapters.length === 0) {
-      return;
-    }
-    state.filteredChapters.forEach(ch => state.selectedChapterRows.add(ch.identifier));
-    document
-      .querySelectorAll('#chapter-table tbody tr')
-      .forEach(row => row.classList.add('selected'));
-    updateDownloadButtonState();
-    updateSelectionCount();
-  }
-
-  function deselectAllChapters() {
-    // Use the same logic as the Clear Selections button
-    clearSelections();
-  }
-
-  // Add keyboard shortcut hints to UI
-  function addKeyboardHints() {
-    // Add tooltips or hints for keyboard shortcuts
-    const searchInput = document.getElementById('search-input');
-    if (searchInput) {
-      searchInput.placeholder = 'Search manga... (Press / to focus)';
-    }
-
-    // Add keyboard shortcut indicators to buttons
-    if (filtersBtn) {
-      filtersBtn.title = 'Open Filters (F)';
-    }
-
-    if (settingsBtn) {
-      settingsBtn.title = 'Open Settings (S)';
-    }
-  }
-
-  // Show keyboard shortcuts help
-  function showKeyboardHelp() {
-    const helpPanel = document.getElementById('help-panel');
+  // Help panel
+  const showKeyboardHelp = () => {
     openPanel(helpPanel);
-  }
+  };
 
-  // Add help button to show keyboard shortcuts
-  function addHelpButton() {
+  const addHelpButton = () => {
     const quickActions = document.querySelector('.quick-actions');
     if (quickActions) {
       const helpBtn = document.createElement('button');
@@ -855,9 +815,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       helpBtn.addEventListener('click', showKeyboardHelp);
       quickActions.appendChild(helpBtn);
     }
-  }
+  };
 
-  // Add keyboard shortcut for help (?)
+  // Help keyboard shortcut
   document.addEventListener('keydown', e => {
     if (e.key === '?' && !e.target.matches('input, textarea, [contenteditable]')) {
       e.preventDefault();
@@ -865,12 +825,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // --- Initialization ---
+  // ============================================================================
+  // INITIALIZATION
+  // ============================================================================
   loadProviders();
   window.PathUtils.loadLibraryPath();
   loadFolders();
-  addKeyboardHints();
   addHelpButton();
-  // Initialize filters button as disabled
-  updateFiltersButtonState();
+  updatePanelButtonsState();
 });
