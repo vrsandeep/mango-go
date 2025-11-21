@@ -8,6 +8,7 @@ import (
 	"github.com/vrsandeep/mango-go/internal/models"
 	"github.com/vrsandeep/mango-go/internal/store"
 	"github.com/vrsandeep/mango-go/internal/testutil"
+	"github.com/vrsandeep/mango-go/internal/util"
 )
 
 func TestPauseQueueItem(t *testing.T) {
@@ -282,6 +283,119 @@ func TestSanitizeFilename(t *testing.T) {
 			result := downloader.SanitizeFilename(tt.input)
 			if result != tt.expected {
 				t.Errorf("SanitizeFilename(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestSanitizeFolderName(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "normal folder name",
+			input:    "My Manga Series",
+			expected: "My Manga Series",
+		},
+		{
+			name:     "folder name with invalid characters",
+			input:    "Manga: Series?",
+			expected: "Manga- Series",
+		},
+		{
+			name:     "folder name with backslashes and slashes",
+			input:    "Manga\\Series/Part A",
+			expected: "Manga-Series-Part A",
+		},
+		{
+			name:     "folder name with quotes and angle brackets",
+			input:    "Manga \"Series\" <Part A>",
+			expected: "Manga -Series- -Part A",
+		},
+		{
+			name:     "folder name with asterisk and pipe",
+			input:    "Manga*Series|Part A",
+			expected: "Manga-Series-Part A",
+		},
+		{
+			name:     "folder name with null bytes and control characters",
+			input:    "Manga\x00Series\x1fTest",
+			expected: "MangaSeriesTest",
+		},
+		{
+			name:     "folder name starting with dot",
+			input:    ".Manga Series",
+			expected: "Manga Series",
+		},
+		{
+			name:     "folder name starting with space",
+			input:    " Manga Series",
+			expected: "Manga Series",
+		},
+		{
+			name:     "folder name ending with space and dot",
+			input:    "Manga Series .",
+			expected: "Manga Series",
+		},
+		{
+			name:     "folder name with consecutive dashes",
+			input:    "Manga---Series",
+			expected: "Manga-Series",
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: "untitled",
+		},
+		{
+			name:     "only invalid characters",
+			input:    "\\/:*?\"<>|",
+			expected: "untitled",
+		},
+		{
+			name:     "Windows reserved name CON",
+			input:    "CON",
+			expected: "CON_",
+		},
+		{
+			name:     "Windows reserved name PRN",
+			input:    "prn",
+			expected: "prn_",
+		},
+		{
+			name:     "Windows reserved name COM1",
+			input:    "COM1",
+			expected: "COM1_",
+		},
+		{
+			name:     "Windows reserved name LPT9",
+			input:    "lpt9",
+			expected: "lpt9_",
+		},
+		{
+			name:     "mixed valid and invalid characters",
+			input:    "Manga: \"Series\" <Part A> | Section B",
+			expected: "Manga- -Series- -Part A- - Section B",
+		},
+		{
+			name:     "only spaces and dots",
+			input:    "   ...   ",
+			expected: "untitled",
+		},
+		{
+			name:     "only dashes",
+			input:    "---",
+			expected: "untitled",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := util.SanitizeFolderName(tt.input)
+			if result != tt.expected {
+				t.Errorf("SanitizeFolderName(%q) = %q, want %q", tt.input, result, tt.expected)
 			}
 		})
 	}

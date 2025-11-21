@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -107,37 +108,84 @@ func checkCanCreatePath(fullPath string) error {
 	return nil
 }
 
-// SanitizeFolderPath cleans and sanitizes a folder path
+// SanitizeFolderPath cleans and sanitizes a folder path by sanitizing each component.
+// It uses SanitizeFolderName internally to ensure each path component is safe for filesystem use.
 func SanitizeFolderPath(folderPath string) string {
 	if folderPath == "" {
 		return ""
 	}
 
-	// Remove control characters and null bytes
-	cleanPath := strings.Map(func(r rune) rune {
-		if r < 32 || r == 127 { // Control characters
-			return -1 // Remove
-		}
-		return r
-	}, folderPath)
+	// Normalize separators first (backslashes to forward slashes)
+	normalizedPath := strings.ReplaceAll(folderPath, "\\", "/")
 
-	// Clean the path
-	cleanPath = filepath.Clean(cleanPath)
+	// Clean the path to handle . and .. components
+	cleanPath := filepath.Clean(normalizedPath)
 
 	// Remove any leading/trailing slashes
 	cleanPath = strings.Trim(cleanPath, "/\\")
 
-	// Replace backslashes with forward slashes for consistency
-	cleanPath = strings.ReplaceAll(cleanPath, "\\", "/")
+	// If the path is empty after trimming (e.g., only slashes), return empty
+	if cleanPath == "" {
+		return ""
+	}
 
-	// Remove any remaining invalid characters
-	cleanPath = strings.ReplaceAll(cleanPath, "<", "")
-	cleanPath = strings.ReplaceAll(cleanPath, ">", "")
-	cleanPath = strings.ReplaceAll(cleanPath, ":", "")
-	cleanPath = strings.ReplaceAll(cleanPath, "\"", "")
-	cleanPath = strings.ReplaceAll(cleanPath, "|", "")
-	cleanPath = strings.ReplaceAll(cleanPath, "?", "")
-	cleanPath = strings.ReplaceAll(cleanPath, "*", "")
+	// Split the path into components
+	pathComponents := strings.Split(cleanPath, "/")
 
-	return cleanPath
+	// Sanitize each component using SanitizeFolderName
+	sanitizedComponents := make([]string, 0, len(pathComponents))
+	for _, component := range pathComponents {
+		if component != "" {
+			sanitized := SanitizeFolderName(component)
+			sanitizedComponents = append(sanitizedComponents, sanitized)
+		}
+	}
+
+	// Rejoin components with forward slashes
+	if len(sanitizedComponents) == 0 {
+		return ""
+	}
+
+	return strings.Join(sanitizedComponents, string(os.PathSeparator))
+}
+
+// SanitizeFolderName removes invalid/unsupported characters that cannot be used in folder or file names.
+// This function handles characters that are invalid on Windows, macOS, and Linux filesystems.
+// Use this for individual folder name components (not full paths).
+func SanitizeFolderName(folderName string) string {
+	if folderName == "" {
+		return ""
+	}
+
+	// Remove null bytes and control characters
+	re := regexp.MustCompile(`[\x00-\x1f\x7f]`)
+	safeName := re.ReplaceAllString(folderName, "")
+
+	// Remove invalid characters for folder names: \ / : * ? " < > |
+	re = regexp.MustCompile(`[\\/:*?"<>|]`)
+	safeName = re.ReplaceAllString(safeName, "-")
+
+	// Remove leading/trailing spaces and dots (Windows doesn't allow these)
+	safeName = strings.Trim(safeName, " .")
+
+	// Remove consecutive dashes and replace with single dash
+	re = regexp.MustCompile(`-+`)
+	safeName = re.ReplaceAllString(safeName, "-")
+
+	// Remove leading/trailing dashes
+	safeName = strings.Trim(safeName, "-")
+
+	// Handle reserved names on Windows (CON, PRN, AUX, NUL, COM1-9, LPT1-9)
+	reservedNames := map[string]bool{
+		"CON": true, "PRN": true, "AUX": true, "NUL": true,
+		"COM1": true, "COM2": true, "COM3": true, "COM4": true, "COM5": true,
+		"COM6": true, "COM7": true, "COM8": true, "COM9": true,
+		"LPT1": true, "LPT2": true, "LPT3": true, "LPT4": true, "LPT5": true,
+		"LPT6": true, "LPT7": true, "LPT8": true, "LPT9": true,
+	}
+	if reservedNames[strings.ToUpper(safeName)] {
+		safeName = safeName + "_"
+	}
+
+	return safeName
 }

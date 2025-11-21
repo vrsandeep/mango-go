@@ -1,10 +1,12 @@
-package util
+package util_test
 
 import (
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/vrsandeep/mango-go/internal/util"
 )
 
 func TestValidateFolderPath(t *testing.T) {
@@ -100,7 +102,7 @@ func TestValidateFolderPath(t *testing.T) {
 				defer tt.cleanup()
 			}
 
-			err := ValidateFolderPath(tt.folderPath, tt.basePath)
+			err := util.ValidateFolderPath(tt.folderPath, tt.basePath)
 
 			if tt.expectError {
 				if err == nil {
@@ -170,7 +172,7 @@ func TestSanitizeFolderPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := SanitizeFolderPath(tt.input)
+			result := util.SanitizeFolderPath(tt.input)
 			if result != tt.expected {
 				t.Errorf("SanitizeFolderPath(%q) = %q, want %q", tt.input, result, tt.expected)
 			}
@@ -195,13 +197,13 @@ func TestValidateFolderPathPermissions(t *testing.T) {
 	}
 
 	// Test that we can't write to read-only directory
-	err := ValidateFolderPath("readonly", basePath)
+	err := util.ValidateFolderPath("readonly", basePath)
 	if err == nil {
 		t.Error("Expected error for read-only directory, but got none")
 	}
 
 	// Test that we can create a directory in a writable location
-	err = ValidateFolderPath("writable", basePath)
+	err = util.ValidateFolderPath("writable", basePath)
 	if err != nil {
 		t.Errorf("Expected no error for writable directory, but got: %v", err)
 	}
@@ -213,7 +215,7 @@ func TestValidateFolderPathNonExistentParent(t *testing.T) {
 	basePath := filepath.Join(tempDir, "library")
 
 	// Test creating a directory with non-existent parent
-	err := ValidateFolderPath("deep/nested/folder", basePath)
+	err := util.ValidateFolderPath("deep/nested/folder", basePath)
 	if err != nil {
 		t.Errorf("Expected no error for nested directory creation, but got: %v", err)
 	}
@@ -235,14 +237,14 @@ func TestValidateFolderPathEdgeCases(t *testing.T) {
 	}
 
 	t.Run("Path with only dots", func(t *testing.T) {
-		err := ValidateFolderPath("...", basePath)
+		err := util.ValidateFolderPath("...", basePath)
 		if err == nil {
 			t.Error("Expected error for path with only dots")
 		}
 	})
 
 	t.Run("Path with mixed valid and invalid characters", func(t *testing.T) {
-		err := ValidateFolderPath("valid/path<with>invalid", basePath)
+		err := util.ValidateFolderPath("valid/path<with>invalid", basePath)
 		if err != nil {
 			t.Errorf("Expected no error for path with mixed characters, got: %v", err)
 		}
@@ -250,21 +252,21 @@ func TestValidateFolderPathEdgeCases(t *testing.T) {
 
 	t.Run("Very long path", func(t *testing.T) {
 		longPath := "very/long/path/" + strings.Repeat("a", 200) // Shorter path to avoid filesystem limits
-		err := ValidateFolderPath(longPath, basePath)
+		err := util.ValidateFolderPath(longPath, basePath)
 		if err != nil {
 			t.Errorf("Expected no error for long path, got: %v", err)
 		}
 	})
 
 	t.Run("Path with spaces", func(t *testing.T) {
-		err := ValidateFolderPath("path with spaces", basePath)
+		err := util.ValidateFolderPath("path with spaces", basePath)
 		if err != nil {
 			t.Errorf("Expected no error for path with spaces, got: %v", err)
 		}
 	})
 
 	t.Run("Path with unicode characters", func(t *testing.T) {
-		err := ValidateFolderPath("path/with/unicode/测试", basePath)
+		err := util.ValidateFolderPath("path/with/unicode/测试", basePath)
 		if err != nil {
 			t.Errorf("Expected no error for path with unicode, got: %v", err)
 		}
@@ -307,13 +309,146 @@ func TestSanitizeFolderPathEdgeCases(t *testing.T) {
 			input:    "path\\subfolder/other\\another",
 			expected: "path/subfolder/other/another",
 		},
+		{
+			name:     "path with invalid characters in components",
+			input:    "folder<with>invalid:chars",
+			expected: "folder-with-invalid-chars",
+		},
+		{
+			name:     "path with invalid characters in multiple components",
+			input:    "folder:one/subfolder?two/another*three",
+			expected: "folder-one/subfolder-two/another-three",
+		},
+		{
+			name:     "path with Windows reserved name",
+			input:    "folder/CON/subfolder",
+			expected: "folder/CON_/subfolder",
+		},
+		{
+			name:     "path with quotes and pipes",
+			input:    "folder\"one|two/subfolder",
+			expected: "folder-one-two/subfolder",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := SanitizeFolderPath(tt.input)
+			result := util.SanitizeFolderPath(tt.input)
 			if result != tt.expected {
 				t.Errorf("SanitizeFolderPath(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestSanitizeFolderName(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "normal folder name",
+			input:    "My Manga Series",
+			expected: "My Manga Series",
+		},
+		{
+			name:     "folder name with invalid characters",
+			input:    "Manga: Series?",
+			expected: "Manga- Series",
+		},
+		{
+			name:     "folder name with backslashes and slashes",
+			input:    "Manga\\Series/Part A",
+			expected: "Manga-Series-Part A",
+		},
+		{
+			name:     "folder name with quotes and angle brackets",
+			input:    "Manga \"Series\" <Part A>",
+			expected: "Manga -Series- -Part A",
+		},
+		{
+			name:     "folder name with asterisk and pipe",
+			input:    "Manga*Series|Part A",
+			expected: "Manga-Series-Part A",
+		},
+		{
+			name:     "folder name with null bytes and control characters",
+			input:    "Manga\x00Series\x1fTest",
+			expected: "MangaSeriesTest",
+		},
+		{
+			name:     "folder name starting with dot",
+			input:    ".Manga Series",
+			expected: "Manga Series",
+		},
+		{
+			name:     "folder name starting with space",
+			input:    " Manga Series",
+			expected: "Manga Series",
+		},
+		{
+			name:     "folder name ending with space and dot",
+			input:    "Manga Series .",
+			expected: "Manga Series",
+		},
+		{
+			name:     "folder name with consecutive dashes",
+			input:    "Manga---Series",
+			expected: "Manga-Series",
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "only invalid characters",
+			input:    "\\/:*?\"<>|",
+			expected: "",
+		},
+		{
+			name:     "Windows reserved name CON",
+			input:    "CON",
+			expected: "CON_",
+		},
+		{
+			name:     "Windows reserved name PRN",
+			input:    "prn",
+			expected: "prn_",
+		},
+		{
+			name:     "Windows reserved name COM1",
+			input:    "COM1",
+			expected: "COM1_",
+		},
+		{
+			name:     "Windows reserved name LPT9",
+			input:    "lpt9",
+			expected: "lpt9_",
+		},
+		{
+			name:     "mixed valid and invalid characters",
+			input:    "Manga: \"Series\" <Part A> | Section B",
+			expected: "Manga- -Series- -Part A- - Section B",
+		},
+		{
+			name:     "only spaces and dots",
+			input:    "   ...   ",
+			expected: "",
+		},
+		{
+			name:     "only dashes",
+			input:    "---",
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := util.SanitizeFolderName(tt.input)
+			if result != tt.expected {
+				t.Errorf("SanitizeFolderName(%q) = %q, want %q", tt.input, result, tt.expected)
 			}
 		})
 	}

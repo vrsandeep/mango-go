@@ -21,6 +21,7 @@ import (
 	"github.com/vrsandeep/mango-go/internal/downloader/providers"
 	"github.com/vrsandeep/mango-go/internal/models"
 	"github.com/vrsandeep/mango-go/internal/store"
+	"github.com/vrsandeep/mango-go/internal/util"
 )
 
 var (
@@ -231,8 +232,22 @@ func processDownload(app *core.App, st *store.Store, job *models.DownloadQueueIt
 	if err == nil {
 		for _, sub := range subscriptions {
 			if sub.SeriesTitle == job.SeriesTitle && sub.FolderPath != nil {
-				// Use the custom folder path from subscription
-				seriesDir = filepath.Join(app.Config().Library.Path, *sub.FolderPath)
+				// Sanitize custom folder path components to ensure it's safe
+				// Split the relative path and sanitize each component
+				// Handle both forward and back slashes for cross-platform compatibility
+				customPath := *sub.FolderPath
+				// Normalize separators first
+				customPath = strings.ReplaceAll(customPath, "\\", "/")
+				pathComponents := strings.Split(customPath, "/")
+				sanitizedComponents := make([]string, 0, len(pathComponents))
+				for _, component := range pathComponents {
+					if component != "" {
+						sanitizedComponents = append(sanitizedComponents, util.SanitizeFolderName(component))
+					}
+				}
+				// Rejoin sanitized components and combine with library path
+				sanitizedPath := filepath.Join(sanitizedComponents...)
+				seriesDir = filepath.Join(app.Config().Library.Path, sanitizedPath)
 				break
 			}
 		}
@@ -240,7 +255,9 @@ func processDownload(app *core.App, st *store.Store, job *models.DownloadQueueIt
 
 	// Fall back to default series title if no custom folder path found
 	if seriesDir == "" {
-		seriesDir = filepath.Join(app.Config().Library.Path, job.SeriesTitle)
+		// Sanitize series title to remove invalid characters for folder names
+		safeSeriesTitle := util.SanitizeFolderName(job.SeriesTitle)
+		seriesDir = filepath.Join(app.Config().Library.Path, safeSeriesTitle)
 	}
 
 	if err := os.MkdirAll(seriesDir, os.ModePerm); err != nil {
