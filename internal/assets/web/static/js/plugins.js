@@ -122,6 +122,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     providerBadge.textContent = state.selectedProvider;
     chapterTableBody.innerHTML = '<tr><td colspan="6">Loading chapters...</td></tr>';
 
+    // Clear previous selections when selecting a new series
+    clearSelections();
+
     const response = await fetch(
       `/api/providers/${state.selectedProvider}/series/${encodeURIComponent(series.identifier)}`
     );
@@ -129,6 +132,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     state.filteredChapters = [...state.chapters];
     populateLanguageFilter();
     applyFiltersAndSort();
+    // Enable filters button after chapters are loaded
+    updateFiltersButtonState();
   };
 
   const renderChapterTable = () => {
@@ -286,6 +291,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
+    // Clear preview box when new search is performed
+    clearPathPreview();
+    // Clear previous selections when performing a new search
+    clearSelections();
+    // Clear selected series when performing a new search
+    state.selectedSeries = null;
+    state.chapters = [];
+    // Disable filters button when performing a new search
+    updateFiltersButtonState();
+
     try {
       const response = await fetch(
         `/api/providers/${state.selectedProvider}/search?q=${encodeURIComponent(query)}`
@@ -303,6 +318,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     clearSearchBtn.style.display = 'none';
     searchResultsSection.style.display = 'none';
     chaptersSection.style.display = 'none';
+    // Clear preview box in Download settings modal
+    clearPathPreview();
+    // Clear previous selections when clearing search
+    clearSelections();
+    // Disable filters button when search is cleared
+    updateFiltersButtonState();
   };
 
   // Download functionality
@@ -425,8 +446,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   };
 
+  const clearPathPreview = () => {
+    pathPreview.style.display = 'none';
+    previewText.textContent = '';
+    customFolderPath.value = '';
+    // Reset to default folder path option
+    const defaultRadio = document.querySelector('input[name="folder-path"][value="default"]');
+    if (defaultRadio) {
+      defaultRadio.checked = true;
+      customFolderPath.style.display = 'none';
+    }
+  };
+
   const handleSubscribe = async () => {
     if (!state.selectedSeries) return;
+
+    // Check if subscription already exists
+    try {
+      const existingSubsResponse = await fetch(`/api/subscriptions?provider_id=${encodeURIComponent(state.selectedProvider)}`);
+      const existingSubs = await existingSubsResponse.json();
+      const alreadyExists = existingSubs.some(
+        sub => sub.series_identifier === state.selectedSeries.identifier && sub.provider_id === state.selectedProvider
+      );
+
+      if (alreadyExists) {
+        toast.error(`Subscription to "${state.selectedSeries.title}" already exists.`);
+        return;
+      }
+    } catch (error) {
+      console.error('Failed to check existing subscriptions:', error);
+      // Continue with subscription attempt even if check fails
+    }
 
     let folderPath = null;
     const selectedFolderPath = document.querySelector('input[name="folder-path"]:checked').value;
@@ -446,29 +496,50 @@ document.addEventListener('DOMContentLoaded', async () => {
       folderPath = null;
     }
 
-    await fetch('/api/subscriptions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        series_title: state.selectedSeries.title,
-        series_identifier: state.selectedSeries.identifier,
-        provider_id: state.selectedProvider,
-        folder_path: folderPath,
-      }),
-    });
+    try {
+      const response = await fetch('/api/subscriptions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          series_title: state.selectedSeries.title,
+          series_identifier: state.selectedSeries.identifier,
+          provider_id: state.selectedProvider,
+          folder_path: folderPath,
+        }),
+      });
 
-    const folderText = folderPath ? ` in folder "${folderPath}"` : '';
-    toast.success(`Subscribed to ${state.selectedSeries.title}${folderText}.`);
+      if (response.ok) {
+        const folderText = folderPath ? ` in folder "${folderPath}"` : '';
+        toast.success(`Subscribed to ${state.selectedSeries.title}${folderText}.`);
 
-    // Reset form
-    document.querySelector('input[name="folder-path"][value="default"]').checked = true;
-    customFolderPath.style.display = 'none';
-    customFolderPath.value = '';
+        // Reset form
+        document.querySelector('input[name="folder-path"][value="default"]').checked = true;
+        customFolderPath.style.display = 'none';
+        customFolderPath.value = '';
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        toast.error(errorData.error || 'Failed to create subscription.');
+      }
+    } catch (error) {
+      console.error('Subscription failed:', error);
+      toast.error('Failed to create subscription.');
+    }
   };
 
   // --- UI Logic & Event Listeners ---
   const updateDownloadButtonState = () => {
     downloadSelectedBtn.disabled = state.selectedChapterRows.size === 0;
+  };
+
+  const updateFiltersButtonState = () => {
+    // Enable filters button only when a manga is selected (has chapters)
+    const hasChapters = state.selectedSeries && state.chapters && state.chapters.length > 0;
+    filtersBtn.disabled = !hasChapters;
+    if (hasChapters) {
+      filtersBtn.classList.remove('disabled');
+    } else {
+      filtersBtn.classList.add('disabled');
+    }
   };
 
   const clearSelections = () => {
@@ -477,6 +548,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       .querySelectorAll('#chapter-table tbody tr.selected')
       .forEach(row => row.classList.remove('selected'));
     updateDownloadButtonState();
+    updateSelectionCount();
   };
 
   const updateTableHeaderIcons = () => {
@@ -516,6 +588,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       .querySelectorAll('#chapter-table tbody tr')
       .forEach(row => row.classList.add('selected'));
     updateDownloadButtonState();
+    updateSelectionCount();
   });
   clearSelectionsBtn.addEventListener('click', clearSelections);
   downloadSelectedBtn.addEventListener('click', downloadSelectedChapters);
@@ -571,12 +644,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // --- New Event Listeners ---
 
   // Clear search button
-  clearSearchBtn.addEventListener('click', () => {
-    searchInput.value = '';
-    clearSearchBtn.style.display = 'none';
-    searchResultsSection.style.display = 'none';
-    chaptersSection.style.display = 'none';
-  });
+  clearSearchBtn.addEventListener('click', clearSearch);
 
   // Search input changes
   searchInput.addEventListener('input', () => {
@@ -586,7 +654,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // Floating panel buttons
-  filtersBtn.addEventListener('click', () => openPanel(filtersPanel));
+  filtersBtn.addEventListener('click', () => {
+    // Only open panel if filters button is enabled (manga is selected)
+    if (!filtersBtn.disabled) {
+      openPanel(filtersPanel);
+    }
+  });
   settingsBtn.addEventListener('click', () => openPanel(settingsPanel));
 
   // Panel close buttons
@@ -660,23 +733,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     },
 
     // Panel shortcuts
-    f: () => openPanel(filtersPanel),
+    f: () => {
+      // Only open filters panel if enabled (manga is selected)
+      if (!filtersBtn.disabled) {
+        openPanel(filtersPanel);
+      }
+    },
     s: () => openPanel(settingsPanel),
 
     // Action shortcuts (handled in the main Enter key below)
 
     // Selection shortcuts
     a: e => {
-      if (e.ctrlKey || e.metaKey) {
-        e.preventDefault();
-        selectAllChapters();
-      }
+      e.preventDefault();
+      selectAllChapters();
     },
     d: e => {
-      if (e.ctrlKey || e.metaKey) {
-        e.preventDefault();
-        deselectAllChapters();
-      }
+      e.preventDefault();
+      deselectAllChapters();
     },
 
     // Download shortcut
@@ -705,45 +779,45 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    const key = e.key;
-    const shortcut = keyboardShortcuts[key];
+    // For Cmd/Ctrl shortcuts, only proceed if modifier is pressed
+    const isModifierPressed = e.ctrlKey || e.metaKey;
+    const key = e.key.toLowerCase();
 
-    if (shortcut) {
-      shortcut(e);
+    // Handle Cmd/Ctrl shortcuts (A, D, Enter)
+    if (isModifierPressed && (key === 'a' || key === 'd' || key === 'enter')) {
+      const shortcut = keyboardShortcuts[key];
+      if (shortcut) {
+        shortcut(e);
+      }
+      return;
+    }
+
+    // Handle other shortcuts (non-modifier keys)
+    if (!isModifierPressed) {
+      const shortcut = keyboardShortcuts[key];
+      if (shortcut) {
+        shortcut(e);
+      }
     }
   });
 
   // Helper functions for keyboard shortcuts
   function selectAllChapters() {
-    const chapterRows = document.querySelectorAll('.chapter-table tbody tr');
-    chapterRows.forEach(row => {
-      const checkbox = row.querySelector('input[type="checkbox"]');
-      if (checkbox && !checkbox.checked) {
-        checkbox.checked = true;
-        row.classList.add('selected');
-        const identifier = checkbox.dataset.identifier;
-        if (identifier) {
-          state.selectedChapterRows.add(identifier);
-        }
-      }
-    });
+    // Use the same logic as the Select All button
+    if (!state.filteredChapters || state.filteredChapters.length === 0) {
+      return;
+    }
+    state.filteredChapters.forEach(ch => state.selectedChapterRows.add(ch.identifier));
+    document
+      .querySelectorAll('#chapter-table tbody tr')
+      .forEach(row => row.classList.add('selected'));
+    updateDownloadButtonState();
     updateSelectionCount();
   }
 
   function deselectAllChapters() {
-    const chapterRows = document.querySelectorAll('.chapter-table tbody tr');
-    chapterRows.forEach(row => {
-      const checkbox = row.querySelector('input[type="checkbox"]');
-      if (checkbox && checkbox.checked) {
-        checkbox.checked = false;
-        row.classList.remove('selected');
-        const identifier = checkbox.dataset.identifier;
-        if (identifier) {
-          state.selectedChapterRows.delete(identifier);
-        }
-      }
-    });
-    updateSelectionCount();
+    // Use the same logic as the Clear Selections button
+    clearSelections();
   }
 
   // Add keyboard shortcut hints to UI
@@ -797,4 +871,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   loadFolders();
   addKeyboardHints();
   addHelpButton();
+  // Initialize filters button as disabled
+  updateFiltersButtonState();
 });

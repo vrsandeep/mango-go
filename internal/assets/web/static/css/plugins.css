@@ -56,6 +56,16 @@
   transition: all 0.2s ease;
 }
 
+/* Hide native clear button on search input */
+.search-input-group input[type="search"]::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.search-input-group input[type="search"]::-ms-clear {
+  display: none;
+}
+
 .search-input-group input:focus {
   outline: none;
   border-color: var(--accent-color);
@@ -65,19 +75,29 @@
 .clear-btn {
   position: absolute;
   right: 0.5rem;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 0;
+  bottom: 0;
+  width: 2rem;
+  margin: 0;
+  padding: 0;
   background: none;
   border: none;
   color: var(--subtle-text-color);
   cursor: pointer;
-  padding: 0.25rem;
-  border-radius: 4px;
-  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  z-index: 1;
+}
+
+.clear-btn i {
+  font-size: 1rem;
+  line-height: 1;
+  display: block;
 }
 
 .clear-btn:hover {
-  background-color: var(--border-color);
   color: var(--text-color);
 }
 
@@ -131,6 +151,22 @@
   background-color: var(--accent-color);
   color: white;
   border-color: var(--accent-color);
+}
+
+.action-btn.disabled,
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.action-btn.disabled:hover,
+.action-btn:disabled:hover {
+  background-color: var(--card-bg);
+  color: var(--text-color);
+  border-color: var(--border-color);
+  transform: none;
+  box-shadow: none;
 }
 
 .badge {
