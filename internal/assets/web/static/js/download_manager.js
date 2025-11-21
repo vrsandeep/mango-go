@@ -37,8 +37,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const generateActionCellContent = (itemId, status) => {
     let actionButtons = '';
-    if (status === 'queued' || status === 'completed' || status === 'failed') {
+    if (status === 'queued' || status === 'completed') {
       actionButtons = `<button class="action-btn delete-btn" data-action="delete" data-id="${itemId}" title="Delete">🗑️</button>`;
+    } else if (status === 'failed') {
+      actionButtons = `<button class="action-btn retry-btn" data-action="retry" data-id="${itemId}" title="Retry"><i class="ph-bold ph-arrow-clockwise"></i></button> <button class="action-btn delete-btn" data-action="delete" data-id="${itemId}" title="Delete">🗑️</button>`;
     } else if (status === 'in_progress') {
       actionButtons = `<button class="action-btn pause-btn" data-action="pause" data-id="${itemId}" title="Pause">⏸️</button>`;
     } else if (status === 'paused') {

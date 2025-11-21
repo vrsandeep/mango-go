@@ -241,6 +241,22 @@ func (s *Store) ResumeQueueItem(id int64) error {
 	return nil
 }
 
+// RetryQueueItem retries a specific failed item in the download queue by ID.
+func (s *Store) RetryQueueItem(id int64) error {
+	result, err := s.db.Exec("UPDATE download_queue SET status = 'queued', progress = 0, message = 'Re-queued for retry by user' WHERE id = ? AND status = 'failed'", id)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("download queue item with ID %d not found or not in failed status", id)
+	}
+	return nil
+}
+
 // GetAllSubscriptions retrieves all subscriptions, optionally filtered by provider ID.
 func (s *Store) GetAllSubscriptions(providerIDFilter string) ([]*models.Subscription, error) {
 	query := "SELECT id, series_title, series_identifier, provider_id, folder_path, created_at, last_checked_at FROM subscriptions"

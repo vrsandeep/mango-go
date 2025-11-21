@@ -234,6 +234,12 @@
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 
+.retry-btn:hover:not(:disabled) {
+  background-color: var(--accent-color);
+  border-color: var(--accent-color);
+  box-shadow: 0 4px 12px rgba(var(--accent-color-rgb), 0.3);
+}
+
 /* Animations */
 @keyframes fadeIn {
   from {

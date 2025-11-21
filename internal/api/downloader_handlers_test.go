@@ -454,6 +454,74 @@ func TestHandleQueueItemAction(t *testing.T) {
 		db.Exec("DELETE FROM download_queue WHERE id = ?", itemID)
 	})
 
+	t.Run("Test retry item action", func(t *testing.T) {
+		// Add a failed item to the queue
+		db.Exec("INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status, progress) VALUES ('Test', 'Ch. 4', 'id4', 'mockadex', ?, 'failed', 50)", time.Now())
+
+		// Get the inserted item ID
+		var itemID int64
+		db.QueryRow("SELECT id FROM download_queue WHERE series_title = 'Test' AND chapter_title = 'Ch. 4'").Scan(&itemID)
+
+		payload := struct {
+			Action string `json:"action"`
+		}{Action: "retry"}
+		body, _ := json.Marshal(payload)
+		req, _ := http.NewRequest("POST", fmt.Sprintf("/api/downloads/queue/%d/action", itemID), bytes.NewBuffer(body))
+		req.AddCookie(testutil.CookieForUser(t, server, "testuser", "password", "user"))
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusOK {
+			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		}
+
+		var response map[string]string
+		json.Unmarshal(rr.Body.Bytes(), &response)
+		if response["status"] != "success" {
+			t.Errorf("Expected success status, got %s", response["status"])
+		}
+
+		// Verify item was retried (status should be queued, progress should be 0)
+		var status string
+		var progress int
+		db.QueryRow("SELECT status, progress FROM download_queue WHERE id = ?", itemID).Scan(&status, &progress)
+		if status != "queued" {
+			t.Errorf("Expected status 'queued', got %s", status)
+		}
+		if progress != 0 {
+			t.Errorf("Expected progress 0, got %d", progress)
+		}
+
+		// Clean up
+		db.Exec("DELETE FROM download_queue WHERE id = ?", itemID)
+	})
+
+	t.Run("Test retry item action with non-failed status", func(t *testing.T) {
+		// Add a queued item (not failed) to the queue
+		db.Exec("INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Test', 'Ch. 5', 'id5', 'mockadex', ?, 'queued')", time.Now())
+
+		// Get the inserted item ID
+		var itemID int64
+		db.QueryRow("SELECT id FROM download_queue WHERE series_title = 'Test' AND chapter_title = 'Ch. 5'").Scan(&itemID)
+
+		payload := struct {
+			Action string `json:"action"`
+		}{Action: "retry"}
+		body, _ := json.Marshal(payload)
+		req, _ := http.NewRequest("POST", fmt.Sprintf("/api/downloads/queue/%d/action", itemID), bytes.NewBuffer(body))
+		req.AddCookie(testutil.CookieForUser(t, server, "testuser", "password", "user"))
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		// Should return an error since the item is not in failed status
+		if status := rr.Code; status != http.StatusInternalServerError {
+			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusInternalServerError)
+		}
+
+		// Clean up
+		db.Exec("DELETE FROM download_queue WHERE id = ?", itemID)
+	})
+
 	t.Run("Test invalid item action", func(t *testing.T) {
 		payload := struct {
 			Action string `json:"action"`

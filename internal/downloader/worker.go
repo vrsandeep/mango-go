@@ -338,6 +338,19 @@ func ResumeQueueItem(app *core.App, st *store.Store, itemID int64) error {
 	return nil
 }
 
+// RetryQueueItem retries a specific failed item and broadcasts the status change
+func RetryQueueItem(app *core.App, st *store.Store, itemID int64) error {
+	err := st.RetryQueueItem(itemID)
+	if err != nil {
+		return err
+	}
+
+	// Broadcast retry status update with progress reset to 0
+	sendDownloaderProgressUpdate(app, itemID, "Download retried by user", "queued", 0.0, false)
+
+	return nil
+}
+
 func sendDownloaderProgressUpdate(app *core.App, itemID int64, message string, status string, progress float64, done bool) {
 	app.WsHub().BroadcastJSON(models.ProgressUpdate{
 		JobID:    "downloader",

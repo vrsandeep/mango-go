@@ -149,6 +149,8 @@ func (s *Server) handleQueueItemAction(w http.ResponseWriter, r *http.Request) {
 		err = downloader.PauseQueueItem(s.app, s.store, itemID)
 	case "resume":
 		err = downloader.ResumeQueueItem(s.app, s.store, itemID)
+	case "retry":
+		err = downloader.RetryQueueItem(s.app, s.store, itemID)
 	default:
 		RespondWithError(w, http.StatusBadRequest, "Invalid action")
 		return

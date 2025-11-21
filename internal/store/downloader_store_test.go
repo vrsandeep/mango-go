@@ -468,6 +468,86 @@ func TestResumeQueueItem(t *testing.T) {
 	}
 }
 
+func TestRetryQueueItem(t *testing.T) {
+	db := testutil.SetupTestDB(t)
+	s := store.New(db)
+
+	// Add a failed item to the queue
+	_, err := db.Exec("INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status, progress) VALUES ('Test Manga', 'Test Chapter', 'test-id', 'test-provider', ?, 'failed', 75)", time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Get the inserted item ID
+	var itemID int64
+	err = db.QueryRow("SELECT id FROM download_queue WHERE series_title = 'Test Manga'").Scan(&itemID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Test retrying the item
+	err = s.RetryQueueItem(itemID)
+	if err != nil {
+		t.Fatalf("RetryQueueItem failed: %v", err)
+	}
+
+	// Verify the item was retried in the database
+	var status string
+	var progress int
+	var message string
+	err = db.QueryRow("SELECT status, progress, message FROM download_queue WHERE id = ?", itemID).Scan(&status, &progress, &message)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if status != "queued" {
+		t.Errorf("Expected status 'queued', got '%s'", status)
+	}
+
+	if progress != 0 {
+		t.Errorf("Expected progress 0, got %d", progress)
+	}
+
+	if message != "Re-queued for retry by user" {
+		t.Errorf("Expected message 'Re-queued for retry by user', got '%s'", message)
+	}
+}
+
+func TestRetryQueueItemWithNonFailedStatus(t *testing.T) {
+	db := testutil.SetupTestDB(t)
+	s := store.New(db)
+
+	// Add a queued item (not failed) to the queue
+	_, err := db.Exec("INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Test Manga', 'Test Chapter', 'test-id', 'test-provider', ?, 'queued')", time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Get the inserted item ID
+	var itemID int64
+	err = db.QueryRow("SELECT id FROM download_queue WHERE series_title = 'Test Manga'").Scan(&itemID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Test retrying a non-failed item should fail
+	err = s.RetryQueueItem(itemID)
+	if err == nil {
+		t.Error("Expected error when retrying non-failed item, got nil")
+	}
+}
+
+func TestRetryQueueItemWithNonExistentItem(t *testing.T) {
+	db := testutil.SetupTestDB(t)
+	s := store.New(db)
+
+	// Test retrying a non-existent item
+	err := s.RetryQueueItem(99999)
+	if err == nil {
+		t.Error("Expected error when retrying non-existent item, got nil")
+	}
+}
+
 func TestDeleteQueueItem(t *testing.T) {
 	db := testutil.SetupTestDB(t)
 	s := store.New(db)
