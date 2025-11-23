@@ -262,19 +262,16 @@ func (s *Server) handleSearchFolders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	folders, err := s.store.GetAllFoldersByPath()
+	folders, err := s.store.SearchFoldersByName(query, 20)
 	if err != nil {
 		RespondWithError(w, http.StatusInternalServerError, "Failed to retrieve folders")
 		return
 	}
 
-	// Filter folders by name (case-insensitive)
-	queryLower := strings.ToLower(query)
 	var results []map[string]interface{}
 	libraryPath := s.app.Config().Library.Path
 
 	for _, folder := range folders {
-		if strings.Contains(strings.ToLower(folder.Name), queryLower) {
 			// Convert full path to relative path
 			relativePath := folder.Path
 			if strings.HasPrefix(folder.Path, libraryPath) {
@@ -287,12 +284,6 @@ func (s *Server) handleSearchFolders(w http.ResponseWriter, r *http.Request) {
 				"path": relativePath,
 				"name": folder.Name,
 			})
-		}
-	}
-
-	// Limit results to 20 for performance
-	if len(results) > 20 {
-		results = results[:20]
 	}
 
 	RespondWithJSON(w, http.StatusOK, results)

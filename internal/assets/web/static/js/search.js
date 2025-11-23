@@ -8,9 +8,9 @@ document.addEventListener('DOMContentLoaded', () => {
   let searchTimeout = null;
 
   // Open search modal
-  searchBtn?.addEventListener('click', () => {
+  searchBtn.addEventListener('click', () => {
     searchModal.style.display = 'flex';
-    searchInput?.focus();
+    searchInput.focus();
   });
 
   // Close search modal
@@ -20,24 +20,24 @@ document.addEventListener('DOMContentLoaded', () => {
     searchResults.innerHTML = '';
   };
 
-  searchCloseBtn?.addEventListener('click', closeSearch);
+  searchCloseBtn.addEventListener('click', closeSearch);
 
   // Close on overlay click
-  searchModal?.addEventListener('click', (e) => {
+  searchModal.addEventListener('click', e => {
     if (e.target === searchModal) {
       closeSearch();
     }
   });
 
   // Close on Escape key
-  document.addEventListener('keydown', (e) => {
+  document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && searchModal.style.display === 'flex') {
       closeSearch();
     }
   });
 
   // Perform search with debounce
-  searchInput?.addEventListener('input', (e) => {
+  searchInput.addEventListener('input', e => {
     const query = e.target.value.trim();
 
     // Clear previous timeout
@@ -62,24 +62,30 @@ document.addEventListener('DOMContentLoaded', () => {
         renderSearchResults(folders);
       } catch (error) {
         console.error('Search error:', error);
-        searchResults.innerHTML = '<div class="search-error">Error performing search. Please try again.</div>';
+        searchResults.innerHTML =
+          '<div class="search-error">Error performing search. Please try again.</div>';
       }
     }, 300);
   });
 
   // Render search results
   function renderSearchResults(folders) {
-    if (folders.length === 0) {
-      searchResults.innerHTML = '<div class="search-empty">No folders found matching your search.</div>';
+    if (!folders || folders.length === 0) {
+      searchResults.innerHTML =
+        '<div class="search-empty">No folders found matching your search.</div>';
       return;
     }
 
-    const resultsHTML = folders.map(folder => `
+    const resultsHTML = folders
+      .map(
+        folder => `
       <div class="search-result-item" data-folder-id="${folder.id}">
         <div class="search-result-name">${escapeHtml(folder.name)}</div>
         <div class="search-result-path">${escapeHtml(folder.path || '')}</div>
       </div>
-    `).join('');
+    `
+      )
+      .join('');
 
     searchResults.innerHTML = resultsHTML;
 
