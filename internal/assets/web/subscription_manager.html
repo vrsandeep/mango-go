@@ -35,6 +35,7 @@
             </nav>
         </div>
         <div class="header-right">
+            <button id="search-btn" class="search-btn" title="Search folders"><i class="ph-bold ph-magnifying-glass"></i></button>
             <button id="theme-toggle-btn"><i class="ph-bold ph-sun"></i></button>
             <button id="logout-btn" class="auth-only" style="display: none;">Logout</button>
         </div>
@@ -106,8 +107,21 @@
         </div>
     </div>
 
+    <!-- Search Modal -->
+    <div class="search-modal" id="search-modal">
+        <div class="search-modal-content">
+            <div class="search-input-container">
+                <i class="ph-bold ph-magnifying-glass search-icon"></i>
+                <input type="text" id="search-input-modal" class="search-input-modal" placeholder="Search folders by name..." autocomplete="off">
+                <button class="search-close-btn" id="search-close-btn"><i class="ph-bold ph-x"></i></button>
+            </div>
+            <div class="search-results" id="search-results"></div>
+        </div>
+    </div>
+
     <footer class="main-footer"><span id="version-footer"></span></footer>
     <script src="/static/js/header.js"></script>
+    <script src="/static/js/search.js"></script>
     <script src="/static/js/toast.js"></script>
     <script src="/static/js/path-utils.js"></script>
     <script src="/static/js/subscription_manager.js"></script>
