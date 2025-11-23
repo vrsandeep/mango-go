@@ -407,3 +407,193 @@ func TestHandleListAllFolders(t *testing.T) {
 		}
 	})
 }
+
+func TestHandleSearchFolders(t *testing.T) {
+	_, router, cookie, folderA, _, _ := setupTestData(t)
+
+	t.Run("Search with matching query", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/api/folders/search?q=Folder", nil)
+		req.AddCookie(cookie)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusOK {
+			t.Fatalf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		}
+
+		var results []struct {
+			ID   int64  `json:"id"`
+			Name string `json:"name"`
+			Path string `json:"path"`
+		}
+		json.Unmarshal(rr.Body.Bytes(), &results)
+
+		if len(results) == 0 {
+			t.Fatal("Expected at least one folder matching 'Folder', got 0")
+		}
+
+		// Verify all results contain "Folder" in the name
+		for _, result := range results {
+			if result.ID == 0 {
+				t.Error("Folder ID should not be zero")
+			}
+			if result.Name == "" {
+				t.Error("Folder name should not be empty")
+			}
+		}
+	})
+
+	t.Run("Search with exact match", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", fmt.Sprintf("/api/folders/search?q=%s", "Folder A"), nil)
+		req.AddCookie(cookie)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusOK {
+			t.Fatalf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		}
+
+		var results []struct {
+			ID   int64  `json:"id"`
+			Name string `json:"name"`
+			Path string `json:"path"`
+		}
+		json.Unmarshal(rr.Body.Bytes(), &results)
+
+		// Should find Folder A
+		found := false
+		for _, result := range results {
+			if result.ID == folderA.ID && result.Name == "Folder A" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Error("Expected to find 'Folder A' in search results")
+		}
+	})
+
+	t.Run("Search with empty query", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/api/folders/search?q=", nil)
+		req.AddCookie(cookie)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusOK {
+			t.Fatalf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		}
+
+		var results []map[string]interface{}
+		json.Unmarshal(rr.Body.Bytes(), &results)
+
+		if len(results) != 0 {
+			t.Errorf("Expected empty results for empty query, got %d results", len(results))
+		}
+	})
+
+	t.Run("Search with no query parameter", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/api/folders/search", nil)
+		req.AddCookie(cookie)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusOK {
+			t.Fatalf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		}
+
+		var results []map[string]interface{}
+		json.Unmarshal(rr.Body.Bytes(), &results)
+
+		if len(results) != 0 {
+			t.Errorf("Expected empty results for no query parameter, got %d results", len(results))
+		}
+	})
+
+	t.Run("Search with no matches", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/api/folders/search?q=NonExistentFolder123", nil)
+		req.AddCookie(cookie)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusOK {
+			t.Fatalf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		}
+
+		var results []map[string]interface{}
+		json.Unmarshal(rr.Body.Bytes(), &results)
+
+		if len(results) != 0 {
+			t.Errorf("Expected 0 results for non-existent folder, got %d", len(results))
+		}
+	})
+
+	t.Run("Search results have correct structure", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/api/folders/search?q=Folder", nil)
+		req.AddCookie(cookie)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusOK {
+			t.Fatalf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		}
+
+		var results []struct {
+			ID   int64  `json:"id"`
+			Name string `json:"name"`
+			Path string `json:"path"`
+		}
+		json.Unmarshal(rr.Body.Bytes(), &results)
+
+		if len(results) > 0 {
+			result := results[0]
+			if result.ID == 0 {
+				t.Error("Result ID should not be zero")
+			}
+			if result.Name == "" {
+				t.Error("Result name should not be empty")
+			}
+			// Path can be empty if it's relative to library root
+		}
+	})
+
+	t.Run("Unauthorized Access", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/api/folders/search?q=Folder", nil)
+		// No cookie
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusUnauthorized {
+			t.Fatalf("Expected status 401 for unauthorized access, got %d", status)
+		}
+	})
+
+	t.Run("Search with URL encoded query", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/api/folders/search?q=Folder%20A", nil)
+		req.AddCookie(cookie)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusOK {
+			t.Fatalf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		}
+
+		var results []struct {
+			ID   int64  `json:"id"`
+			Name string `json:"name"`
+			Path string `json:"path"`
+		}
+		json.Unmarshal(rr.Body.Bytes(), &results)
+
+		// Should find Folder A
+		found := false
+		for _, result := range results {
+			if result.ID == folderA.ID {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Error("Expected to find 'Folder A' in search results with URL encoded query")
+		}
+	})
+}

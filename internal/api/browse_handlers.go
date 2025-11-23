@@ -253,3 +253,38 @@ func (s *Server) handleListAllFolders(w http.ResponseWriter, r *http.Request) {
 
 	RespondWithJSON(w, http.StatusOK, folderList)
 }
+
+// handleSearchFolders searches folders by name and returns matching results
+func (s *Server) handleSearchFolders(w http.ResponseWriter, r *http.Request) {
+	query := strings.TrimSpace(r.URL.Query().Get("q"))
+	if query == "" {
+		RespondWithJSON(w, http.StatusOK, []map[string]interface{}{})
+		return
+	}
+
+	folders, err := s.store.SearchFoldersByName(query, 20)
+	if err != nil {
+		RespondWithError(w, http.StatusInternalServerError, "Failed to retrieve folders")
+		return
+	}
+
+	var results []map[string]interface{}
+	libraryPath := s.app.Config().Library.Path
+
+	for _, folder := range folders {
+			// Convert full path to relative path
+			relativePath := folder.Path
+			if strings.HasPrefix(folder.Path, libraryPath) {
+				relativePath = strings.TrimPrefix(folder.Path, libraryPath)
+				relativePath = strings.TrimPrefix(relativePath, "/")
+			}
+
+			results = append(results, map[string]interface{}{
+				"id":   folder.ID,
+				"path": relativePath,
+				"name": folder.Name,
+			})
+	}
+
+	RespondWithJSON(w, http.StatusOK, results)
+}

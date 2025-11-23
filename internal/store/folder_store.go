@@ -112,6 +112,29 @@ func (s *Store) GetAllFoldersByPath() (map[string]*models.Folder, error) {
 	return folderMap, nil
 }
 
+func (s *Store) SearchFoldersByName(name string, limit int) ([]*models.Folder, error) {
+	rows, err := s.db.Query("SELECT id, path, name, parent_id, thumbnail FROM folders WHERE name LIKE ? LIMIT ?", "%"+name+"%", limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var folders []*models.Folder
+	for rows.Next() {
+		var folder models.Folder
+		var parentID sql.NullInt64
+		var thumbnail sql.NullString
+		if err := rows.Scan(&folder.ID, &folder.Path, &folder.Name, &parentID, &thumbnail); err != nil {
+			return nil, err
+		}
+		if parentID.Valid {
+			folder.ParentID = &parentID.Int64
+		}
+		folder.Thumbnail = thumbnail.String
+		folders = append(folders, &folder)
+	}
+	return folders, nil
+}
+
 // DeleteFolder removes a folder by its ID.
 func (s *Store) DeleteFolder(id int64) error {
 	_, err := s.db.Exec("DELETE FROM folders WHERE id = ?", id)

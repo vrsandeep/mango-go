@@ -66,6 +66,112 @@ func TestGetAllFoldersByPath(t *testing.T) {
 	}
 }
 
+func TestSearchFoldersByName(t *testing.T) {
+	db := testutil.SetupTestDB(t)
+	s := store.New(db)
+
+	// Create test folders with various names
+	_, err := s.CreateFolder("/library/One Piece", "One Piece", nil)
+	if err != nil {
+		t.Fatalf("CreateFolder failed: %v", err)
+	}
+
+	_, err = s.CreateFolder("/library/One Punch Man", "One Punch Man", nil)
+	if err != nil {
+		t.Fatalf("CreateFolder failed: %v", err)
+	}
+
+	folder3, err := s.CreateFolder("/library/Naruto", "Naruto", nil)
+	if err != nil {
+		t.Fatalf("CreateFolder failed: %v", err)
+	}
+
+	_, err = s.CreateFolder("/library/One Piece Special", "One Piece Special", nil)
+	if err != nil {
+		t.Fatalf("CreateFolder failed: %v", err)
+	}
+
+	t.Run("Search with matching query", func(t *testing.T) {
+		folders, err := s.SearchFoldersByName("One", 20)
+		if err != nil {
+			t.Fatalf("SearchFoldersByName failed: %v", err)
+		}
+		if len(folders) != 3 {
+			t.Errorf("Expected 3 folders matching 'One', got %d", len(folders))
+		}
+		// Verify all results contain "One" in the name
+		for _, folder := range folders {
+			if folder.Name != "One Piece" && folder.Name != "One Punch Man" && folder.Name != "One Piece Special" {
+				t.Errorf("Unexpected folder in results: %s", folder.Name)
+			}
+		}
+	})
+
+	t.Run("Search with exact match", func(t *testing.T) {
+		folders, err := s.SearchFoldersByName("Naruto", 20)
+		if err != nil {
+			t.Fatalf("SearchFoldersByName failed: %v", err)
+		}
+		if len(folders) != 1 {
+			t.Errorf("Expected 1 folder matching 'Naruto', got %d", len(folders))
+		}
+		if folders[0].ID != folder3.ID {
+			t.Errorf("Expected folder ID %d, got %d", folder3.ID, folders[0].ID)
+		}
+		if folders[0].Name != "Naruto" {
+			t.Errorf("Expected folder name 'Naruto', got '%s'", folders[0].Name)
+		}
+	})
+
+	t.Run("Search with no matches", func(t *testing.T) {
+		folders, err := s.SearchFoldersByName("NonExistent", 20)
+		if err != nil {
+			t.Fatalf("SearchFoldersByName failed: %v", err)
+		}
+		if len(folders) != 0 {
+			t.Errorf("Expected 0 folders matching 'NonExistent', got %d", len(folders))
+		}
+	})
+
+	t.Run("Search with limit", func(t *testing.T) {
+		folders, err := s.SearchFoldersByName("One", 2)
+		if err != nil {
+			t.Fatalf("SearchFoldersByName failed: %v", err)
+		}
+		if len(folders) > 2 {
+			t.Errorf("Expected at most 2 folders, got %d", len(folders))
+		}
+	})
+
+	t.Run("Search with case insensitive partial match", func(t *testing.T) {
+		folders, err := s.SearchFoldersByName("piece", 20)
+		if err != nil {
+			t.Fatalf("SearchFoldersByName failed: %v", err)
+		}
+		// SQL LIKE is case-insensitive by default in SQLite
+		if len(folders) < 2 {
+			t.Errorf("Expected at least 2 folders matching 'piece', got %d", len(folders))
+		}
+		// Verify results contain "Piece" in the name
+		for _, folder := range folders {
+			if folder.Name != "One Piece" && folder.Name != "One Piece Special" {
+				t.Errorf("Unexpected folder in results: %s", folder.Name)
+			}
+		}
+	})
+
+	t.Run("Search with empty query", func(t *testing.T) {
+		folders, err := s.SearchFoldersByName("", 20)
+		if err != nil {
+			t.Fatalf("SearchFoldersByName failed: %v", err)
+		}
+		// Empty query with LIKE '%' should match all folders
+		if len(folders) < 4 {
+			t.Errorf("Expected at least 4 folders with empty query, got %d", len(folders))
+		}
+	})
+}
+
 func TestDeleteFolder(t *testing.T) {
 	db := testutil.SetupTestDB(t)
 	s := store.New(db)
