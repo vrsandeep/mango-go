@@ -77,15 +77,6 @@ jobs:
           cache: true
           cache-dependency-path: go.sum
 
-      - name: Cache Go build cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -93,17 +84,8 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
-      - name: Cache esbuild
-        uses: actions/cache@v4
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-esbuild-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-esbuild-
-
       - name: Install esbuild
         run: npm install -g esbuild
-
 
       - name: Build assets
         run: make assets
