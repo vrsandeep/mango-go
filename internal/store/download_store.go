@@ -349,7 +349,7 @@ func (s *Store) UpdateSubscriptionLastChecked(id int64) error {
 // GetChapterIdentifiersInQueue returns a slice of all chapter identifiers for a given
 // series that are currently in the download queue to prevent adding duplicates.
 func (s *Store) GetChapterIdentifiersInQueue(seriesTitle, providerID string) ([]string, error) {
-	query := "SELECT chapter_identifier FROM download_queue WHERE series_title = ? AND provider_id = ?"
+	query := "SELECT chapter_identifier FROM download_queue WHERE series_title = ? AND provider_id = ? and status = 'queued'"
 	rows, err := s.db.Query(query, seriesTitle, providerID)
 	if err != nil {
 		return nil, err
