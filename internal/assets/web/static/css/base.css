@@ -734,12 +734,23 @@ a:active:not([disabled]) {
   padding: 1.5rem;
   border-bottom: 2px solid var(--border-color);
   gap: 0.75rem;
+  background-color: var(--card-bg);
+  transition: border-color 0.2s ease;
+}
+
+.search-input-container:focus-within {
+  border-bottom-color: var(--accent-color);
 }
 
 .search-icon {
   color: var(--subtle-text-color);
   font-size: 1.25rem;
   flex-shrink: 0;
+  transition: color 0.2s ease;
+}
+
+.search-input-container:focus-within .search-icon {
+  color: var(--accent-color);
 }
 
 .search-input-modal {
@@ -750,10 +761,20 @@ a:active:not([disabled]) {
   font-size: 1rem;
   padding: 0.5rem 0;
   outline: none;
+  transition: color 0.2s ease;
+}
+
+.search-input-modal:focus-visible {
+  outline: none;
 }
 
 .search-input-modal::placeholder {
   color: var(--subtle-text-color);
+  opacity: 0.7;
+}
+
+.search-input-modal:focus {
+  color: var(--text-color);
 }
 
 .search-close-btn {
