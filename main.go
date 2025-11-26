@@ -15,9 +15,6 @@ import (
 	"github.com/vrsandeep/mango-go/internal/auth"
 	"github.com/vrsandeep/mango-go/internal/core"
 	"github.com/vrsandeep/mango-go/internal/downloader"
-	"github.com/vrsandeep/mango-go/internal/downloader/providers"
-	"github.com/vrsandeep/mango-go/internal/downloader/providers/mangadex"
-	"github.com/vrsandeep/mango-go/internal/downloader/providers/weebcentral"
 	"github.com/vrsandeep/mango-go/internal/plugins"
 	"github.com/vrsandeep/mango-go/internal/store"
 	"github.com/vrsandeep/mango-go/internal/subscription"
@@ -69,11 +66,6 @@ func main() {
 			log.Println("Periodic scan complete.")
 		}
 	}()
-
-	// Initialize the downloader providers
-	// Register all available downloader providers here.
-	providers.Register(mangadex.New())
-	providers.Register(weebcentral.New())
 
 	// Initialize plugin manager and load plugins
 	pluginManager := plugins.NewPluginManager(app, app.Config().Plugins.Path)

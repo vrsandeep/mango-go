@@ -169,6 +169,32 @@ func (a *PluginProviderAdapter) getStringFromMap(m map[string]interface{}, key s
 	return fmt.Sprintf("%v", val)
 }
 
+// getIntFromMap extracts an integer value from a map, handling all numeric types
+func (a *PluginProviderAdapter) getIntFromMap(m map[string]interface{}, key string) int {
+	val, ok := m[key]
+	if !ok || val == nil {
+		return 0
+	}
+
+	switch v := val.(type) {
+	case float64:
+		return int(v)
+	case float32:
+		return int(v)
+	case int:
+		return v
+	default:
+		// Fallback: try to convert via string representation
+		str := fmt.Sprintf("%v", v)
+		var result int
+		if parsed, err := fmt.Sscanf(str, "%d", &result); err == nil && parsed == 1 {
+			return result
+		}
+		log.Printf("[%s] Failed to parse %s as number, got type %T with value %v", a.runtime.manifest.ID, key, v, v)
+		return 0
+	}
+}
+
 func (a *PluginProviderAdapter) jsToChapterResults(val goja.Value) []models.ChapterResult {
 	if goja.IsUndefined(val) || goja.IsNull(val) {
 		return nil
@@ -207,14 +233,7 @@ func (a *PluginProviderAdapter) jsToChapterResults(val goja.Value) []models.Chap
 		}
 
 		// Get pages as number
-		pages := 0
-		if pagesVal, ok := itemMap["pages"]; ok && pagesVal != nil {
-			if pagesFloat, ok := pagesVal.(float64); ok {
-				pages = int(pagesFloat)
-			} else if pagesInt, ok := pagesVal.(int); ok {
-				pages = pagesInt
-			}
-		}
+		pages := a.getIntFromMap(itemMap, "pages")
 
 		chapter := models.ChapterResult{
 			Identifier:  a.getStringFromMap(itemMap, "identifier"),
