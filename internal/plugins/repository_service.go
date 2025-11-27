@@ -197,6 +197,13 @@ func (rs *RepositoryService) InstallPlugin(pluginID string, repositoryID int64) 
 		return fmt.Errorf("failed to write enriched plugin.json: %w", err)
 	}
 
+	// Check if plugin is already loaded and unload it first (for updates)
+	if _, isLoaded := rs.manager.GetPluginInfo(pluginID); isLoaded {
+		if err := rs.manager.UnloadPlugin(pluginID); err != nil {
+			return fmt.Errorf("failed to unload existing plugin: %w", err)
+		}
+	}
+
 	// Load the plugin
 	if err := rs.manager.LoadPlugin(pluginDir); err != nil {
 		// Cleanup on failure

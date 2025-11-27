@@ -302,6 +302,8 @@
   border: 2px solid var(--border-color);
   border-radius: 12px;
   transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
 }
 
 .plugin-card:hover {
@@ -406,7 +408,8 @@
 .plugin-actions {
   display: flex;
   gap: 0.75rem;
-  margin-top: 1rem;
+  margin-top: auto;
+  padding-top: 1rem;
   flex-wrap: wrap;
 }
 
