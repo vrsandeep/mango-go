@@ -259,13 +259,14 @@ func (s *Store) RetryQueueItem(id int64) error {
 
 // GetAllSubscriptions retrieves all subscriptions, optionally filtered by provider ID.
 func (s *Store) GetAllSubscriptions(providerIDFilter string) ([]*models.Subscription, error) {
-	query := "SELECT id, series_title, series_identifier, provider_id, folder_path, created_at, last_checked_at FROM subscriptions"
+	query := `SELECT id, series_title, series_identifier, provider_id, folder_path, created_at, last_checked_at
+		FROM subscriptions`
 	args := []interface{}{}
 	if providerIDFilter != "" {
 		query += " WHERE provider_id = ?"
 		args = append(args, providerIDFilter)
 	}
-	query += " ORDER BY series_title ASC"
+	query += " ORDER BY created_at DESC, series_title ASC"
 
 	rows, err := s.db.Query(query, args...)
 	if err != nil {
