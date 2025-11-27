@@ -22,10 +22,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const subTitle = isChapter ? item.series_title : '';
 
     let progressBarHTML = '';
-    if (item.progress_percent !== undefined && item.progress_percent !== null) {
+    // Only show progress for chapter cards, not series cards
+    // Always show progress bar container for chapter cards (like library), even if progress is 0
+    if (isChapter) {
+      const progressPercent = item.progress_percent || 0;
       progressBarHTML = `
         <div class="progress-bar-container">
-          <div class="progress-bar" style="width: ${item.progress_percent}%;"></div>
+          <div class="progress-bar" style="width: ${progressPercent}%;"></div>
         </div>
       `;
     }
@@ -41,7 +44,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           ${badgeHTML}
         </div>
         <div class="item-title" title="${title}">${title}</div>
-        ${subTitle ? `<div class="item-subtitle" style="padding: 0 0.75rem 0.5rem; font-size: 0.8rem; color: var(--subtle-text-color);">${subTitle}</div>` : ''}
+        ${subTitle ? `<div class="item-subtitle">${subTitle}</div>` : ''}
         ${progressBarHTML}
         `;
     return card;

@@ -8,6 +8,6 @@ import (
 type HomeStore interface {
 	GetContinueReading(userID int64, limit int) ([]*models.HomeSectionItem, error)
 	GetNextUp(userID int64, limit int) ([]*models.HomeSectionItem, error)
-	GetRecentlyAdded(limit int) ([]*models.HomeSectionItem, error)
+	GetRecentlyAdded(userID int64, limit int) ([]*models.HomeSectionItem, error)
 	GetStartReading(userID int64, limit int) ([]*models.HomeSectionItem, error)
 }

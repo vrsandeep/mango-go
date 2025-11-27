@@ -41,6 +41,9 @@ func TestGetRecentlyAddedWithDateGrouping(t *testing.T) {
 	db := testutil.SetupTestDB(t)
 	s := store.New(db)
 
+	// Create user
+	user, _ := s.CreateUser("user1", "hash", "user")
+
 	// Create folders
 	fA, _ := s.CreateFolder("/A", "Series A", nil)
 	fB, _ := s.CreateFolder("/B", "Series B", nil)
@@ -51,16 +54,25 @@ func TestGetRecentlyAddedWithDateGrouping(t *testing.T) {
 	today := "2024-01-02 10:00:00"
 
 	// Insert chapters with specific creation times
-	db.Exec("INSERT INTO chapters (folder_id, path, content_hash, page_count, thumbnail, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+	res, _ := db.Exec("INSERT INTO chapters (folder_id, path, content_hash, page_count, thumbnail, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
 		fA.ID, "/A/ch1.cbz", "hash_a1", 10, "", yesterday, yesterday)
-	db.Exec("INSERT INTO chapters (folder_id, path, content_hash, page_count, thumbnail, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+	chA1ID, _ := res.LastInsertId()
+	res, _ = db.Exec("INSERT INTO chapters (folder_id, path, content_hash, page_count, thumbnail, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
 		fA.ID, "/A/ch2.cbz", "hash_a2", 10, "", yesterday, yesterday) // Same day as ch1
-	db.Exec("INSERT INTO chapters (folder_id, path, content_hash, page_count, thumbnail, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+	chA2ID, _ := res.LastInsertId()
+	res, _ = db.Exec("INSERT INTO chapters (folder_id, path, content_hash, page_count, thumbnail, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
 		fA.ID, "/A/ch3.cbz", "hash_a3", 10, "", today, today) // Different day
+	chA3ID, _ := res.LastInsertId()
 	db.Exec("INSERT INTO chapters (folder_id, path, content_hash, page_count, thumbnail, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
 		fB.ID, "/B/ch1.cbz", "hash_b1", 10, "", today, today) // Same day as ch3
 
-	items, err := s.GetRecentlyAdded(10)
+	// Mark some chapters with progress to test progress display
+	s.UpdateChapterProgress(chA1ID, user.ID, 50, false) // 50% progress on chA1
+	s.UpdateChapterProgress(chA2ID, user.ID, 100, true) // 100% progress (read) on chA2
+	s.UpdateChapterProgress(chA3ID, user.ID, 30, false) // 30% progress on chA3
+	// chB1 has no progress
+
+	items, err := s.GetRecentlyAdded(user.ID, 10)
 	if err != nil {
 		t.Fatalf("GetRecentlyAdded failed: %v", err)
 	}
@@ -73,17 +85,31 @@ func TestGetRecentlyAddedWithDateGrouping(t *testing.T) {
 		t.Fatalf("Expected 3 grouped items in Recently Added, got %d", len(items))
 	}
 
-	// Check the grouping behavior
+	// Check the grouping behavior and progress display
 	var seriesAToday, seriesAYesterday, seriesBToday bool
 	for _, item := range items {
 		if item.SeriesTitle == "Series A" {
-			if item.NewChapterCount == 1 {
-				seriesAToday = true // Single chapter added today
-			} else if item.NewChapterCount == 2 {
-				seriesAYesterday = true // Two chapters grouped from yesterday
+			if item.NewChapterCount == 1 && item.ChapterID != nil {
+				seriesAToday = true // Single chapter added today (chA3)
+				// This is a chapter card, should have chapter progress (30%)
+				if item.ProgressPercent == nil {
+					t.Error("Expected Series A chapter card (today) to have chapter progress")
+				} else if *item.ProgressPercent != 30 {
+					t.Errorf("Expected Series A chapter card (today) to have 30%% progress, got %d%%", *item.ProgressPercent)
+				}
+			} else if item.NewChapterCount == 2 && item.ChapterID == nil {
+				seriesAYesterday = true // Two chapters grouped from yesterday (series card)
+				// This is a series card, should NOT have progress
+				if item.ProgressPercent != nil {
+					t.Error("Expected Series A series card (yesterday) to NOT have progress")
+				}
 			}
-		} else if item.SeriesTitle == "Series B" && item.NewChapterCount == 1 {
-			seriesBToday = true // Single chapter added today
+		} else if item.SeriesTitle == "Series B" && item.NewChapterCount == 1 && item.ChapterID != nil {
+			seriesBToday = true // Single chapter added today (chB1)
+			// This is a chapter card, should have chapter progress (0% - no progress set)
+			if item.ProgressPercent != nil {
+				t.Errorf("Expected Series B chapter card to have no progress (nil), got %d%%", *item.ProgressPercent)
+			}
 		}
 	}
 

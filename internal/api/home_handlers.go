@@ -49,7 +49,7 @@ func (s *Server) handleGetHomePageData(w http.ResponseWriter, r *http.Request) {
 
 	go func() {
 		defer wg.Done()
-		data, err := s.homeStore.GetRecentlyAdded(24) // Fetch more items to group
+		data, err := s.homeStore.GetRecentlyAdded(user.ID, 24) // Fetch more items to group
 		if err != nil {
 			mu.Lock()
 			errors = append(errors, err)

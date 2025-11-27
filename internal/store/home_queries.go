@@ -231,7 +231,7 @@ func (s *Store) findNextChapterInSiblingFolder(userID, folderID int64) (*models.
 }
 
 // GetRecentlyAdded fetches recently added chapters and groups them by series and creation date.
-func (s *Store) GetRecentlyAdded(limit int) ([]*models.HomeSectionItem, error) {
+func (s *Store) GetRecentlyAdded(userID int64, limit int) ([]*models.HomeSectionItem, error) {
 	query := `
 		SELECT
 			f.id as series_id,
@@ -239,13 +239,15 @@ func (s *Store) GetRecentlyAdded(limit int) ([]*models.HomeSectionItem, error) {
 			f.thumbnail as cover_art,
 			c.id as chapter_id,
 			c.path as chapter_title,
-			c.created_at
+			c.created_at,
+			ucp.progress_percent
 		FROM chapters c
 		JOIN folders f ON f.id = c.folder_id
+		LEFT JOIN user_chapter_progress ucp ON c.id = ucp.chapter_id AND ucp.user_id = ?
 		ORDER BY c.created_at DESC
 		LIMIT ?
 	`
-	rows, err := s.db.Query(query, limit*2) // Fetch more to ensure we have enough unique series
+	rows, err := s.db.Query(query, userID, limit*2) // Fetch more to ensure we have enough unique series
 	if err != nil {
 		return nil, err
 	}
@@ -266,7 +268,8 @@ func (s *Store) GetRecentlyAdded(limit int) ([]*models.HomeSectionItem, error) {
 		var thumbnail sql.NullString
 		var chapterTitle string
 		var createdAt time.Time
-		if err := rows.Scan(&item.SeriesID, &item.SeriesTitle, &thumbnail, &chapterID, &chapterTitle, &createdAt); err != nil {
+		var progress sql.NullInt64
+		if err := rows.Scan(&item.SeriesID, &item.SeriesTitle, &thumbnail, &chapterID, &chapterTitle, &createdAt, &progress); err != nil {
 			return nil, err
 		}
 		item.CoverArt = thumbnail.String
@@ -282,11 +285,17 @@ func (s *Store) GetRecentlyAdded(limit int) ([]*models.HomeSectionItem, error) {
 			existing.NewChapterCount++
 			existing.ChapterID = nil
 			existing.ChapterTitle = ""
+			existing.ProgressPercent = nil // Clear progress for series cards
 		} else {
 			// This is the first time we've seen this series on this date in the results.
 			item.NewChapterCount = 1
 			item.ChapterID = &chapterID // Keep the chapter details for now
 			item.ChapterTitle = GetChapterTitle(&models.Chapter{Path: chapterTitle})
+			// Only set progress for chapter cards (when ChapterID is set)
+			if progress.Valid {
+				p := int(progress.Int64)
+				item.ProgressPercent = &p
+			}
 			folderMap[key] = &item
 			orderedKeys = append(orderedKeys, key)
 		}

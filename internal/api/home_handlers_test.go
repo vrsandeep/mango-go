@@ -34,8 +34,8 @@ func (m *MockHomeStore) GetNextUp(userID int64, limit int) ([]*models.HomeSectio
 }
 
 // GetRecentlyAdded mocks the GetRecentlyAdded method
-func (m *MockHomeStore) GetRecentlyAdded(limit int) ([]*models.HomeSectionItem, error) {
-	args := m.Called(limit)
+func (m *MockHomeStore) GetRecentlyAdded(userID int64, limit int) ([]*models.HomeSectionItem, error) {
+	args := m.Called(userID, limit)
 	return args.Get(0).([]*models.HomeSectionItem), args.Error(1)
 }
 
@@ -68,7 +68,7 @@ func TestHandleGetHomePageDataContinueReading(t *testing.T) {
 	}
 	mockStore.On("GetContinueReading", int64(1), 12).Return(expectedItems, nil)
 	mockStore.On("GetNextUp", int64(1), 12).Return([]*models.HomeSectionItem{}, nil)
-	mockStore.On("GetRecentlyAdded", 24).Return([]*models.HomeSectionItem{}, nil)
+	mockStore.On("GetRecentlyAdded", int64(1), 24).Return([]*models.HomeSectionItem{}, nil)
 	mockStore.On("GetStartReading", int64(1), 12).Return([]*models.HomeSectionItem{}, nil)
 
 	// Get authenticated cookie
@@ -118,7 +118,7 @@ func TestHandleGetHomePageDataNextUp(t *testing.T) {
 	}
 	mockStore.On("GetContinueReading", int64(1), 12).Return([]*models.HomeSectionItem{}, nil)
 	mockStore.On("GetNextUp", int64(1), 12).Return(expectedItems, nil)
-	mockStore.On("GetRecentlyAdded", 24).Return([]*models.HomeSectionItem{}, nil)
+	mockStore.On("GetRecentlyAdded", int64(1), 24).Return([]*models.HomeSectionItem{}, nil)
 	mockStore.On("GetStartReading", int64(1), 12).Return([]*models.HomeSectionItem{}, nil)
 
 	// Get authenticated cookie
@@ -176,7 +176,7 @@ func TestHandleGetHomePageDataRecentlyAdded(t *testing.T) {
 	}
 	mockStore.On("GetContinueReading", int64(1), 12).Return([]*models.HomeSectionItem{}, nil)
 	mockStore.On("GetNextUp", int64(1), 12).Return([]*models.HomeSectionItem{}, nil)
-	mockStore.On("GetRecentlyAdded", 24).Return(expectedItems, nil)
+	mockStore.On("GetRecentlyAdded", int64(1), 24).Return(expectedItems, nil)
 	mockStore.On("GetStartReading", int64(1), 12).Return([]*models.HomeSectionItem{}, nil)
 
 	// Get authenticated cookie
@@ -225,7 +225,7 @@ func TestHandleGetHomePageDataStartReading(t *testing.T) {
 	}
 	mockStore.On("GetContinueReading", int64(1), 12).Return([]*models.HomeSectionItem{}, nil)
 	mockStore.On("GetNextUp", int64(1), 12).Return([]*models.HomeSectionItem{}, nil)
-	mockStore.On("GetRecentlyAdded", 24).Return([]*models.HomeSectionItem{}, nil)
+	mockStore.On("GetRecentlyAdded", int64(1), 24).Return([]*models.HomeSectionItem{}, nil)
 	mockStore.On("GetStartReading", int64(1), 12).Return(expectedItems, nil)
 
 	// Get authenticated cookie
@@ -264,7 +264,7 @@ func TestHandleGetHomePageDataEmptyLibrary(t *testing.T) {
 	// Setup mock expectations - all return empty
 	mockStore.On("GetContinueReading", int64(1), 12).Return([]*models.HomeSectionItem{}, nil)
 	mockStore.On("GetNextUp", int64(1), 12).Return([]*models.HomeSectionItem{}, nil)
-	mockStore.On("GetRecentlyAdded", 24).Return([]*models.HomeSectionItem{}, nil)
+	mockStore.On("GetRecentlyAdded", int64(1), 24).Return([]*models.HomeSectionItem{}, nil)
 	mockStore.On("GetStartReading", int64(1), 12).Return([]*models.HomeSectionItem{}, nil)
 
 	// Get authenticated cookie
@@ -320,7 +320,7 @@ func TestHandleGetHomePageDataStoreError(t *testing.T) {
 	// Setup mock expectations - one method returns error
 	mockStore.On("GetContinueReading", int64(1), 12).Return([]*models.HomeSectionItem{}, nil)
 	mockStore.On("GetNextUp", int64(1), 12).Return([]*models.HomeSectionItem{}, nil)
-	mockStore.On("GetRecentlyAdded", 24).Return([]*models.HomeSectionItem{}, assert.AnError)
+	mockStore.On("GetRecentlyAdded", int64(1), 24).Return([]*models.HomeSectionItem{}, assert.AnError)
 	mockStore.On("GetStartReading", int64(1), 12).Return([]*models.HomeSectionItem{}, nil)
 
 	// Get authenticated cookie
@@ -392,7 +392,7 @@ func TestHandleGetHomePageDataCompleteFlow(t *testing.T) {
 
 	mockStore.On("GetContinueReading", int64(1), 12).Return(continueReading, nil)
 	mockStore.On("GetNextUp", int64(1), 12).Return(nextUp, nil)
-	mockStore.On("GetRecentlyAdded", 24).Return(recentlyAdded, nil)
+	mockStore.On("GetRecentlyAdded", int64(1), 24).Return(recentlyAdded, nil)
 	mockStore.On("GetStartReading", int64(1), 12).Return(startReading, nil)
 
 	// Get authenticated cookie

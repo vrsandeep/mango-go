@@ -52,44 +52,25 @@
   background-color: var(--accent-color-dark);
 }
 
-/* Home Section Cards */
+/* Home Section Cards - match library card styles exactly */
 .home-section .item-card {
   flex: 0 0 160px;
   width: 160px;
-  min-height: 240px;
-  display: flex;
-  flex-direction: column;
-  position: relative;
 }
-/* Fix for chapter title spacing - ensure consistent card height */
-.home-section .item-card .item-title {
-  padding: 1rem 0.75rem 0.5rem;
-  font-weight: 600;
-  font-size: 0.9rem;
+
+/* Subtitle for chapter cards */
+.home-section .item-card .item-subtitle {
+  padding: 0 1rem 0.25rem;
+  font-size: 0.8rem;
+  color: var(--subtle-text-color);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: var(--text-color);
-  line-height: 1.3;
-  flex-shrink: 0;
 }
 
-/* Progress bar for home cards */
+/* Progress bar positioned at bottom for chapter cards */
 .home-section .item-card .progress-bar-container {
-  margin: 0 0.75rem 0.75rem;
-  height: 4px;
-  background-color: var(--border-color);
-  border-radius: 2px;
-  overflow: hidden;
-  flex-shrink: 0;
-}
-
-.home-section .item-card .progress-bar {
-  width: 0%;
-  height: 100%;
-  background-color: var(--accent-color);
-  border-radius: 2px;
-  transition: width 0.3s ease;
+  margin-top: auto;
 }
 
 /* Badge Styling */
@@ -168,12 +149,6 @@
   .home-section .item-card {
     flex: 0 0 140px;
     width: 140px;
-    min-height: 220px;
-  }
-
-  .home-section .item-card .item-title {
-    font-size: 0.85rem;
-    padding: 0.75rem 0.5rem 0.5rem;
   }
 
   .badge {
@@ -200,12 +175,6 @@
     .home-section .item-card {
       flex: 0 0 120px;
       width: 120px;
-      min-height: 200px;
-    }
-
-    .home-section .item-card .item-title {
-      font-size: 0.8rem;
-      padding: 0.5rem 0.4rem 0.4rem;
     }
 
     .badge {
