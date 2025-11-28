@@ -319,6 +319,7 @@ exports.getPageURLs = async () => [];
 		}
 
 		mockManager := new(MockPluginManagerForRepo)
+		mockManager.On("GetPluginInfo", "test-plugin").Return(nil, false)
 		mockManager.On("LoadPlugin", mock.Anything).Return(nil)
 		repoService := plugins.NewRepositoryService(app, storeInstance, mockManager)
 
@@ -491,6 +492,7 @@ exports.getPageURLs = async () => [];
 		}
 
 		mockManager := new(MockPluginManagerForRepo)
+		mockManager.On("GetPluginInfo", "test-plugin").Return(nil, false)
 		mockManager.On("LoadPlugin", mock.Anything).Return(errTest)
 		repoService := plugins.NewRepositoryService(app, storeInstance, mockManager)
 
