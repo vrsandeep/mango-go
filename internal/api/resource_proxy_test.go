@@ -149,17 +149,23 @@ func TestHandleProxyResource(t *testing.T) {
 		}
 	})
 
-	t.Run("Unauthorized - No Auth Cookie (External Request)", func(t *testing.T) {
+	t.Run("Success - No Auth Cookie (External Request)", func(t *testing.T) {
 		imageURL := mockResourceServer.URL + "/image.jpg"
-		req, _ := http.NewRequest("GET", fmt.Sprintf("/api/proxy/resource?url=%s", imageURL), nil)
-		// No cookie added
+		req, _ := http.NewRequest("GET", fmt.Sprintf("/api/proxy/resource?url=%s&referer=https://example.com/", imageURL), nil)
+		// No cookie added - endpoint should work without authentication
 		// Set RemoteAddr to simulate external (non-localhost) request
 		req.RemoteAddr = "192.168.1.100:54321"
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 
-		if status := rr.Code; status != http.StatusUnauthorized {
-			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusUnauthorized)
+		if status := rr.Code; status != http.StatusOK {
+			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		}
+		if contentType := rr.Header().Get("Content-Type"); contentType != "image/jpeg" {
+			t.Errorf("handler returned wrong content type: got %v want %v", contentType, "image/jpeg")
+		}
+		if body := rr.Body.String(); body != "fake-image-data" {
+			t.Errorf("handler returned wrong body: got %v want %v", body, "fake-image-data")
 		}
 	})
 
