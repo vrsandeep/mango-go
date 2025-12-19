@@ -134,6 +134,39 @@ document.addEventListener('DOMContentLoaded', async () => {
           return;
         }
       }
+      if (action === 'reload_plugins') {
+        const reloadBtn = e.target;
+        if (
+          !confirm(
+            'Are you sure you want to reload all plugins? This may interrupt ongoing downloads.'
+          )
+        ) {
+          return;
+        }
+        reloadBtn.disabled = true;
+        reloadBtn.textContent = 'Reloading...';
+        try {
+          const response = await fetch('/api/admin/plugins/reload', {
+            method: 'POST',
+          });
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to reload plugins');
+          }
+          if (window.toast) {
+            toast.success('All plugins reloaded successfully');
+          }
+        } catch (error) {
+          console.error('Failed to reload plugins:', error);
+          if (window.toast) {
+            toast.error(error.message || 'Failed to reload plugins');
+          }
+        } finally {
+          reloadBtn.disabled = false;
+          reloadBtn.textContent = 'Reload All Plugins';
+        }
+        return;
+      }
 
       await fetch('/api/downloads/action', {
         method: 'POST',

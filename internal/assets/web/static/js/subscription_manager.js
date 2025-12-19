@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const providerSelect = document.getElementById('provider-select');
   const subTableBody = document.getElementById('sub-table-body');
+  const recheckAllBtn = document.getElementById('recheck-all-btn');
   let availableFolders = [];
   let currentSubscriptions = []; // Store current subscriptions data
 
@@ -320,6 +321,59 @@ document.addEventListener('DOMContentLoaded', async () => {
   providerSelect.addEventListener('change', () => {
     localStorage.setItem('sub_provider_filter', providerSelect.value);
     loadSubscriptions();
+  });
+
+  recheckAllBtn.addEventListener('click', async () => {
+    if (!confirm('Are you sure you want to re-check all subscriptions? This may take a while.')) {
+      return;
+    }
+
+    recheckAllBtn.disabled = true;
+    recheckAllBtn.textContent = 'Re-checking...';
+
+    // Immediately update all visible rows' "last checked at" columns
+    const rows = subTableBody.querySelectorAll('tr');
+    const now = new Date();
+    rows.forEach(row => {
+      const lastCheckedCell = row.querySelector('td:nth-child(5)'); // Last Checked At column
+      if (lastCheckedCell) {
+        lastCheckedCell.textContent = timeAgo(now);
+      }
+    });
+
+    try {
+      const response = await fetch('/api/subscriptions/recheck-all', {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to re-check subscriptions');
+      }
+
+      if (window.toast) {
+        toast.success(
+          'Re-check for all subscriptions has been initiated. New chapters will be added to the download queue if found.'
+        );
+      }
+
+      // Reload subscriptions after a delay to get the actual updated times from the backend
+      setTimeout(() => {
+        loadSubscriptions();
+      }, 2000);
+    } catch (error) {
+      console.error('Failed to re-check all subscriptions:', error);
+      if (window.toast) {
+        toast.error(error.message || 'Failed to re-check all subscriptions');
+      }
+      // Reload subscriptions even on error to restore correct state
+      setTimeout(() => {
+        loadSubscriptions();
+      }, 1000);
+    } finally {
+      recheckAllBtn.disabled = false;
+      recheckAllBtn.textContent = 'Re-check All';
+    }
   });
 
   // Modal event listeners
