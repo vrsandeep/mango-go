@@ -140,3 +140,13 @@ func (s *Server) handleRecheckSubscription(w http.ResponseWriter, r *http.Reques
 
 	RespondWithJSON(w, http.StatusAccepted, map[string]string{"message": "Re-check has been initiated."})
 }
+
+func (s *Server) handleRecheckAllSubscriptions(w http.ResponseWriter, r *http.Request) {
+	// Run the check in a background goroutine so the API call returns immediately.
+	go func() {
+		subService := subscription.NewService(s.app)
+		subService.CheckAllSubscriptions()
+	}()
+
+	RespondWithJSON(w, http.StatusAccepted, map[string]string{"message": "Re-check for all subscriptions has been initiated."})
+}

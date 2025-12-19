@@ -144,6 +144,7 @@ func (s *Server) Router() http.Handler {
 			r.Get("/subscriptions", s.handleListSubscriptions)
 			r.Put("/subscriptions/{subID}/folder-path", s.handleUpdateSubscriptionFolderPath)
 			r.Post("/subscriptions/{subID}/recheck", s.handleRecheckSubscription)
+			r.Post("/subscriptions/recheck-all", s.handleRecheckAllSubscriptions)
 			r.Delete("/subscriptions/{subID}", s.handleDeleteSubscription)
 
 			// Plugin Management Routes
