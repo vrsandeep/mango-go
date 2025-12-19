@@ -102,7 +102,6 @@
 }
 
 .queue-table tbody tr {
-  cursor: pointer;
   transition: all 0.2s ease;
 }
 
