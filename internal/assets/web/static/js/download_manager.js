@@ -68,35 +68,39 @@ document.addEventListener('DOMContentLoaded', async () => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     ws = new WebSocket(`${protocol}//${window.location.host}/ws/admin/progress`);
 
+    ws.onopen = () => {
+      console.log('WebSocket connected for download manager');
+    };
+
     ws.onmessage = event => {
       const data = JSON.parse(event.data);
       if (data.jobId !== 'downloader' || !data.item_id) return;
 
       let row = document.getElementById(`item-${data.item_id}`);
       if (!row) {
-        // The item is new to us, create a new row
-        row = renderRow({
-          id: data.item_id,
-          progress: data.progress,
-          status: data.status,
-          // We don't have all the info, a full refresh is better
-        });
-        loadQueue(); // Refresh the whole list to get all data
+        // The item is new to us, refresh the whole list to get all data
+        loadQueue();
         return;
       }
 
       const progressBar = row.querySelector('.progress-bar');
       const statusEl = row.querySelector('[class^="status-"]');
 
-      progressBar.style.width = `${data.progress}%`;
-      progressBar.textContent = `${Math.round(data.progress)}%`;
-      statusEl.textContent = data.status;
-      statusEl.className = `status-${data.status.replace(' ', '_').toLowerCase()}`;
+      if (progressBar) {
+        progressBar.style.width = `${data.progress}%`;
+        progressBar.textContent = `${Math.round(data.progress)}%`;
+      }
+
+      if (statusEl) {
+        statusEl.textContent = data.status;
+        statusEl.className = `status-${data.status.replace(' ', '_').toLowerCase()}`;
+      }
 
       // Update action buttons based on new status
       const actionsCell = row.querySelector('.actions-cell');
-      if (!actionsCell) return;
-      actionsCell.innerHTML = generateActionCellContent(data.item_id, data.status);
+      if (actionsCell) {
+        actionsCell.innerHTML = generateActionCellContent(data.item_id, data.status);
+      }
     };
 
     ws.onclose = () => {
@@ -106,6 +110,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     ws.onerror = err => {
       console.error('WebSocket error:', err);
     };
+  };
+
+  // Helper function to ensure websocket is connected
+  const ensureWebSocketConnected = () => {
+    if (!ws || ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING) {
+      handleWebSocket();
+    } else if (ws.readyState === WebSocket.CONNECTING) {
+      // Already connecting, wait for it to open
+      ws.addEventListener(
+        'open',
+        () => {
+          console.log('WebSocket connection established');
+        },
+        { once: true }
+      );
+    }
   };
 
   headerActionButtons.forEach(button => {
@@ -173,7 +193,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action }),
       });
-      setTimeout(loadQueue, 500); // Give backend a moment before refreshing
+
+      // For retry_failed, ensure websocket is connected and reload queue immediately
+      if (action === 'retry_failed') {
+        ensureWebSocketConnected();
+        // Reload queue immediately to ensure all items are in DOM for websocket updates
+        setTimeout(() => {
+          loadQueue();
+        }, 300);
+      } else {
+        setTimeout(loadQueue, 500); // Give backend a moment before refreshing
+      }
     });
   });
 
