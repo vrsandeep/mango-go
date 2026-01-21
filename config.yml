@@ -10,3 +10,4 @@ library:
 plugins:
   # The path to the plugins directory.
   path: "../mango-go-plugins"
+  unload_timeout: 30 # The time in minutes after which idle plugins are unloaded.

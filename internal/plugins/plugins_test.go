@@ -778,7 +778,7 @@ exports.getPageURLs = async () => [];
 			t.Fatalf("manager.LoadPlugin() failed: %v", err)
 		}
 
-		// Verify plugin is registered
+		// Verify plugin is registered (with lazy loading, LoadPlugin still registers it)
 		provider, ok := providers.Get("test-plugin")
 		if !ok {
 			t.Fatal("Plugin not registered")

@@ -20,7 +20,8 @@ type Config struct {
 		Path string `mapstructure:"path"`
 	} `mapstructure:"library"`
 	Plugins struct {
-		Path string `mapstructure:"path"`
+		Path         string `mapstructure:"path"`
+		UnloadTimeout int   `mapstructure:"unload_timeout"` // Minutes of inactivity before unloading
 	} `mapstructure:"plugins"`
 }
 
@@ -44,6 +45,7 @@ func Load() (*Config, error) {
 	viper.SetDefault("database.path", "./mango.db")
 	viper.SetDefault("library.path", "./manga")
 	viper.SetDefault("plugins.path", "../mango-go-plugins")
+	viper.SetDefault("plugins.unload_timeout", 30)
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
