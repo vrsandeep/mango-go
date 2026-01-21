@@ -20,8 +20,8 @@ type Config struct {
 		Path string `mapstructure:"path"`
 	} `mapstructure:"library"`
 	Plugins struct {
-		Path         string `mapstructure:"path"`
-		UnloadTimeout int   `mapstructure:"unload_timeout"` // Minutes of inactivity before unloading
+		Path          string `mapstructure:"path"`
+		UnloadTimeout int    `mapstructure:"unload_timeout"` // Minutes of inactivity before unloading
 	} `mapstructure:"plugins"`
 }
 

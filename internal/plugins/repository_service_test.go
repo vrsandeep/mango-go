@@ -257,8 +257,8 @@ func TestRepositoryService_InstallPlugin(t *testing.T) {
 		app := testutil.SetupTestApp(t)
 		app.SetConfig(&config.Config{
 			Plugins: struct {
-				Path         string `mapstructure:"path"`
-				UnloadTimeout int   `mapstructure:"unload_timeout"`
+				Path          string `mapstructure:"path"`
+				UnloadTimeout int    `mapstructure:"unload_timeout"`
 			}{Path: pluginDir, UnloadTimeout: 30},
 		})
 
@@ -439,8 +439,8 @@ exports.getPageURLs = async () => [];
 		app := testutil.SetupTestApp(t)
 		app.SetConfig(&config.Config{
 			Plugins: struct {
-				Path         string `mapstructure:"path"`
-				UnloadTimeout int   `mapstructure:"unload_timeout"`
+				Path          string `mapstructure:"path"`
+				UnloadTimeout int    `mapstructure:"unload_timeout"`
 			}{Path: pluginDir, UnloadTimeout: 30},
 		})
 

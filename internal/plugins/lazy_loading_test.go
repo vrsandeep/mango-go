@@ -384,8 +384,8 @@ exports.getPageURLs = async () => [];
 	// Set a short unload timeout for testing (1 minute)
 	app.SetConfig(&config.Config{
 		Plugins: struct {
-			Path         string `mapstructure:"path"`
-			UnloadTimeout int   `mapstructure:"unload_timeout"`
+			Path          string `mapstructure:"path"`
+			UnloadTimeout int    `mapstructure:"unload_timeout"`
 		}{Path: pluginDir, UnloadTimeout: 1}, // 1 minute for testing
 	})
 
@@ -501,8 +501,8 @@ func TestLazyLoadingUnloadTimeoutConfiguration(t *testing.T) {
 	// Test with custom timeout
 	app.SetConfig(&config.Config{
 		Plugins: struct {
-			Path         string `mapstructure:"path"`
-			UnloadTimeout int   `mapstructure:"unload_timeout"`
+			Path          string `mapstructure:"path"`
+			UnloadTimeout int    `mapstructure:"unload_timeout"`
 		}{Path: pluginDir, UnloadTimeout: 60}, // 60 minutes
 	})
 

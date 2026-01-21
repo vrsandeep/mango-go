@@ -242,7 +242,6 @@ func (pm *PluginManager) DiscoverPlugin(pluginDir string) error {
 	return nil
 }
 
-
 // loadPluginInternal loads a plugin without acquiring locks (caller must hold lock).
 func (pm *PluginManager) loadPluginInternal(pluginDir string) error {
 	// Load manifest
