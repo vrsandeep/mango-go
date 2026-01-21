@@ -4,7 +4,7 @@ package plugins
 // This allows for easier mocking in tests
 type PluginManagerInterface interface {
 	LoadPlugins() error
-	LoadPlugin(pluginDir string) error
+	DiscoverPlugin(pluginDir string) error
 	ListPlugins() []PluginInfo
 	GetPluginInfo(pluginID string) (*PluginInfo, bool)
 	ReloadPlugin(pluginID string) error

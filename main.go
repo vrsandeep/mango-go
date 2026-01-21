@@ -70,11 +70,11 @@ func main() {
 		}
 	}()
 
-	// Initialize plugin manager and load plugins
+	// Initialize plugin manager and discover plugins (lazy loading enabled)
 	pluginManager := plugins.NewPluginManager(app, app.Config().Plugins.Path)
 	plugins.SetGlobalManager(pluginManager)
 	if err := pluginManager.LoadPlugins(); err != nil {
-		log.Printf("Warning: failed to load plugins: %v", err)
+		log.Printf("Warning: failed to discover plugins: %v", err)
 	}
 
 	// Start the download worker pool
@@ -126,6 +126,12 @@ func main() {
 		if err := watcherService.Stop(); err != nil {
 			log.Printf("Error stopping file watcher: %v", err)
 		}
+	}
+
+	// Stop the plugin manager gracefully
+	if pluginManager != nil {
+		log.Println("Stopping plugin manager...")
+		pluginManager.Stop()
 	}
 
 	// Create a context with a timeout to allow existing connections to finish.
