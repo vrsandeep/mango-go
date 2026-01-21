@@ -45,25 +45,13 @@ func NewScanner(cfg *config.Config, db *sql.DB) *Scanner {
 // LibrarySync performs a full synchronization between the filesystem and the database.
 func LibrarySync(ctx jobs.JobContext) {
 	jobId := "library-sync"
-	st := store.New(ctx.DB())
-	badFileStore := store.NewBadFileStore(ctx.DB())
+	rootPath := ctx.Config().Library.Path
 
 	sendProgress(ctx, jobId, "Starting library sync...", 0, false)
 
-	// 1. Preparation: Get current state from DB
-	sendProgress(ctx, jobId, "Fetching current library state...", 5, false)
-	dbFolders, _ := st.GetAllFoldersByPath()
-	dbChapters, _ := st.GetAllChaptersByHash()
-	// Also create a map by path for quick metadata lookup
-	dbChaptersByPath := make(map[string]store.ChapterInfo)
-	for _, info := range dbChapters {
-		dbChaptersByPath[info.Path] = info
-	}
-
-	// 2. File System Discovery
+	// File System Discovery - walk entire library
 	sendProgress(ctx, jobId, "Discovering files on disk...", 10, false)
 	diskItems := make(map[string]diskItem)
-	rootPath := ctx.Config().Library.Path
 	filepath.WalkDir(rootPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -76,35 +64,130 @@ func LibrarySync(ctx jobs.JobContext) {
 		return nil
 	})
 
-	// 3. Reconcile Folders
+	// Perform the sync with the discovered disk items
+	performSync(ctx, jobId, diskItems, rootPath)
+
+	sendProgress(ctx, jobId, "Library sync completed.", 100, true)
+	log.Println("Job finished:", jobId)
+}
+
+// IncrementalLibrarySync performs an incremental scan of specific paths.
+// It only scans the provided paths and their parent directories.
+func IncrementalLibrarySync(ctx jobs.JobContext, changedPaths []string) error {
+	jobId := "incremental-library-sync"
+	rootPath := ctx.Config().Library.Path
+
+	sendProgress(ctx, jobId, "Starting incremental library sync...", 0, false)
+
+	// Collect all paths that need to be scanned
+	// This includes the changed paths and their parent directories
+	pathsToScan := make(map[string]bool)
+	for _, changedPath := range changedPaths {
+		// Add the changed path itself
+		pathsToScan[changedPath] = true
+
+		// Add parent directories up to the library root
+		parent := filepath.Dir(changedPath)
+		for parent != rootPath && parent != filepath.Dir(parent) {
+			pathsToScan[parent] = true
+			parent = filepath.Dir(parent)
+		}
+	}
+
+	// Build diskItems map for changed paths only
+	diskItems := make(map[string]diskItem)
+	for path := range pathsToScan {
+		// Check if path exists
+		info, err := os.Stat(path)
+		if err != nil {
+			// Path doesn't exist (deleted), still track it for pruning
+			diskItems[path] = diskItem{path: path, isDir: false}
+			continue
+		}
+
+		if info.IsDir() {
+			// Walk the directory to find all files
+			filepath.WalkDir(path, func(p string, d fs.DirEntry, err error) error {
+				if err != nil {
+					return err
+				}
+				if p == path {
+					return nil // Skip the root directory itself
+				}
+				diskItems[p] = diskItem{path: p, isDir: d.IsDir()}
+				return nil
+			})
+		} else {
+			// It's a file
+			diskItems[path] = diskItem{path: path, isDir: false}
+		}
+	}
+
+	// Also scan the entire library root to catch any moves or deletions
+	// This ensures we catch files that were moved outside the changed paths
+	filepath.WalkDir(rootPath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if path == rootPath {
+			return nil
+		}
+		// Only add if not already in diskItems (to avoid duplicates)
+		if _, exists := diskItems[path]; !exists {
+			diskItems[path] = diskItem{path: path, isDir: d.IsDir()}
+		}
+		return nil
+	})
+
+	// Perform the sync with the discovered disk items
+	performSync(ctx, jobId, diskItems, rootPath)
+
+	sendProgress(ctx, jobId, "Incremental library sync completed.", 100, true)
+	log.Println("Incremental library sync completed.")
+	return nil
+}
+
+// performSync performs the actual synchronization work shared by both full and incremental syncs.
+func performSync(ctx jobs.JobContext, jobId string, diskItems map[string]diskItem, rootPath string) {
+	st := store.New(ctx.DB())
+	badFileStore := store.NewBadFileStore(ctx.DB())
+
+	// 1. Preparation: Get current state from DB
+	sendProgress(ctx, jobId, "Fetching current library state...", 5, false)
+	dbFolders, _ := st.GetAllFoldersByPath()
+	dbChapters, _ := st.GetAllChaptersByHash()
+	// Also create a map by path for quick metadata lookup
+	dbChaptersByPath := make(map[string]store.ChapterInfo)
+	for _, info := range dbChapters {
+		dbChaptersByPath[info.Path] = info
+	}
+
+	// 2. Reconcile Folders
 	sendProgress(ctx, jobId, "Syncing folder structure...", 25, false)
 	syncFolders(st, rootPath, diskItems, dbFolders)
 
 	// Refresh folder map after sync
 	dbFolders, _ = st.GetAllFoldersByPath()
 
-	// 4. Reconcile Chapters
+	// 3. Reconcile Chapters
 	sendProgress(ctx, jobId, "Syncing chapters...", 50, false)
 	parsingErrors := syncChapters(st, diskItems, dbChapters, dbChaptersByPath, dbFolders)
 
-	// 5. Check for bad files during sync
+	// 4. Check for bad files during sync
 	sendProgress(ctx, jobId, "Checking for bad files...", 65, false)
 	checkBadFilesDuringSync(badFileStore, diskItems, parsingErrors)
 
-	// 6. Pruning: Remove DB entries for items no longer on disk or corrupted
+	// 5. Pruning: Remove DB entries for items no longer on disk or corrupted
 	sendProgress(ctx, jobId, "Pruning deleted and corrupted items...", 75, false)
 	prune(st, diskItems, dbFolders, dbChapters, parsingErrors)
 
-	// 7. Clean up bad file records for deleted files
+	// 6. Clean up bad file records for deleted files
 	sendProgress(ctx, jobId, "Cleaning up bad file records...", 80, false)
 	cleanupMissingBadFileRecords(badFileStore, diskItems)
 
-	// 8. Thumbnail Generation
+	// 7. Thumbnail Generation
 	sendProgress(ctx, jobId, "Updating thumbnails...", 90, false)
 	st.UpdateAllFolderThumbnails()
-
-	sendProgress(ctx, jobId, "Library sync completed.", 100, true)
-	log.Println("Job finished:", jobId)
 }
 
 // syncFolders ensures the folder structure in the DB matches the disk.
