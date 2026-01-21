@@ -19,6 +19,7 @@ import (
 
 	"github.com/vrsandeep/mango-go/internal/core"
 	"github.com/vrsandeep/mango-go/internal/downloader/providers"
+	"github.com/vrsandeep/mango-go/internal/library"
 	"github.com/vrsandeep/mango-go/internal/models"
 	"github.com/vrsandeep/mango-go/internal/store"
 	"github.com/vrsandeep/mango-go/internal/util"
@@ -87,9 +88,15 @@ func worker(id int, app *core.App, st *store.Store) {
 			st.UpdateQueueItemStatus(job.ID, "failed", errMsg)
 		} else {
 			st.UpdateQueueItemStatus(job.ID, "completed", "Download finished successfully.")
-			// Trigger a library scan to pick up the new chapter
+			// Trigger an incremental scan for the downloaded file
+			// Get the file path that was just created
+			cbzPath := getDownloadPath(app, st, job)
+
+			// Trigger incremental scan for the downloaded file
 			go func() {
-				app.JobManager().RunJob("library-sync", app)
+				if err := library.IncrementalLibrarySync(app, []string{cbzPath}); err != nil {
+					log.Printf("Failed to trigger incremental scan for downloaded file: %v", err)
+				}
 			}()
 		}
 	}
@@ -226,15 +233,27 @@ func processDownload(app *core.App, st *store.Store, job *models.DownloadQueueIt
 	}
 
 	// Save the CBZ file
-	// Check if there's a subscription with a custom folder path
+	cbzPath := getDownloadPath(app, st, job)
+
+	if err := os.MkdirAll(filepath.Dir(cbzPath), os.ModePerm); err != nil {
+		return fmt.Errorf("failed to create series directory: %w", err)
+	}
+	if err := os.WriteFile(cbzPath, buf.Bytes(), 0644); err != nil {
+		return fmt.Errorf("failed to save CBZ file: %w", err)
+	}
+
+	return nil
+}
+
+// getDownloadPath calculates the file path where a downloaded chapter will be saved.
+// This is shared between processDownload and worker to ensure consistency.
+func getDownloadPath(app *core.App, st *store.Store, job *models.DownloadQueueItem) string {
 	var seriesDir string
 	subscriptions, err := st.GetAllSubscriptions(job.ProviderID)
 	if err == nil {
 		for _, sub := range subscriptions {
 			if sub.SeriesTitle == job.SeriesTitle && sub.FolderPath != nil {
 				// Sanitize custom folder path components to ensure it's safe
-				// Split the relative path and sanitize each component
-				// Handle both forward and back slashes for cross-platform compatibility
 				customPath := *sub.FolderPath
 				// Normalize separators first
 				customPath = strings.ReplaceAll(customPath, "\\", "/")
@@ -260,18 +279,9 @@ func processDownload(app *core.App, st *store.Store, job *models.DownloadQueueIt
 		seriesDir = filepath.Join(app.Config().Library.Path, safeSeriesTitle)
 	}
 
-	if err := os.MkdirAll(seriesDir, os.ModePerm); err != nil {
-		return fmt.Errorf("failed to create series directory: %w", err)
-	}
 	// Sanitize chapter title to use as filename
 	safeChapterTitle := SanitizeFilename(job.ChapterTitle)
-
-	cbzPath := filepath.Join(seriesDir, fmt.Sprintf("%s.cbz", safeChapterTitle))
-	if err := os.WriteFile(cbzPath, buf.Bytes(), 0644); err != nil {
-		return fmt.Errorf("failed to save CBZ file: %w", err)
-	}
-
-	return nil
+	return filepath.Join(seriesDir, fmt.Sprintf("%s.cbz", safeChapterTitle))
 }
 
 func SanitizeFilename(filename string) string {

@@ -6,6 +6,7 @@ package library
 import (
 	"io/fs"
 	"log"
+	"os"
 	"path/filepath"
 	"sync"
 	"time"
@@ -17,22 +18,22 @@ import (
 // WatcherService watches the library directory for file system changes
 // and triggers incremental scans when files are added, modified, or deleted.
 type WatcherService struct {
-	ctx          jobs.JobContext
-	watcher      *fsnotify.Watcher
-	changedPaths map[string]bool
-	mu           sync.RWMutex
+	ctx           jobs.JobContext
+	watcher       *fsnotify.Watcher
+	changedPaths  map[string]bool
+	mu            sync.RWMutex
 	debounceTimer *time.Timer
 	debounceDelay time.Duration
-	stopChan     chan struct{}
+	stopChan      chan struct{}
 }
 
 // NewWatcherService creates a new file system watcher service.
 func NewWatcherService(ctx jobs.JobContext) *WatcherService {
 	return &WatcherService{
-		ctx:          ctx,
-		changedPaths: make(map[string]bool),
+		ctx:           ctx,
+		changedPaths:  make(map[string]bool),
 		debounceDelay: 2 * time.Second, // Wait 2 seconds after last change before scanning
-		stopChan:     make(chan struct{}),
+		stopChan:      make(chan struct{}),
 	}
 }
 
@@ -104,27 +105,74 @@ func (w *WatcherService) processEvents() {
 
 // handleEvent processes a single file system event.
 func (w *WatcherService) handleEvent(event fsnotify.Event) {
-	// Only process events for supported archive files or directories
-	if !w.isRelevantPath(event.Name) {
+	// Ignore Chmod events (these are often triggered by opening folders, reading files, etc.)
+	// This prevents false triggers when browsing the file system
+	if event.Op == fsnotify.Chmod {
 		return
 	}
 
-	// Add the changed path to our set
-	w.mu.Lock()
-	w.changedPaths[event.Name] = true
+	// Process Create, Write, and Remove events
+	hasRelevantOp := (event.Op&fsnotify.Create == fsnotify.Create) ||
+		(event.Op&fsnotify.Write == fsnotify.Write) ||
+		(event.Op&fsnotify.Remove == fsnotify.Remove)
 
-	// Also track parent directory for directory events
-	if event.Op&fsnotify.Create == fsnotify.Create || event.Op&fsnotify.Remove == fsnotify.Remove {
+	if !hasRelevantOp {
+		return
+	}
+
+	// Check if it's a directory by stat'ing it
+	info, err := os.Stat(event.Name)
+	isDir := err == nil && info.IsDir()
+
+	// Handle directory creation - add to watch list and trigger scan
+	if event.Op&fsnotify.Create == fsnotify.Create && isDir {
+		// Add new directory to watch list
+		w.watcher.Add(event.Name)
+		// Trigger scan for directory creation (new folders)
+		w.mu.Lock()
+		w.changedPaths[event.Name] = true
+		parentDir := filepath.Dir(event.Name)
+		w.changedPaths[parentDir] = true
+		if w.debounceTimer != nil {
+			w.debounceTimer.Stop()
+		}
+		w.debounceTimer = time.AfterFunc(w.debounceDelay, w.triggerIncrementalScan)
+		w.mu.Unlock()
+		return
+	}
+
+	// For file events, only trigger on supported archive files
+	if !isDir && w.isRelevantFile(event.Name) {
+		w.mu.Lock()
+		w.changedPaths[event.Name] = true
+		// Also track parent directory
 		parentDir := filepath.Dir(event.Name)
 		w.changedPaths[parentDir] = true
 
-		// If a new directory was created, start watching it
-		if event.Op&fsnotify.Create == fsnotify.Create {
-			// Check if it's a directory by trying to add it to watcher
-			// This will fail silently if it's not a directory
-			w.watcher.Add(event.Name)
+		// Reset debounce timer
+		if w.debounceTimer != nil {
+			w.debounceTimer.Stop()
 		}
+		w.debounceTimer = time.AfterFunc(w.debounceDelay, w.triggerIncrementalScan)
+		w.mu.Unlock()
 	}
+}
+
+// isRelevantFile checks if a path is a relevant file (not a directory) for library scanning.
+func (w *WatcherService) isRelevantFile(path string) bool {
+	// Only trigger on actual archive files, not directories
+	// This prevents triggering scans when folders are opened/accessed
+	return IsSupportedArchive(filepath.Base(path))
+}
+
+// TriggerIncrementalScanForPath manually triggers an incremental scan for a specific path.
+// This is used by the downloader when files are downloaded.
+func (w *WatcherService) TriggerIncrementalScanForPath(path string) {
+	w.mu.Lock()
+	w.changedPaths[path] = true
+	// Also track parent directory
+	parentDir := filepath.Dir(path)
+	w.changedPaths[parentDir] = true
 
 	// Reset debounce timer
 	if w.debounceTimer != nil {
@@ -132,18 +180,6 @@ func (w *WatcherService) handleEvent(event fsnotify.Event) {
 	}
 	w.debounceTimer = time.AfterFunc(w.debounceDelay, w.triggerIncrementalScan)
 	w.mu.Unlock()
-}
-
-// isRelevantPath checks if a path is relevant for library scanning.
-func (w *WatcherService) isRelevantPath(path string) bool {
-	// Check if it's a supported archive file
-	if IsSupportedArchive(filepath.Base(path)) {
-		return true
-	}
-	// Check if it's a directory (we watch directories to catch new files)
-	// We'll check this by seeing if the path exists and is a directory
-	// For now, we'll be permissive and let the scanner decide
-	return true
 }
 
 // triggerIncrementalScan triggers an incremental scan of changed paths.
