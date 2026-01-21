@@ -15,6 +15,7 @@ import (
 	"github.com/vrsandeep/mango-go/internal/auth"
 	"github.com/vrsandeep/mango-go/internal/core"
 	"github.com/vrsandeep/mango-go/internal/downloader"
+	"github.com/vrsandeep/mango-go/internal/library"
 	"github.com/vrsandeep/mango-go/internal/plugins"
 	"github.com/vrsandeep/mango-go/internal/store"
 	"github.com/vrsandeep/mango-go/internal/subscription"
@@ -54,8 +55,10 @@ func main() {
 		log.Println("==================================================")
 	}
 
-	// Start periodic scanning in the background
+	// Start initial library scan
 	go app.JobManager().RunJob("library-sync", app)
+
+	// Start periodic full library scan once per day (24 hours)
 	go func() {
 		ticker := time.NewTicker(time.Duration(app.Config().ScanInterval) * time.Minute)
 		for range ticker.C {
@@ -81,6 +84,20 @@ func main() {
 	subService := subscription.NewService(app)
 	subService.Start()
 
+	// Start the file system watcher for incremental scanning
+	// The watcher automatically triggers incremental scans when:
+	// - New archive files are added to existing directories
+	// - Archive files are modified or deleted
+	// - New directories are created
+	// It filters out Chmod events to prevent false triggers when browsing folders
+	watcherService := library.NewWatcherService(app) // app implements jobs.JobContext
+	if err := watcherService.Start(); err != nil {
+		log.Printf("Warning: failed to start file watcher: %v", err)
+		log.Println("Falling back to periodic scanning only.")
+	} else {
+		log.Println("File system watcher started for automatic incremental scanning.")
+	}
+
 	// Setup the API server
 	server := api.NewServer(app)
 	addr := fmt.Sprintf(":%d", app.Config().Port)
@@ -102,6 +119,14 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	log.Println("Shutting down server...")
+
+	// Stop the file watcher gracefully
+	if watcherService != nil {
+		log.Println("Stopping file system watcher...")
+		if err := watcherService.Stop(); err != nil {
+			log.Printf("Error stopping file watcher: %v", err)
+		}
+	}
 
 	// Create a context with a timeout to allow existing connections to finish.
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

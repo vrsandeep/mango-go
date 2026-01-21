@@ -2,6 +2,7 @@ package store_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/vrsandeep/mango-go/internal/store"
 	"github.com/vrsandeep/mango-go/internal/testutil"
@@ -71,6 +72,15 @@ func TestChapterStore(t *testing.T) {
 		}
 		if info, ok := chapMap["hash1"]; !ok || info.Path != "/library/Series A/ch1.cbz" {
 			t.Error("Chapter map data is incorrect")
+		}
+		// Metadata should be nil when using CreateChapter (backward compatibility)
+		if info, ok := chapMap["hash1"]; ok {
+			if info.FileMtime != nil {
+				t.Error("FileMtime should be nil when using CreateChapter without metadata")
+			}
+			if info.FileSize != nil {
+				t.Error("FileSize should be nil when using CreateChapter without metadata")
+			}
 		}
 	})
 
@@ -209,6 +219,72 @@ func TestChapterStore(t *testing.T) {
 		expectedTitle = ""
 		if title != expectedTitle {
 			t.Errorf("Expected title '%s', got '%s'", expectedTitle, title)
+		}
+	})
+
+	t.Run("Create Chapter With Metadata", func(t *testing.T) {
+		folder, _ := s.CreateFolder("/library/Metadata Test", "Metadata Test", nil)
+		testMtime := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
+		var testSize int64 = 12345
+
+		ch, err := s.CreateChapterWithMetadata(folder.ID, "/library/Metadata Test/ch1.cbz", "hash_meta", 20, "thumb_meta", &testMtime, &testSize)
+		if err != nil {
+			t.Fatalf("CreateChapterWithMetadata failed: %v", err)
+		}
+		if ch.ID == 0 {
+			t.Error("Chapter ID should be set")
+		}
+
+		// Verify metadata was stored
+		chapMap, _ := s.GetAllChaptersByHash()
+		if info, ok := chapMap["hash_meta"]; ok {
+			if info.FileMtime == nil {
+				t.Error("FileMtime should be set")
+			} else if !info.FileMtime.Equal(testMtime) {
+				t.Errorf("Expected FileMtime %v, got %v", testMtime, *info.FileMtime)
+			}
+			if info.FileSize == nil {
+				t.Error("FileSize should be set")
+			} else if *info.FileSize != testSize {
+				t.Errorf("Expected FileSize %d, got %d", testSize, *info.FileSize)
+			}
+		} else {
+			t.Error("Chapter with metadata not found in map")
+		}
+	})
+
+	t.Run("Update Chapter Path With Metadata", func(t *testing.T) {
+		folder, _ := s.CreateFolder("/library/Update Test", "Update Test", nil)
+		ch, _ := s.CreateChapter(folder.ID, "/library/Update Test/ch1.cbz", "hash_update", 20, "thumb_update")
+
+		newFolder, _ := s.CreateFolder("/library/Updated Folder", "Updated Folder", nil)
+		newPath := "/library/Updated Folder/ch1-moved.cbz"
+		newMtime := time.Date(2024, 2, 20, 14, 45, 0, 0, time.UTC)
+		var newSize int64 = 67890
+
+		err := s.UpdateChapterPathWithMetadata(ch.ID, newPath, newFolder.ID, &newMtime, &newSize)
+		if err != nil {
+			t.Fatalf("UpdateChapterPathWithMetadata failed: %v", err)
+		}
+
+		// Verify metadata was updated
+		chapMap, _ := s.GetAllChaptersByHash()
+		if info, ok := chapMap["hash_update"]; ok {
+			if info.Path != newPath {
+				t.Errorf("Expected path %s, got %s", newPath, info.Path)
+			}
+			if info.FileMtime == nil {
+				t.Error("FileMtime should be set after update")
+			} else if !info.FileMtime.Equal(newMtime) {
+				t.Errorf("Expected FileMtime %v, got %v", newMtime, *info.FileMtime)
+			}
+			if info.FileSize == nil {
+				t.Error("FileSize should be set after update")
+			} else if *info.FileSize != newSize {
+				t.Errorf("Expected FileSize %d, got %d", newSize, *info.FileSize)
+			}
+		} else {
+			t.Error("Updated chapter not found in map")
 		}
 	})
 
