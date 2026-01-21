@@ -198,4 +198,3 @@ func (s *Store) GetAllInstalledPlugins() ([]*models.InstalledPlugin, error) {
 
 	return installed, rows.Err()
 }
-

@@ -14,4 +14,3 @@ type PluginManagerInterface interface {
 
 // Ensure PluginManager implements PluginManagerInterface
 var _ PluginManagerInterface = (*PluginManager)(nil)
-

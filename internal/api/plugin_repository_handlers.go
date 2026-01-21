@@ -230,4 +230,3 @@ func (s *Server) handleDeleteRepository(w http.ResponseWriter, r *http.Request) 
 		"message": "Repository deleted successfully",
 	})
 }
-

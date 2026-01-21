@@ -18,27 +18,27 @@ const (
 
 // PluginInfo represents information about a loaded plugin
 type PluginInfo struct {
-	ID          string                 `json:"id"`
-	Name        string                 `json:"name"`
-	Version     string                 `json:"version"`
-	Description string                 `json:"description"`
-	Author      string                 `json:"author"`
-	License     string                 `json:"license"`
-	APIVersion  string                 `json:"api_version"`
-	PluginType  string                 `json:"plugin_type"`
-	Capabilities map[string]bool       `json:"capabilities"`
-	Path        string                 `json:"path"`
-	Loaded      bool                   `json:"loaded"`
-	Error       string                 `json:"error,omitempty"`
+	ID           string          `json:"id"`
+	Name         string          `json:"name"`
+	Version      string          `json:"version"`
+	Description  string          `json:"description"`
+	Author       string          `json:"author"`
+	License      string          `json:"license"`
+	APIVersion   string          `json:"api_version"`
+	PluginType   string          `json:"plugin_type"`
+	Capabilities map[string]bool `json:"capabilities"`
+	Path         string          `json:"path"`
+	Loaded       bool            `json:"loaded"`
+	Error        string          `json:"error,omitempty"`
 }
 
 // PluginManager manages all loaded plugins
 type PluginManager struct {
-	app       *core.App
-	pluginDir string
-	plugins   map[string]*LoadedPlugin
+	app           *core.App
+	pluginDir     string
+	plugins       map[string]*LoadedPlugin
 	failedPlugins map[string]string // Map of plugin path to error message
-	mu        sync.RWMutex
+	mu            sync.RWMutex
 }
 
 // LoadedPlugin represents a loaded plugin with its runtime
@@ -56,9 +56,9 @@ var (
 // NewPluginManager creates a new plugin manager
 func NewPluginManager(app *core.App, pluginDir string) *PluginManager {
 	return &PluginManager{
-		app:          app,
-		pluginDir:    pluginDir,
-		plugins:      make(map[string]*LoadedPlugin),
+		app:           app,
+		pluginDir:     pluginDir,
+		plugins:       make(map[string]*LoadedPlugin),
 		failedPlugins: make(map[string]string),
 	}
 }
@@ -248,17 +248,17 @@ func (pm *PluginManager) GetPluginInfo(pluginID string) (*PluginInfo, bool) {
 	}
 
 	return &PluginInfo{
-		ID:          loadedPlugin.Manifest.ID,
-		Name:        loadedPlugin.Manifest.Name,
-		Version:     loadedPlugin.Manifest.Version,
-		Description: loadedPlugin.Manifest.Description,
-		Author:      loadedPlugin.Manifest.Author,
-		License:     loadedPlugin.Manifest.License,
-		APIVersion:  loadedPlugin.Manifest.APIVersion,
-		PluginType:  loadedPlugin.Manifest.PluginType,
+		ID:           loadedPlugin.Manifest.ID,
+		Name:         loadedPlugin.Manifest.Name,
+		Version:      loadedPlugin.Manifest.Version,
+		Description:  loadedPlugin.Manifest.Description,
+		Author:       loadedPlugin.Manifest.Author,
+		License:      loadedPlugin.Manifest.License,
+		APIVersion:   loadedPlugin.Manifest.APIVersion,
+		PluginType:   loadedPlugin.Manifest.PluginType,
 		Capabilities: loadedPlugin.Manifest.Capabilities,
-		Path:        loadedPlugin.Path,
-		Loaded:      true,
+		Path:         loadedPlugin.Path,
+		Loaded:       true,
 	}, true
 }
 
@@ -272,17 +272,17 @@ func (pm *PluginManager) ListPlugins() []PluginInfo {
 	// Add successfully loaded plugins
 	for _, loadedPlugin := range pm.plugins {
 		plugins = append(plugins, PluginInfo{
-			ID:          loadedPlugin.Manifest.ID,
-			Name:        loadedPlugin.Manifest.Name,
-			Version:     loadedPlugin.Manifest.Version,
-			Description: loadedPlugin.Manifest.Description,
-			Author:      loadedPlugin.Manifest.Author,
-			License:     loadedPlugin.Manifest.License,
-			APIVersion:  loadedPlugin.Manifest.APIVersion,
-			PluginType:  loadedPlugin.Manifest.PluginType,
+			ID:           loadedPlugin.Manifest.ID,
+			Name:         loadedPlugin.Manifest.Name,
+			Version:      loadedPlugin.Manifest.Version,
+			Description:  loadedPlugin.Manifest.Description,
+			Author:       loadedPlugin.Manifest.Author,
+			License:      loadedPlugin.Manifest.License,
+			APIVersion:   loadedPlugin.Manifest.APIVersion,
+			PluginType:   loadedPlugin.Manifest.PluginType,
 			Capabilities: loadedPlugin.Manifest.Capabilities,
-			Path:        loadedPlugin.Path,
-			Loaded:      true,
+			Path:         loadedPlugin.Path,
+			Loaded:       true,
 		})
 	}
 
@@ -302,18 +302,18 @@ func (pm *PluginManager) ListPlugins() []PluginInfo {
 			})
 		} else {
 			plugins = append(plugins, PluginInfo{
-				ID:          manifest.ID,
-				Name:        manifest.Name,
-				Version:     manifest.Version,
-				Description: manifest.Description,
-				Author:      manifest.Author,
-				License:     manifest.License,
-				APIVersion:  manifest.APIVersion,
-				PluginType:  manifest.PluginType,
+				ID:           manifest.ID,
+				Name:         manifest.Name,
+				Version:      manifest.Version,
+				Description:  manifest.Description,
+				Author:       manifest.Author,
+				License:      manifest.License,
+				APIVersion:   manifest.APIVersion,
+				PluginType:   manifest.PluginType,
 				Capabilities: manifest.Capabilities,
-				Path:        pluginPath,
-				Loaded:      false,
-				Error:       errorMsg,
+				Path:         pluginPath,
+				Loaded:       false,
+				Error:        errorMsg,
 			})
 		}
 	}
@@ -330,4 +330,3 @@ func ValidateAPIVersion(pluginAPIVersion string) error {
 	}
 	return nil
 }
-

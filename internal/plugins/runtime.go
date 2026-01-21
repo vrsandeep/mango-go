@@ -13,9 +13,9 @@ import (
 
 // PluginRuntime manages a goja VM for a plugin.
 type PluginRuntime struct {
-	vm       *goja.Runtime
-	manifest *PluginManifest
-	api      *MangoAPI
+	vm        *goja.Runtime
+	manifest  *PluginManifest
+	api       *MangoAPI
 	pluginDir string
 }
 
@@ -259,4 +259,3 @@ func (r *PluginRuntime) CallWithContext(ctx context.Context, functionName string
 
 	return nil, fmt.Errorf("function %s is not callable", functionName)
 }
-

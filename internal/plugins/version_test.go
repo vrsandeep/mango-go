@@ -96,4 +96,3 @@ func TestIsValidVersion(t *testing.T) {
 		})
 	}
 }
-

@@ -57,13 +57,13 @@ func TestHandleGetHomePageDataContinueReading(t *testing.T) {
 	// Setup mock expectations
 	expectedItems := []*models.HomeSectionItem{
 		{
-			SeriesID:       1,
-			SeriesTitle:    "Series A",
-			ChapterID:      func() *int64 { id := int64(1); return &id }(),
-			ChapterTitle:   "Chapter 1",
-			CoverArt:       "cover.jpg",
+			SeriesID:        1,
+			SeriesTitle:     "Series A",
+			ChapterID:       func() *int64 { id := int64(1); return &id }(),
+			ChapterTitle:    "Chapter 1",
+			CoverArt:        "cover.jpg",
 			ProgressPercent: func() *int { p := 50; return &p }(),
-			Read:           func() *bool { r := false; return &r }(),
+			Read:            func() *bool { r := false; return &r }(),
 		},
 	}
 	mockStore.On("GetContinueReading", int64(1), 12).Return(expectedItems, nil)
@@ -352,11 +352,11 @@ func TestHandleGetHomePageDataCompleteFlow(t *testing.T) {
 	// Setup mock expectations with realistic data
 	continueReading := []*models.HomeSectionItem{
 		{
-			SeriesID:       1,
-			SeriesTitle:    "Series A",
-			ChapterID:      func() *int64 { id := int64(1); return &id }(),
-			ChapterTitle:   "Chapter 1",
-			CoverArt:       "cover.jpg",
+			SeriesID:        1,
+			SeriesTitle:     "Series A",
+			ChapterID:       func() *int64 { id := int64(1); return &id }(),
+			ChapterTitle:    "Chapter 1",
+			CoverArt:        "cover.jpg",
 			ProgressPercent: func() *int { p := 50; return &p }(),
 		},
 	}

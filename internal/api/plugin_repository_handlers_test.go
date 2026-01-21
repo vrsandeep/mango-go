@@ -458,7 +458,7 @@ func TestPluginRepositoryHandlers(t *testing.T) {
 		mockManager.ExpectedCalls = nil
 
 		reqBody := models.PluginInstallRequest{
-			PluginID:    "non-existent-plugin",
+			PluginID:     "non-existent-plugin",
 			RepositoryID: 1,
 		}
 		body, _ := json.Marshal(reqBody)
@@ -510,7 +510,7 @@ func TestPluginRepositoryHandlers(t *testing.T) {
 		})
 
 		reqBody := models.PluginInstallRequest{
-			PluginID:    "test-plugin",
+			PluginID:     "test-plugin",
 			RepositoryID: 1,
 		}
 		body, _ := json.Marshal(reqBody)
@@ -539,7 +539,7 @@ func TestPluginRepositoryHandlers(t *testing.T) {
 		})
 
 		reqBody := models.PluginInstallRequest{
-			PluginID:    "test-plugin",
+			PluginID:     "test-plugin",
 			RepositoryID: 1,
 		}
 		body, _ := json.Marshal(reqBody)
@@ -648,4 +648,3 @@ func TestPluginRepositoryHandlers(t *testing.T) {
 		}
 	})
 }
-

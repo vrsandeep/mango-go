@@ -12,17 +12,17 @@ import (
 // plugin.json only needs: id, api_version, entry_point (optional), and config.
 // When installed from a repository, the manifest is enriched with repository metadata.
 type PluginManifest struct {
-	ID          string                 `json:"id"`
-	Name        string                 `json:"name,omitempty"`        // Optional - comes from repository.json for installed plugins
-	Version     string                 `json:"version,omitempty"`     // Optional - comes from repository.json for installed plugins
-	Description string                 `json:"description,omitempty"` // Optional - comes from repository.json for installed plugins
-	Author      string                 `json:"author,omitempty"`      // Optional - comes from repository.json for installed plugins
-	License     string                 `json:"license,omitempty"`     // Optional - comes from repository.json for installed plugins
-	APIVersion  string                 `json:"api_version"`
-	PluginType  string                 `json:"plugin_type,omitempty"`  // Optional - defaults to "downloader"
-	EntryPoint  string                 `json:"entry_point,omitempty"` // Optional - defaults to "index.js"
-	Capabilities map[string]bool       `json:"capabilities,omitempty"` // Optional - comes from repository.json for installed plugins
-	Config      map[string]interface{} `json:"config,omitempty"`
+	ID           string                 `json:"id"`
+	Name         string                 `json:"name,omitempty"`        // Optional - comes from repository.json for installed plugins
+	Version      string                 `json:"version,omitempty"`     // Optional - comes from repository.json for installed plugins
+	Description  string                 `json:"description,omitempty"` // Optional - comes from repository.json for installed plugins
+	Author       string                 `json:"author,omitempty"`      // Optional - comes from repository.json for installed plugins
+	License      string                 `json:"license,omitempty"`     // Optional - comes from repository.json for installed plugins
+	APIVersion   string                 `json:"api_version"`
+	PluginType   string                 `json:"plugin_type,omitempty"`  // Optional - defaults to "downloader"
+	EntryPoint   string                 `json:"entry_point,omitempty"`  // Optional - defaults to "index.js"
+	Capabilities map[string]bool        `json:"capabilities,omitempty"` // Optional - comes from repository.json for installed plugins
+	Config       map[string]interface{} `json:"config,omitempty"`
 }
 
 // LoadManifest loads and parses a plugin.json file.
@@ -61,4 +61,3 @@ func LoadManifest(pluginDir string) (*PluginManifest, error) {
 
 	return &manifest, nil
 }
-

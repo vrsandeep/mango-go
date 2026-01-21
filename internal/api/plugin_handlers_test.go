@@ -90,9 +90,9 @@ func TestPluginHandlers(t *testing.T) {
 		APIVersion:  "1.0",
 		PluginType:  "downloader",
 		Capabilities: map[string]bool{
-			"search":    true,
-			"chapters":  true,
-			"download":  true,
+			"search":   true,
+			"chapters": true,
+			"download": true,
 		},
 		Path:   "/test/path",
 		Loaded: true,

@@ -240,4 +240,3 @@ func TestPluginRepositoryStore(t *testing.T) {
 		}
 	})
 }
-

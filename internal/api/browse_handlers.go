@@ -272,18 +272,18 @@ func (s *Server) handleSearchFolders(w http.ResponseWriter, r *http.Request) {
 	libraryPath := s.app.Config().Library.Path
 
 	for _, folder := range folders {
-			// Convert full path to relative path
-			relativePath := folder.Path
-			if strings.HasPrefix(folder.Path, libraryPath) {
-				relativePath = strings.TrimPrefix(folder.Path, libraryPath)
-				relativePath = strings.TrimPrefix(relativePath, "/")
-			}
+		// Convert full path to relative path
+		relativePath := folder.Path
+		if strings.HasPrefix(folder.Path, libraryPath) {
+			relativePath = strings.TrimPrefix(folder.Path, libraryPath)
+			relativePath = strings.TrimPrefix(relativePath, "/")
+		}
 
-			results = append(results, map[string]interface{}{
-				"id":   folder.ID,
-				"path": relativePath,
-				"name": folder.Name,
-			})
+		results = append(results, map[string]interface{}{
+			"id":   folder.ID,
+			"path": relativePath,
+			"name": folder.Name,
+		})
 	}
 
 	RespondWithJSON(w, http.StatusOK, results)

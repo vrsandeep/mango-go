@@ -22,4 +22,3 @@ func (e *PluginError) Error() string {
 func (e *PluginError) Unwrap() error {
 	return e.Cause
 }
-

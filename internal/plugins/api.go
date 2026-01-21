@@ -21,13 +21,13 @@ import (
 
 // MangoAPI provides the API that plugins can use.
 type MangoAPI struct {
-	app       *core.App
-	pluginID  string
-	statePath string
-	state     map[string]interface{}
-	stateMu   sync.RWMutex
+	app        *core.App
+	pluginID   string
+	statePath  string
+	state      map[string]interface{}
+	stateMu    sync.RWMutex
 	stateDirty bool
-	vm        *goja.Runtime // Current VM context
+	vm         *goja.Runtime // Current VM context
 }
 
 // NewMangoAPI creates a new Mango API instance for a plugin.
@@ -840,4 +840,3 @@ func (m *MangoAPI) persistStateLoop() {
 		}
 	}
 }
-

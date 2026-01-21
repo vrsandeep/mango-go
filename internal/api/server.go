@@ -20,9 +20,9 @@ import (
 
 // Server holds the dependencies for our API.
 type Server struct {
-	app   *core.App
-	db    *sql.DB
-	store *store.Store
+	app       *core.App
+	db        *sql.DB
+	store     *store.Store
 	homeStore HomeStore
 }
 

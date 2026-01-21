@@ -48,4 +48,3 @@ func IsValidVersion(version string) bool {
 	_, err := semver.NewVersion(version)
 	return err == nil
 }
-

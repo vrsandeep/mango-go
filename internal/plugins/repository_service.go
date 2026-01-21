@@ -18,10 +18,10 @@ import (
 
 // RepositoryService handles plugin repository operations
 type RepositoryService struct {
-	app      *core.App
-	store    *store.Store
-	manager  PluginManagerInterface
-	client   *http.Client
+	app     *core.App
+	store   *store.Store
+	manager PluginManagerInterface
+	client  *http.Client
 }
 
 // NewRepositoryService creates a new repository service
@@ -312,4 +312,3 @@ func (rs *RepositoryService) downloadFile(url string) ([]byte, error) {
 
 	return data, nil
 }
-
