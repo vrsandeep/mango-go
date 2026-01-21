@@ -440,21 +440,31 @@ func (pm *PluginManager) ReloadPlugin(pluginID string) error {
 	return pm.DiscoverPlugin(pluginPath)
 }
 
-// ReloadAllPlugins reloads all loaded plugins.
+// ReloadAllPlugins reloads all discovered plugins (both loaded and unloaded).
 func (pm *PluginManager) ReloadAllPlugins() error {
 	pm.mu.RLock()
-	pluginIDs := make([]string, 0, len(pm.plugins))
-	for id := range pm.plugins {
-		pluginIDs = append(pluginIDs, id)
+	// Collect all discovered plugin IDs (both loaded and unloaded)
+	pluginPaths := make(map[string]string) // pluginID -> pluginPath
+	for id, discovered := range pm.discoveredPlugins {
+		pluginPaths[id] = discovered.Path
 	}
 	pm.mu.RUnlock()
 
-	for _, id := range pluginIDs {
-		if err := pm.ReloadPlugin(id); err != nil {
-			log.Printf("Failed to reload plugin %s: %v", id, err)
+	// Reload each discovered plugin
+	for pluginID, pluginPath := range pluginPaths {
+		// Unload if currently loaded
+		if err := pm.UnloadPlugin(pluginID); err != nil {
+			// Ignore error if plugin wasn't loaded
+			log.Printf("Note: plugin %s was not loaded, skipping unload", pluginID)
+		}
+
+		// Re-discover (will register lazy adapter and reload on next access)
+		if err := pm.DiscoverPlugin(pluginPath); err != nil {
+			log.Printf("Failed to reload plugin %s: %v", pluginID, err)
 		}
 	}
 
+	log.Printf("Reloaded %d plugin(s)", len(pluginPaths))
 	return nil
 }
 
