@@ -115,4 +115,3 @@ func (s *Server) handleUnloadPlugin(w http.ResponseWriter, r *http.Request) {
 		"message": fmt.Sprintf("Plugin %s unloaded successfully", pluginID),
 	})
 }
-

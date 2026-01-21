@@ -691,4 +691,3 @@ func TestRepositoryService_CheckForUpdates(t *testing.T) {
 		}
 	})
 }
-

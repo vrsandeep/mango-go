@@ -406,4 +406,3 @@ func TestInferContentType(t *testing.T) {
 		})
 	}
 }
-

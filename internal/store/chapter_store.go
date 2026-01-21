@@ -15,7 +15,7 @@ type ChapterInfo struct {
 	ID        int64
 	Path      string
 	FileMtime *time.Time // File modification time (nil if not set)
-	FileSize  *int64    // File size in bytes (nil if not set)
+	FileSize  *int64     // File size in bytes (nil if not set)
 }
 
 // CreateChapter inserts a new chapter record into the database.

@@ -163,4 +163,3 @@ func inferContentType(url string) string {
 		return "application/octet-stream"
 	}
 }
-
