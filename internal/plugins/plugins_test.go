@@ -773,12 +773,12 @@ exports.getPageURLs = async () => [];
 
 		app := testutil.SetupTestApp(t)
 		manager := plugins.NewPluginManager(app, pluginDir)
-		err := manager.LoadPlugin(pluginSubDir)
+		err := manager.DiscoverPlugin(pluginSubDir)
 		if err != nil {
-			t.Fatalf("manager.LoadPlugin() failed: %v", err)
+			t.Fatalf("manager.DiscoverPlugin() failed: %v", err)
 		}
 
-		// Verify plugin is registered (with lazy loading, LoadPlugin still registers it)
+		// Verify plugin is registered (lazy adapter)
 		provider, ok := providers.Get("test-plugin")
 		if !ok {
 			t.Fatal("Plugin not registered")

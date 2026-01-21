@@ -32,7 +32,7 @@ func (m *MockPluginManagerForRepo) LoadPlugins() error {
 	return args.Error(0)
 }
 
-func (m *MockPluginManagerForRepo) LoadPlugin(pluginDir string) error {
+func (m *MockPluginManagerForRepo) DiscoverPlugin(pluginDir string) error {
 	args := m.Called(pluginDir)
 	return args.Error(0)
 }
@@ -321,7 +321,7 @@ exports.getPageURLs = async () => [];
 
 		mockManager := new(MockPluginManagerForRepo)
 		mockManager.On("GetPluginInfo", "test-plugin").Return(nil, false)
-		mockManager.On("LoadPlugin", mock.Anything).Return(nil)
+		mockManager.On("DiscoverPlugin", mock.Anything).Return(nil)
 		repoService := plugins.NewRepositoryService(app, storeInstance, mockManager)
 
 		err = repoService.InstallPlugin("test-plugin", repo2.ID)
@@ -495,7 +495,7 @@ exports.getPageURLs = async () => [];
 
 		mockManager := new(MockPluginManagerForRepo)
 		mockManager.On("GetPluginInfo", "test-plugin").Return(nil, false)
-		mockManager.On("LoadPlugin", mock.Anything).Return(errTest)
+		mockManager.On("DiscoverPlugin", mock.Anything).Return(errTest)
 		repoService := plugins.NewRepositoryService(app, storeInstance, mockManager)
 
 		err = repoService.InstallPlugin("test-plugin", repo.ID)

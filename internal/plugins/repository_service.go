@@ -204,11 +204,11 @@ func (rs *RepositoryService) InstallPlugin(pluginID string, repositoryID int64) 
 		}
 	}
 
-	// Load the plugin
-	if err := rs.manager.LoadPlugin(pluginDir); err != nil {
+	// Discover the plugin (will load on first access via lazy loading)
+	if err := rs.manager.DiscoverPlugin(pluginDir); err != nil {
 		// Cleanup on failure
 		os.RemoveAll(pluginDir)
-		return fmt.Errorf("failed to load plugin: %w", err)
+		return fmt.Errorf("failed to discover plugin: %w", err)
 	}
 
 	// Track installation

@@ -191,35 +191,57 @@ func (pm *PluginManager) LoadPlugins() error {
 	return nil
 }
 
-// LoadPlugin loads a single plugin from a directory.
-// This method loads the plugin immediately (not lazy). For lazy loading, use LoadPlugins().
-func (pm *PluginManager) LoadPlugin(pluginDir string) error {
+// DiscoverPlugin discovers a plugin from a directory and registers it for lazy loading.
+// This is used when installing new plugins or reloading plugins.
+// The plugin will be loaded on-demand when first accessed.
+func (pm *PluginManager) DiscoverPlugin(pluginDir string) error {
 	pm.mu.Lock()
-	defer pm.mu.Unlock()
 
-	// Load manifest first to get plugin ID
+	// Load manifest to get plugin ID
 	manifest, err := LoadManifest(pluginDir)
 	if err != nil {
+		pm.mu.Unlock()
 		return fmt.Errorf("failed to load manifest: %w", err)
 	}
 
-	// Check if plugin is already loaded
-	if _, exists := pm.plugins[manifest.ID]; exists {
-		return fmt.Errorf("plugin %s is already loaded", manifest.ID)
+	// Validate API version compatibility
+	if err := ValidateAPIVersion(manifest.APIVersion); err != nil {
+		pm.mu.Unlock()
+		return fmt.Errorf("API version incompatibility: %w", err)
 	}
 
-	// Load the plugin
-	if err := pm.loadPluginInternal(pluginDir); err != nil {
-		return err
+	// Only discover downloader plugins for now
+	if manifest.PluginType != "downloader" {
+		pm.mu.Unlock()
+		return fmt.Errorf("plugin type %s not supported yet", manifest.PluginType)
 	}
 
-	// Register adapter directly (not lazy) since LoadPlugin is explicit loading
-	loadedPlugin := pm.plugins[manifest.ID]
-	adapter := NewPluginProviderAdapter(loadedPlugin.Runtime)
-	providers.Register(adapter)
+	// Check if plugin is already discovered or loaded
+	if _, exists := pm.discoveredPlugins[manifest.ID]; exists {
+		// Update path in case plugin was moved
+		pm.discoveredPlugins[manifest.ID].Path = pluginDir
+		pm.mu.Unlock()
+		return nil // Already discovered
+	}
 
+	// Store discovered plugin
+	pm.discoveredPlugins[manifest.ID] = &DiscoveredPlugin{
+		Manifest: manifest,
+		Path:     pluginDir,
+	}
+
+	// Remove from failed plugins if successfully discovered
+	delete(pm.failedPlugins, pluginDir)
+	pm.mu.Unlock()
+
+	// Register lazy provider wrapper (without holding lock to avoid deadlock)
+	lazyAdapter := NewLazyPluginProviderAdapter(pm, manifest.ID)
+	providers.Register(lazyAdapter)
+
+	log.Printf("Discovered plugin: %s (%s) - will load on first access", manifest.Name, manifest.ID)
 	return nil
 }
+
 
 // loadPluginInternal loads a plugin without acquiring locks (caller must hold lock).
 func (pm *PluginManager) loadPluginInternal(pluginDir string) error {
@@ -395,21 +417,27 @@ func (pm *PluginManager) UnloadPlugin(pluginID string) error {
 // ReloadPlugin reloads a plugin by ID.
 func (pm *PluginManager) ReloadPlugin(pluginID string) error {
 	pm.mu.Lock()
-	loadedPlugin, exists := pm.plugins[pluginID]
-	if !exists {
+
+	// Get plugin path (from loaded or discovered)
+	var pluginPath string
+	if loadedPlugin, exists := pm.plugins[pluginID]; exists {
+		pluginPath = loadedPlugin.Path
+	} else if discovered, exists := pm.discoveredPlugins[pluginID]; exists {
+		pluginPath = discovered.Path
+	} else {
 		pm.mu.Unlock()
-		return fmt.Errorf("plugin %s is not loaded", pluginID)
+		return fmt.Errorf("plugin %s not found", pluginID)
 	}
-	pluginPath := loadedPlugin.Path
 	pm.mu.Unlock()
 
-	// Unload first
+	// Unload if loaded
 	if err := pm.UnloadPlugin(pluginID); err != nil {
-		return err
+		// Ignore error if plugin wasn't loaded
+		log.Printf("Note: plugin %s was not loaded, skipping unload", pluginID)
 	}
 
-	// Load again
-	return pm.LoadPlugin(pluginPath)
+	// Re-discover (will register lazy adapter and reload on next access)
+	return pm.DiscoverPlugin(pluginPath)
 }
 
 // ReloadAllPlugins reloads all loaded plugins.

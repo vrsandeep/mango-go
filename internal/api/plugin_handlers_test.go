@@ -22,7 +22,7 @@ func (m *MockPluginManager) LoadPlugins() error {
 	return args.Error(0)
 }
 
-func (m *MockPluginManager) LoadPlugin(pluginDir string) error {
+func (m *MockPluginManager) DiscoverPlugin(pluginDir string) error {
 	args := m.Called(pluginDir)
 	return args.Error(0)
 }
