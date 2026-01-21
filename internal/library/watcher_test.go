@@ -102,12 +102,20 @@ func TestWatcherService_FileModify(t *testing.T) {
 	// Wait for watcher to initialize
 	time.Sleep(100 * time.Millisecond)
 
-	// Modify the file by touching it
-	now := time.Now()
-	err = os.Chtimes(testFile, now, now)
+	// Modify the file by appending to it (triggers Write event, not Chmod)
+	// Open file for appending
+	f, err := os.OpenFile(testFile, os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
-		t.Fatalf("Failed to modify file timestamp: %v", err)
+		t.Fatalf("Failed to open file for modification: %v", err)
 	}
+	defer f.Close()
+
+	// Write a small amount of data to trigger Write event
+	_, err = f.Write([]byte{0})
+	if err != nil {
+		t.Fatalf("Failed to write to file: %v", err)
+	}
+	f.Close()
 
 	// Wait for debounce delay
 	time.Sleep(3 * time.Second)
@@ -369,5 +377,62 @@ func TestWatcherService_NonArchiveFiles(t *testing.T) {
 	// Verify file exists
 	if _, err := os.Stat(textFile); os.IsNotExist(err) {
 		t.Error("Text file was not created")
+	}
+}
+
+// TestWatcherService_ChmodEvents tests that Chmod events (like opening folders) don't trigger scans
+func TestWatcherService_ChmodEvents(t *testing.T) {
+	app := testutil.SetupTestApp(t)
+	libraryRoot := app.Config().Library.Path
+
+	// Create initial file and directory structure
+	testDir := filepath.Join(libraryRoot, "ChmodTest")
+	os.MkdirAll(testDir, 0755)
+	defer os.RemoveAll(testDir)
+
+	testFile := filepath.Join(testDir, "test.cbz")
+	testutil.CreateTestCBZ(t, testDir, "test.cbz", []string{"page1.jpg"})
+
+	// Wait for file to be created
+	time.Sleep(500 * time.Millisecond)
+
+	watcher := library.NewWatcherService(app)
+	err := watcher.Start()
+	if err != nil {
+		t.Fatalf("Failed to start watcher: %v", err)
+	}
+	defer watcher.Stop()
+
+	// Wait for watcher to initialize
+	time.Sleep(100 * time.Millisecond)
+
+	// Simulate opening a folder by reading directory contents (triggers Chmod events)
+	entries, err := os.ReadDir(testDir)
+	if err != nil {
+		t.Fatalf("Failed to read directory: %v", err)
+	}
+	if len(entries) == 0 {
+		t.Error("Directory should contain files")
+	}
+
+	// Stat the directory (this can trigger Chmod events)
+	_, err = os.Stat(testDir)
+	if err != nil {
+		t.Fatalf("Failed to stat directory: %v", err)
+	}
+
+	// Stat the file (this can trigger Chmod events)
+	_, err = os.Stat(testFile)
+	if err != nil {
+		t.Fatalf("Failed to stat file: %v", err)
+	}
+
+	// Wait a short time - if Chmod events triggered scans, we'd see activity
+	// But we expect no scan to be triggered
+	time.Sleep(1 * time.Second)
+
+	// Verify file still exists (no scan should have been triggered)
+	if _, err := os.Stat(testFile); os.IsNotExist(err) {
+		t.Error("Test file should still exist")
 	}
 }
