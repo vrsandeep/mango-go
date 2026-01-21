@@ -54,6 +54,11 @@ func LibrarySync(ctx jobs.JobContext) {
 	sendProgress(ctx, jobId, "Fetching current library state...", 5, false)
 	dbFolders, _ := st.GetAllFoldersByPath()
 	dbChapters, _ := st.GetAllChaptersByHash()
+	// Also create a map by path for quick metadata lookup
+	dbChaptersByPath := make(map[string]store.ChapterInfo)
+	for _, info := range dbChapters {
+		dbChaptersByPath[info.Path] = info
+	}
 
 	// 2. File System Discovery
 	sendProgress(ctx, jobId, "Discovering files on disk...", 10, false)
@@ -80,7 +85,7 @@ func LibrarySync(ctx jobs.JobContext) {
 
 	// 4. Reconcile Chapters
 	sendProgress(ctx, jobId, "Syncing chapters...", 50, false)
-	parsingErrors := syncChapters(st, diskItems, dbChapters, dbFolders)
+	parsingErrors := syncChapters(st, diskItems, dbChapters, dbChaptersByPath, dbFolders)
 
 	// 5. Check for bad files during sync
 	sendProgress(ctx, jobId, "Checking for bad files...", 65, false)
@@ -145,17 +150,45 @@ func syncFolders(st *store.Store, rootPath string, diskItems map[string]diskItem
 }
 
 // syncChapters handles new, moved, and existing chapters.
-func syncChapters(st *store.Store, diskItems map[string]diskItem, dbChapters map[string]store.ChapterInfo, dbFolders map[string]*models.Folder) map[string]error {
+// It uses file metadata (mtime, size) to skip parsing unchanged files.
+func syncChapters(st *store.Store, diskItems map[string]diskItem, dbChapters map[string]store.ChapterInfo, dbChaptersByPath map[string]store.ChapterInfo, dbFolders map[string]*models.Folder) map[string]error {
 
 	// Track parsing errors to avoid re-parsing in checkBadFilesDuringSync
 	parsingErrors := make(map[string]error)
+	skippedCount := 0
+	parsedCount := 0
 
 	for path, item := range diskItems {
-		if item.isDir || !IsSupportedArchive(filepath.Base(path)) { // Simplified: assume any archive is a chapter file
+		if item.isDir || !IsSupportedArchive(filepath.Base(path)) {
 			continue
 		}
 
-		// First check if the archive can be parsed successfully
+		// Get file metadata before parsing
+		fileInfo, err := os.Stat(path)
+		if err != nil {
+			log.Printf("Cannot stat file %s: %v", path, err)
+			parsingErrors[path] = err
+			continue
+		}
+
+		fileMtime := fileInfo.ModTime()
+		fileSize := fileInfo.Size()
+
+		// Check if we already know about this file by path
+		if existingChapterByPath, existsByPath := dbChaptersByPath[path]; existsByPath {
+			// File exists at this path - check if metadata changed
+			if existingChapterByPath.FileMtime != nil && existingChapterByPath.FileSize != nil {
+				if fileMtime.Equal(*existingChapterByPath.FileMtime) && fileSize == *existingChapterByPath.FileSize {
+					// File metadata unchanged - skip parsing
+					skippedCount++
+					continue
+				}
+			}
+			// Metadata changed or not set - need to re-parse
+		}
+
+		// File is new or changed - parse it
+		parsedCount++
 		pages, firstPageData, err := ParseArchive(path)
 		if err != nil {
 			// Skip corrupted chapters - don't save them to the database
@@ -168,26 +201,37 @@ func syncChapters(st *store.Store, diskItems map[string]diskItem, dbChapters map
 		hash := generateContentHash(firstPageData, filepath.Base(path))
 
 		if existingChapter, ok := dbChapters[hash]; ok {
-			// Chapter exists, check if it moved
+			// Chapter exists (by hash), check if it moved or metadata needs update
 			if existingChapter.Path != path {
 				log.Printf("Detected moved chapter: %s -> %s", existingChapter.Path, path)
 				parentFolder, ok := dbFolders[filepath.Dir(path)]
 				if ok {
-					st.UpdateChapterPath(existingChapter.ID, path, parentFolder.ID)
+					st.UpdateChapterPathWithMetadata(existingChapter.ID, path, parentFolder.ID, &fileMtime, &fileSize)
+				}
+			} else {
+				// Same path, but metadata changed - update metadata
+				parentFolder, ok := dbFolders[filepath.Dir(path)]
+				if ok {
+					st.UpdateChapterPathWithMetadata(existingChapter.ID, path, parentFolder.ID, &fileMtime, &fileSize)
 				}
 			}
 		} else {
-			// New chapter - only create for valid archives
+			// New chapter - create with metadata
 			parentFolder, ok := dbFolders[filepath.Dir(path)]
 			if ok {
 				var thumb string
 				if firstPageData != nil {
 					thumb, _ = GenerateThumbnail(firstPageData)
 				}
-				st.CreateChapter(parentFolder.ID, path, hash, len(pages), thumb)
+				st.CreateChapterWithMetadata(parentFolder.ID, path, hash, len(pages), thumb, &fileMtime, &fileSize)
 			}
 		}
 	}
+
+	if skippedCount > 0 {
+		log.Printf("Skipped parsing %d unchanged files (metadata check)", skippedCount)
+	}
+	log.Printf("Parsed %d files during sync", parsedCount)
 
 	return parsingErrors
 }

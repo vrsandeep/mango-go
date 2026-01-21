@@ -12,15 +12,22 @@ import (
 var ErrChapterNotFound = errors.New("chapter not found")
 
 type ChapterInfo struct {
-	ID   int64
-	Path string
+	ID        int64
+	Path      string
+	FileMtime *time.Time // File modification time (nil if not set)
+	FileSize  *int64    // File size in bytes (nil if not set)
 }
 
 // CreateChapter inserts a new chapter record into the database.
 func (s *Store) CreateChapter(folderID int64, path, hash string, pageCount int, thumbnail string) (*models.Chapter, error) {
-	query := "INSERT INTO chapters (folder_id, path, content_hash, page_count, thumbnail, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
+	return s.CreateChapterWithMetadata(folderID, path, hash, pageCount, thumbnail, nil, nil)
+}
+
+// CreateChapterWithMetadata inserts a new chapter record with file metadata.
+func (s *Store) CreateChapterWithMetadata(folderID int64, path, hash string, pageCount int, thumbnail string, fileMtime *time.Time, fileSize *int64) (*models.Chapter, error) {
+	query := "INSERT INTO chapters (folder_id, path, content_hash, page_count, thumbnail, file_mtime, file_size, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
 	now := time.Now()
-	res, err := s.db.Exec(query, folderID, path, hash, pageCount, thumbnail, now, now)
+	res, err := s.db.Exec(query, folderID, path, hash, pageCount, thumbnail, fileMtime, fileSize, now, now)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +64,7 @@ func (s *Store) GetChapterByID(id int64, userID int64) (*models.Chapter, error) 
 
 // GetAllChaptersByHash retrieves all chapters and maps them by their content hash for efficient lookup.
 func (s *Store) GetAllChaptersByHash() (map[string]ChapterInfo, error) {
-	rows, err := s.db.Query("SELECT id, path, content_hash FROM chapters")
+	rows, err := s.db.Query("SELECT id, path, content_hash, file_mtime, file_size FROM chapters")
 	if err != nil {
 		return nil, err
 	}
@@ -67,10 +74,18 @@ func (s *Store) GetAllChaptersByHash() (map[string]ChapterInfo, error) {
 	for rows.Next() {
 		var info ChapterInfo
 		var hash sql.NullString
-		if err := rows.Scan(&info.ID, &info.Path, &hash); err != nil {
+		var mtime sql.NullTime
+		var size sql.NullInt64
+		if err := rows.Scan(&info.ID, &info.Path, &hash, &mtime, &size); err != nil {
 			return nil, err
 		}
 		if hash.Valid {
+			if mtime.Valid {
+				info.FileMtime = &mtime.Time
+			}
+			if size.Valid {
+				info.FileSize = &size.Int64
+			}
 			chapterMap[hash.String] = info
 		}
 	}
@@ -79,8 +94,13 @@ func (s *Store) GetAllChaptersByHash() (map[string]ChapterInfo, error) {
 
 // UpdateChapterPath updates a chapter's path and folder ID when it has been moved.
 func (s *Store) UpdateChapterPath(id int64, newPath string, newFolderID int64) error {
-	query := "UPDATE chapters SET path = ?, folder_id = ?, updated_at = ? WHERE id = ?"
-	_, err := s.db.Exec(query, newPath, newFolderID, time.Now(), id)
+	return s.UpdateChapterPathWithMetadata(id, newPath, newFolderID, nil, nil)
+}
+
+// UpdateChapterPathWithMetadata updates a chapter's path, folder ID, and file metadata.
+func (s *Store) UpdateChapterPathWithMetadata(id int64, newPath string, newFolderID int64, fileMtime *time.Time, fileSize *int64) error {
+	query := "UPDATE chapters SET path = ?, folder_id = ?, file_mtime = ?, file_size = ?, updated_at = ? WHERE id = ?"
+	_, err := s.db.Exec(query, newPath, newFolderID, fileMtime, fileSize, time.Now(), id)
 	return err
 }
 
