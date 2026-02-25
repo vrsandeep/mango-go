@@ -360,6 +360,11 @@
   color: white;
 }
 
+.status-badge.status-pending {
+  background: #78909c;
+  color: white;
+}
+
 .plugin-description {
   margin: 0.5rem 0;
   font-size: 0.9rem;

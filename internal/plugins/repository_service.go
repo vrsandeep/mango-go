@@ -198,7 +198,7 @@ func (rs *RepositoryService) InstallPlugin(pluginID string, repositoryID int64) 
 	}
 
 	// Check if plugin is already loaded and unload it first (for updates)
-	if _, isLoaded := rs.manager.GetPluginInfo(pluginID); isLoaded {
+	if info, found := rs.manager.GetPluginInfo(pluginID); found && info != nil && info.Loaded {
 		if err := rs.manager.UnloadPlugin(pluginID); err != nil {
 			return fmt.Errorf("failed to unload existing plugin: %w", err)
 		}

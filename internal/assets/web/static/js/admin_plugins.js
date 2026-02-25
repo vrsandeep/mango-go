@@ -373,13 +373,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             : '';
 
           return `
-        <div class="plugin-card ${plugin.loaded ? '' : 'plugin-error'}">
+        <div class="plugin-card ${plugin.error ? 'plugin-error' : ''}">
           <div class="plugin-header">
             <div>
               <h3>${escapeHtml(plugin.name || plugin.id)}</h3>
               ${plugin.version ? `<span class="plugin-version">v${escapeHtml(plugin.version)}</span>` : ''}
             </div>
-            ${plugin.loaded ? '<span class="status-badge status-active">Loaded</span>' : '<span class="status-badge status-error">Failed</span>'}
+            ${plugin.loaded
+              ? '<span class="status-badge status-active">Loaded</span>'
+              : plugin.error
+                ? '<span class="status-badge status-error">Failed</span>'
+                : '<span class="status-badge status-pending">Ready</span>'}
           </div>
           ${plugin.description ? `<p class="plugin-description">${escapeHtml(plugin.description)}</p>` : ''}
           <div class="plugin-meta">
