@@ -5,20 +5,20 @@ go 1.24.4
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/PuerkitoBio/goquery v1.11.0
-	github.com/antchfx/xpath v1.3.5
-	github.com/dop251/goja v0.0.0-20260106131823-651366fbe6e3
+	github.com/antchfx/xpath v1.3.6
+	github.com/dop251/goja v0.0.0-20260219130522-0ba9a5494a59
 	github.com/fsnotify/fsnotify v1.9.0
-	github.com/go-chi/chi/v5 v5.2.4
+	github.com/go-chi/chi/v5 v5.2.5
 	github.com/go-co-op/gocron v1.37.0
 	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/gorilla/websocket v1.5.3
-	github.com/mattn/go-sqlite3 v1.14.33
+	github.com/mattn/go-sqlite3 v1.14.34
 	github.com/mholt/archives v0.1.5
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/crypto v0.47.0
-	golang.org/x/net v0.49.0
+	golang.org/x/crypto v0.48.0
+	golang.org/x/net v0.50.0
 )
 
 require (
@@ -33,10 +33,10 @@ require (
 	github.com/dsnet/compress v0.0.2-0.20230904184137-39efe44ab707 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
-	github.com/google/pprof v0.0.0-20260115054156-294ebfa9ad83 // indirect
+	github.com/google/pprof v0.0.0-20260202012954-cb029daf43ef // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
-	github.com/klauspost/compress v1.18.3 // indirect
+	github.com/klauspost/compress v1.18.4 // indirect
 	github.com/klauspost/pgzip v1.2.6 // indirect
 	github.com/mikelolasagasti/xz v1.0.1 // indirect
 	github.com/minio/minlz v1.0.1 // indirect
@@ -56,7 +56,7 @@ require (
 	go.uber.org/atomic v1.11.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	go4.org v0.0.0-20260112195520-a5071408f32f // indirect
-	golang.org/x/sys v0.40.0 // indirect
-	golang.org/x/text v0.33.0 // indirect
+	golang.org/x/sys v0.41.0 // indirect
+	golang.org/x/text v0.34.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
