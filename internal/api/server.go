@@ -13,17 +13,24 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/vrsandeep/mango-go/internal/anilist"
 	"github.com/vrsandeep/mango-go/internal/assets"
 	"github.com/vrsandeep/mango-go/internal/core"
 	"github.com/vrsandeep/mango-go/internal/store"
 )
 
+// AnilistSearcher is used to fetch manga metadata from AniList (injectable for tests).
+type AnilistSearcher interface {
+	SearchManga(title string) (*anilist.Media, error)
+}
+
 // Server holds the dependencies for our API.
 type Server struct {
-	app       *core.App
-	db        *sql.DB
-	store     *store.Store
-	homeStore HomeStore
+	app             *core.App
+	db              *sql.DB
+	store           *store.Store
+	homeStore       HomeStore
+	anilistSearcher AnilistSearcher
 }
 
 // Store returns the store instance.
@@ -34,6 +41,11 @@ func (s *Server) Store() *store.Store {
 // SetHomeStore sets the home store for testing purposes
 func (s *Server) SetHomeStore(homeStore HomeStore) {
 	s.homeStore = homeStore
+}
+
+// SetAnilistSearcher sets the AniList searcher for testing (mock API responses).
+func (s *Server) SetAnilistSearcher(searcher AnilistSearcher) {
+	s.anilistSearcher = searcher
 }
 
 // NewServer creates a new Server instance.
@@ -83,6 +95,8 @@ func (s *Server) Router() http.Handler {
 			r.Post("/folders/{folderID}/settings", s.handleUpdateFolderSettings)
 			r.Post("/folders/{folderID}/mark-all-as", s.handleMarkFolderAs)
 			r.Post("/folders/{folderID}/cover", s.handleUploadFolderCover)
+			r.Get("/folders/{folderID}/anilist", s.handleGetFolderAnilist)
+			r.Post("/folders/{folderID}/anilist", s.handlePostFolderAnilist)
 			r.Get("/folders/{folderID}/chapters/{chapterID}/neighbors", s.handleGetChapterNeighbors)
 
 			r.Get("/chapters/{chapterID}", s.handleGetChapterDetails)

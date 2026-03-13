@@ -45,60 +45,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // --- Core Functions ---
 
-  // AniList API integration
-  const fetchAniListData = async title => {
-    if (!title) return null;
-
+  // AniList: load from DB first, then trigger server fetch on cache miss
+  const fetchAniListData = async folderId => {
+    if (!folderId) return null;
     try {
-      // Clean up the title for better search results
-      const cleanTitle = title.replace(/[^\w\s-]/g, '').trim();
-      if (!cleanTitle) return null;
-
-      const query = `
-        query ($search: String) {
-          Media(search: $search, type: MANGA) {
-            id
-            title {
-              romaji
-              english
-            }
-            coverImage {
-              large
-            }
-            siteUrl
-          }
-        }
-      `;
-
-      const variables = { search: cleanTitle };
-
-      const response = await fetch('https://graphql.anilist.co', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify({
-          query: query,
-          variables: variables,
-        }),
-      });
-
-      if (!response.ok) {
-        console.error(`AniList API error: ${response.status} ${response.statusText}`);
-        throw new Error(`HTTP error! status: ${response.status}`);
+      const getRes = await fetch(`/api/folders/${folderId}/anilist`);
+      if (getRes.ok) {
+        const data = await getRes.json();
+        if (data?.siteUrl) return data;
       }
-
-      const data = await response.json();
-
-      if (data.errors) {
-        console.warn('AniList API returned errors:', data.errors);
-        return null;
-      }
-
-      return data.data?.Media || null;
+      const postRes = await fetch(`/api/folders/${folderId}/anilist`, { method: 'POST' });
+      if (!postRes.ok) return null;
+      const data = await postRes.json();
+      return data?.siteUrl ? data : null;
     } catch (error) {
-      console.error('Error fetching AniList data for title:', title, error);
+      console.error('Error fetching AniList data for folder:', folderId, error);
       return null;
     }
   };
@@ -107,22 +68,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   const loadAniListButtonsAsync = () => {
     // Use setTimeout to ensure this runs after the main rendering is complete
     setTimeout(async () => {
-      const pageTitle = document.getElementById('page-title');
-      if (!pageTitle) return;
-
       // Skip if button already exists
       if (document.querySelector('.anilist-button')) return;
-
-      const title = pageTitle.textContent.trim();
-      if (!title || title === 'Library') return; // Skip for generic library page
+      const folderId = getFolderIdFromUrl();
+      if (!folderId) return; // Only show AniList button when viewing a specific folder
 
       try {
-        const anilistData = await fetchAniListData(title);
+        const anilistData = await fetchAniListData(folderId);
         if (anilistData?.siteUrl) {
           addAniListButtonToHeader(anilistData.siteUrl);
         }
       } catch (error) {
-        console.warn('Failed to load AniList data for:', title, error);
+        console.warn('Failed to load AniList data for folder:', folderId, error);
       }
     }, 100); // Small delay to ensure DOM is ready
   };
