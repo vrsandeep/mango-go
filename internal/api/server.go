@@ -83,6 +83,8 @@ func (s *Server) Router() http.Handler {
 			r.Post("/folders/{folderID}/settings", s.handleUpdateFolderSettings)
 			r.Post("/folders/{folderID}/mark-all-as", s.handleMarkFolderAs)
 			r.Post("/folders/{folderID}/cover", s.handleUploadFolderCover)
+			r.Get("/folders/{folderID}/anilist", s.handleGetFolderAnilist)
+			r.Post("/folders/{folderID}/anilist", s.handlePostFolderAnilist)
 			r.Get("/folders/{folderID}/chapters/{chapterID}/neighbors", s.handleGetChapterNeighbors)
 
 			r.Get("/chapters/{chapterID}", s.handleGetChapterDetails)
