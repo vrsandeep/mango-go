@@ -88,7 +88,12 @@ func (s *Server) handlePostFolderAnilist(w http.ResponseWriter, r *http.Request)
 		RespondWithError(w, http.StatusInternalServerError, "Failed to load folder")
 		return
 	}
-	media, err := anilist.SearchManga(folder.Name)
+	var media *anilist.Media
+	if s.anilistSearcher != nil {
+		media, err = s.anilistSearcher.SearchManga(folder.Name)
+	} else {
+		media, err = anilist.SearchManga(folder.Name)
+	}
 	if err != nil {
 		log.Printf("AniList SearchManga error: %v", err)
 		RespondWithError(w, http.StatusBadGateway, "Failed to fetch from AniList")

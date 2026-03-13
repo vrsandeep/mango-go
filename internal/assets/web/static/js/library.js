@@ -66,7 +66,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Async AniList button loader - runs after page load without blocking
   const loadAniListButtonsAsync = () => {
+    // Use setTimeout to ensure this runs after the main rendering is complete
     setTimeout(async () => {
+      // Skip if button already exists
       if (document.querySelector('.anilist-button')) return;
       const folderId = getFolderIdFromUrl();
       if (!folderId) return; // Only show AniList button when viewing a specific folder
@@ -79,7 +81,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       } catch (error) {
         console.warn('Failed to load AniList data for folder:', folderId, error);
       }
-    }, 100);
+    }, 100); // Small delay to ensure DOM is ready
   };
 
   // Helper function to add AniList button to page header
