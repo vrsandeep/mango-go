@@ -68,6 +68,8 @@ Organize manga with series at the root level:
 
 ```
 manga/
+├── Saiki Kusuo/
+│   └── Vol. 1 Chapter 1.cbz
 ├── One Piece/
 │   ├── Volume 1/
 │   │   ├── Chapter 1.cbr
