@@ -159,6 +159,46 @@ func TestHandleGetDownloadQueue(t *testing.T) {
 	if len(items) != 1 {
 		t.Errorf("Expected 1 item in queue, got %d", len(items))
 	}
+	if items[0].LocalChapterID != nil || items[0].LocalFolderID != nil {
+		t.Errorf("expected no local library IDs in JSON when unset, got chapter=%v folder=%v", items[0].LocalChapterID, items[0].LocalFolderID)
+	}
+}
+
+func TestHandleGetDownloadQueue_LocalLibraryIDs(t *testing.T) {
+	server, db := SetupTestServerWithProviders(t)
+	router := server.Router()
+
+	res, err := db.Exec(`INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('S', 'Ch', 'cid', 'mockadex', ?, 'completed')`, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, _ := res.LastInsertId()
+	if _, err := db.Exec(`UPDATE download_queue SET local_chapter_id = ?, local_folder_id = ? WHERE id = ?`, 100, 200, id); err != nil {
+		t.Fatal(err)
+	}
+
+	req, _ := http.NewRequest("GET", "/api/downloads/queue", nil)
+	req.AddCookie(testutil.CookieForUser(t, server, "testuser", "password", "user"))
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status %d, body %s", rr.Code, rr.Body.String())
+	}
+
+	var items []models.DownloadQueueItem
+	if err := json.Unmarshal(rr.Body.Bytes(), &items); err != nil {
+		t.Fatalf("json: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("want 1 item, got %d", len(items))
+	}
+	if items[0].LocalChapterID == nil || *items[0].LocalChapterID != 100 {
+		t.Errorf("local_chapter_id: want 100, got %v", items[0].LocalChapterID)
+	}
+	if items[0].LocalFolderID == nil || *items[0].LocalFolderID != 200 {
+		t.Errorf("local_folder_id: want 200, got %v", items[0].LocalFolderID)
+	}
 }
 
 func TestHandleQueueAction(t *testing.T) {
