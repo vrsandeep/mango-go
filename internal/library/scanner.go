@@ -5,6 +5,7 @@
 package library
 
 import (
+	"context"
 	"crypto/sha1"
 	"database/sql"
 	"encoding/hex"
@@ -242,7 +243,7 @@ func syncChapters(st *store.Store, diskItems map[string]diskItem, dbChapters map
 	parsedCount := 0
 
 	for path, item := range diskItems {
-		if item.isDir || !IsSupportedArchive(filepath.Base(path)) {
+		if item.isDir || !IsSupportedChapterFile(filepath.Base(path)) {
 			continue
 		}
 
@@ -272,7 +273,7 @@ func syncChapters(st *store.Store, diskItems map[string]diskItem, dbChapters map
 
 		// File is new or changed - parse it
 		parsedCount++
-		pages, firstPageData, err := ParseArchive(path)
+		pages, firstPageData, err := InspectChapterFile(context.Background(), path)
 		if err != nil {
 			// Skip corrupted chapters - don't save them to the database
 			log.Printf("Skipping corrupted archive %s: %v", path, err)
@@ -372,7 +373,7 @@ func hasMangaArchives(dirPath string) bool {
 			return nil
 		}
 		// If we find a manga archive, mark this directory as non-empty
-		if !d.IsDir() && IsSupportedArchive(d.Name()) {
+		if !d.IsDir() && IsSupportedChapterFile(d.Name()) {
 			hasArchives = true
 			return filepath.SkipAll // Stop walking once we find an archive
 		}
@@ -384,7 +385,7 @@ func hasMangaArchives(dirPath string) bool {
 // checkBadFilesDuringSync checks for bad files during library sync
 func checkBadFilesDuringSync(badFileStore *store.BadFileStore, diskItems map[string]diskItem, parsingErrors map[string]error) {
 	for path, item := range diskItems {
-		if item.isDir || !IsSupportedArchive(filepath.Base(path)) {
+		if item.isDir || !IsSupportedChapterFile(filepath.Base(path)) {
 			continue
 		}
 

@@ -3,6 +3,7 @@
 package library
 
 import (
+	"context"
 	"fmt"
 	"io/fs"
 	"log"
@@ -30,7 +31,7 @@ func DetectBadFiles(ctx jobs.JobContext) {
 		if err != nil {
 			return err
 		}
-		if !d.IsDir() && IsSupportedArchive(d.Name()) {
+		if !d.IsDir() && IsSupportedChapterFile(d.Name()) {
 			archiveFiles = append(archiveFiles, path)
 		}
 		return nil
@@ -65,7 +66,7 @@ func DetectBadFiles(ctx jobs.JobContext) {
 		}
 
 		// Try to parse the archive
-		_, _, parseErr := ParseArchive(filePath)
+		_, _, parseErr := InspectChapterFile(context.Background(), filePath)
 		if parseErr != nil {
 			// File is corrupted or invalid
 			errorMsg := categorizeError(parseErr)

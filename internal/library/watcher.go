@@ -162,7 +162,7 @@ func (w *WatcherService) handleEvent(event fsnotify.Event) {
 func (w *WatcherService) isRelevantFile(path string) bool {
 	// Only trigger on actual archive files, not directories
 	// This prevents triggering scans when folders are opened/accessed
-	return IsSupportedArchive(filepath.Base(path))
+	return IsSupportedChapterFile(filepath.Base(path))
 }
 
 // TriggerIncrementalScanForPath manually triggers an incremental scan for a specific path.
