@@ -87,17 +87,26 @@ func worker(id int, app *core.App, st *store.Store) {
 			log.Println(errMsg)
 			st.UpdateQueueItemStatus(job.ID, "failed", errMsg)
 		} else {
-			st.UpdateQueueItemStatus(job.ID, "completed", "Download finished successfully.")
-			// Trigger an incremental scan for the downloaded file
-			// Get the file path that was just created
 			cbzPath := getDownloadPath(app, st, job)
-
-			// Trigger incremental scan for the downloaded file
-			go func() {
-				if err := library.IncrementalLibrarySync(app, []string{cbzPath}); err != nil {
-					log.Printf("Failed to trigger incremental scan for downloaded file: %v", err)
+			if err := library.IncrementalLibrarySync(app, []string{cbzPath}); err != nil {
+				log.Printf("Failed incremental scan after download: %v", err)
+			}
+			var ch *models.Chapter
+			if looked, err := st.GetChapterByDiskPath(cbzPath); err != nil {
+				log.Printf("Lookup chapter after download: %v", err)
+			} else if looked != nil {
+				ch = looked
+				if err := st.UpdateDownloadQueueLocalChapter(job.ID, ch.ID, ch.FolderID); err != nil {
+					log.Printf("failed to link download queue item to library chapter: %v", err)
 				}
-			}()
+			}
+			st.UpdateQueueItemStatus(job.ID, "completed", "Download finished successfully.")
+			var chapPtr, folderPtr *int64
+			if ch != nil {
+				chapPtr = &ch.ID
+				folderPtr = &ch.FolderID
+			}
+			sendDownloaderProgressUpdate(app, job.ID, "Download finished successfully.", "completed", 100, true, chapPtr, folderPtr)
 		}
 	}
 }
@@ -225,7 +234,7 @@ func processDownload(app *core.App, st *store.Store, job *models.DownloadQueueIt
 		}
 
 		// Broadcast progress update via WebSocket
-		sendDownloaderProgressUpdate(app, job.ID, fmt.Sprintf("Downloaded page %d of %d", i+1, total), status, float64(progress), done)
+		sendDownloaderProgressUpdate(app, job.ID, fmt.Sprintf("Downloaded page %d of %d", i+1, total), status, float64(progress), done, nil, nil)
 	}
 
 	if err := zipWriter.Close(); err != nil {
@@ -323,7 +332,7 @@ func PauseQueueItem(app *core.App, st *store.Store, itemID int64) error {
 	}
 
 	// Broadcast pause status update
-	sendDownloaderProgressUpdate(app, itemID, "Download paused by user", "paused", progress, false)
+	sendDownloaderProgressUpdate(app, itemID, "Download paused by user", "paused", progress, false, nil, nil)
 
 	return nil
 }
@@ -343,7 +352,7 @@ func ResumeQueueItem(app *core.App, st *store.Store, itemID int64) error {
 	}
 
 	// Broadcast resume status update
-	sendDownloaderProgressUpdate(app, itemID, "Download resumed by user", "queued", progress, false)
+	sendDownloaderProgressUpdate(app, itemID, "Download resumed by user", "queued", progress, false, nil, nil)
 
 	return nil
 }
@@ -356,18 +365,20 @@ func RetryQueueItem(app *core.App, st *store.Store, itemID int64) error {
 	}
 
 	// Broadcast retry status update with progress reset to 0
-	sendDownloaderProgressUpdate(app, itemID, "Download retried by user", "queued", 0.0, false)
+	sendDownloaderProgressUpdate(app, itemID, "Download retried by user", "queued", 0.0, false, nil, nil)
 
 	return nil
 }
 
-func sendDownloaderProgressUpdate(app *core.App, itemID int64, message string, status string, progress float64, done bool) {
+func sendDownloaderProgressUpdate(app *core.App, itemID int64, message string, status string, progress float64, done bool, localChapterID, localFolderID *int64) {
 	app.WsHub().BroadcastJSON(models.ProgressUpdate{
-		JobID:    "downloader",
-		Message:  message,
-		Progress: progress,
-		ItemID:   itemID,
-		Status:   status,
-		Done:     done,
+		JobID:          "downloader",
+		Message:        message,
+		Progress:       progress,
+		ItemID:         itemID,
+		Status:         status,
+		Done:           done,
+		LocalChapterID: localChapterID,
+		LocalFolderID:  localFolderID,
 	})
 }

@@ -362,3 +362,47 @@ func TestChapterStore(t *testing.T) {
 	})
 
 }
+
+func TestGetChapterByDiskPath(t *testing.T) {
+	db := testutil.SetupTestDB(t)
+	s := store.New(db)
+
+	folder, err := s.CreateFolder("/library/DiskPath Series", "DiskPath Series", nil)
+	if err != nil {
+		t.Fatalf("CreateFolder: %v", err)
+	}
+	diskPath := "/library/DiskPath Series/vol1.cbz"
+	created, err := s.CreateChapter(folder.ID, diskPath, "hash_diskpath", 12, "thumb-dp")
+	if err != nil {
+		t.Fatalf("CreateChapter: %v", err)
+	}
+
+	t.Run("returns chapter when path matches", func(t *testing.T) {
+		got, err := s.GetChapterByDiskPath(diskPath)
+		if err != nil {
+			t.Fatalf("GetChapterByDiskPath: %v", err)
+		}
+		if got == nil {
+			t.Fatal("expected non-nil chapter")
+		}
+		if got.ID != created.ID {
+			t.Errorf("ID: want %d, got %d", created.ID, got.ID)
+		}
+		if got.FolderID != folder.ID {
+			t.Errorf("FolderID: want %d, got %d", folder.ID, got.FolderID)
+		}
+		if got.Path != diskPath {
+			t.Errorf("Path: want %q, got %q", diskPath, got.Path)
+		}
+	})
+
+	t.Run("returns nil when no row matches", func(t *testing.T) {
+		got, err := s.GetChapterByDiskPath("/library/no/such/file.cbz")
+		if err != nil {
+			t.Fatalf("expected nil error, got %v", err)
+		}
+		if got != nil {
+			t.Fatalf("expected nil chapter, got %+v", got)
+		}
+	})
+}

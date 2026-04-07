@@ -58,17 +58,21 @@ func main() {
 	// Start initial library scan
 	go app.JobManager().RunJob("library-sync", app)
 
-	// Start periodic full library scan once per day (24 hours)
-	go func() {
-		ticker := time.NewTicker(time.Duration(app.Config().ScanInterval) * time.Minute)
-		for range ticker.C {
-			log.Println("Performing periodic library scan...")
-			if err := app.JobManager().RunJob("library-sync", app); err != nil {
-				log.Printf("Warning: periodic library scan failed: %v", err)
+	// Periodic full library scan (disabled when scan_interval is 0)
+	if app.Config().ScanInterval > 0 {
+		go func() {
+			ticker := time.NewTicker(time.Duration(app.Config().ScanInterval) * time.Minute)
+			for range ticker.C {
+				log.Println("Performing periodic library scan...")
+				if err := app.JobManager().RunJob("library-sync", app); err != nil {
+					log.Printf("Warning: periodic library scan failed: %v", err)
+				}
+				log.Println("Periodic scan complete.")
 			}
-			log.Println("Periodic scan complete.")
-		}
-	}()
+		}()
+	} else {
+		log.Println("Periodic library scan disabled (scan_interval is 0).")
+	}
 
 	// Initialize plugin manager and discover plugins (lazy loading enabled)
 	pluginManager := plugins.NewPluginManager(app, app.Config().Plugins.Path)

@@ -22,5 +22,7 @@ type DownloadQueueItem struct {
 	Progress          int       `json:"progress"` // Percentage of download progress
 	Message           string    `json:"message"`  // Optional message for status updates
 	ProviderID        string    `json:"provider_id"`
+	LocalChapterID    *int64    `json:"local_chapter_id,omitempty"`
+	LocalFolderID     *int64    `json:"local_folder_id,omitempty"`
 	CreatedAt         time.Time `json:"created_at"`
 }

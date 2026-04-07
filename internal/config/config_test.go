@@ -27,6 +27,9 @@ func TestLoadConfig(t *testing.T) {
 		if cfg.Library.Path != "./manga" {
 			t.Errorf("Expected default library path './manga', got '%s'", cfg.Library.Path)
 		}
+		if cfg.ScanInterval != 0 {
+			t.Errorf("Expected default scan_interval 0, got %d", cfg.ScanInterval)
+		}
 	})
 
 	t.Run("Loads from config file", func(t *testing.T) {
@@ -63,8 +66,8 @@ unknown_setting: "should be ignored"
 		if cfg.Library.Path != "/tmp/test-manga" {
 			t.Errorf("Expected library path '/tmp/test-manga', got '%s'", cfg.Library.Path)
 		}
-		if cfg.ScanInterval != 60 {
-			t.Errorf("Expected default scan interval of 60, got %d", cfg.ScanInterval)
+		if cfg.ScanInterval != 0 {
+			t.Errorf("Expected default scan interval of 0 when unset in file, got %d", cfg.ScanInterval)
 		}
 	})
 }

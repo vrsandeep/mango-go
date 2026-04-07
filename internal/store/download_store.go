@@ -84,7 +84,8 @@ func (s *Store) SubscribeToSeriesWithFolder(seriesTitle, seriesIdentifier, provi
 
 func (s *Store) GetDownloadQueue() ([]*models.DownloadQueueItem, error) {
 	query := `
-        SELECT id, series_title, chapter_title, chapter_identifier, provider_id, status, progress, message, created_at
+        SELECT id, series_title, chapter_title, chapter_identifier, provider_id, status, progress, message, created_at,
+               local_chapter_id, local_folder_id
         FROM download_queue ORDER BY created_at DESC
     `
 	rows, err := s.db.Query(query)
@@ -97,10 +98,19 @@ func (s *Store) GetDownloadQueue() ([]*models.DownloadQueueItem, error) {
 	for rows.Next() {
 		var item models.DownloadQueueItem
 		var msg sql.NullString
-		if err := rows.Scan(&item.ID, &item.SeriesTitle, &item.ChapterTitle, &item.ChapterIdentifier, &item.ProviderID, &item.Status, &item.Progress, &msg, &item.CreatedAt); err != nil {
+		var localChap, localFolder sql.NullInt64
+		if err := rows.Scan(&item.ID, &item.SeriesTitle, &item.ChapterTitle, &item.ChapterIdentifier, &item.ProviderID, &item.Status, &item.Progress, &msg, &item.CreatedAt, &localChap, &localFolder); err != nil {
 			return nil, err
 		}
 		item.Message = msg.String
+		if localChap.Valid {
+			v := localChap.Int64
+			item.LocalChapterID = &v
+		}
+		if localFolder.Valid {
+			v := localFolder.Int64
+			item.LocalFolderID = &v
+		}
 		items = append(items, &item)
 	}
 	return items, nil
@@ -109,7 +119,8 @@ func (s *Store) GetDownloadQueue() ([]*models.DownloadQueueItem, error) {
 // GetQueuedDownloadItems retrieves a limited number of items with a 'queued' status.
 func (s *Store) GetQueuedDownloadItems(limit int) ([]*models.DownloadQueueItem, error) {
 	query := `
-        SELECT id, series_title, chapter_title, chapter_identifier, provider_id, status, progress, message, created_at
+        SELECT id, series_title, chapter_title, chapter_identifier, provider_id, status, progress, message, created_at,
+               local_chapter_id, local_folder_id
         FROM download_queue WHERE status = 'queued' ORDER BY created_at ASC LIMIT ?
     `
 	rows, err := s.db.Query(query, limit)
@@ -122,10 +133,19 @@ func (s *Store) GetQueuedDownloadItems(limit int) ([]*models.DownloadQueueItem, 
 	for rows.Next() {
 		var item models.DownloadQueueItem
 		var msg sql.NullString
-		if err := rows.Scan(&item.ID, &item.SeriesTitle, &item.ChapterTitle, &item.ChapterIdentifier, &item.ProviderID, &item.Status, &item.Progress, &msg, &item.CreatedAt); err != nil {
+		var localChap, localFolder sql.NullInt64
+		if err := rows.Scan(&item.ID, &item.SeriesTitle, &item.ChapterTitle, &item.ChapterIdentifier, &item.ProviderID, &item.Status, &item.Progress, &msg, &item.CreatedAt, &localChap, &localFolder); err != nil {
 			return nil, err
 		}
 		item.Message = msg.String
+		if localChap.Valid {
+			v := localChap.Int64
+			item.LocalChapterID = &v
+		}
+		if localFolder.Valid {
+			v := localFolder.Int64
+			item.LocalFolderID = &v
+		}
 		items = append(items, &item)
 	}
 	return items, nil
@@ -134,17 +154,33 @@ func (s *Store) GetQueuedDownloadItems(limit int) ([]*models.DownloadQueueItem, 
 // GetDownloadQueueItem retrieves a single item from the download queue by ID.
 func (s *Store) GetDownloadQueueItem(id int64) (*models.DownloadQueueItem, error) {
 	query := `
-        SELECT id, series_title, chapter_title, chapter_identifier, provider_id, status, progress, message, created_at
+        SELECT id, series_title, chapter_title, chapter_identifier, provider_id, status, progress, message, created_at,
+               local_chapter_id, local_folder_id
         FROM download_queue WHERE id = ?
     `
 	var item models.DownloadQueueItem
 	var msg sql.NullString
-	err := s.db.QueryRow(query, id).Scan(&item.ID, &item.SeriesTitle, &item.ChapterTitle, &item.ChapterIdentifier, &item.ProviderID, &item.Status, &item.Progress, &msg, &item.CreatedAt)
+	var localChap, localFolder sql.NullInt64
+	err := s.db.QueryRow(query, id).Scan(&item.ID, &item.SeriesTitle, &item.ChapterTitle, &item.ChapterIdentifier, &item.ProviderID, &item.Status, &item.Progress, &msg, &item.CreatedAt, &localChap, &localFolder)
 	if err != nil {
 		return nil, err
 	}
 	item.Message = msg.String
+	if localChap.Valid {
+		v := localChap.Int64
+		item.LocalChapterID = &v
+	}
+	if localFolder.Valid {
+		v := localFolder.Int64
+		item.LocalFolderID = &v
+	}
 	return &item, nil
+}
+
+// UpdateDownloadQueueLocalChapter stores library IDs for a completed download (reader link).
+func (s *Store) UpdateDownloadQueueLocalChapter(id, chapterID, folderID int64) error {
+	_, err := s.db.Exec(`UPDATE download_queue SET local_chapter_id = ?, local_folder_id = ? WHERE id = ?`, chapterID, folderID, id)
+	return err
 }
 
 // UpdateQueueItemStatus changes an item's status and message.

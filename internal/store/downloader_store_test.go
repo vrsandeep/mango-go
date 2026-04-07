@@ -220,6 +220,10 @@ func TestGetDownloadQueueItem(t *testing.T) {
 		t.Errorf("Expected message 'Test message', got '%s'", item.Message)
 	}
 
+	if item.LocalChapterID != nil || item.LocalFolderID != nil {
+		t.Errorf("expected nil local library IDs when unset, got chapter=%v folder=%v", item.LocalChapterID, item.LocalFolderID)
+	}
+
 	// Test getting non-existent item
 	_, err = s.GetDownloadQueueItem(99999)
 	if err == nil {
@@ -616,5 +620,54 @@ func TestGetChapterIdentifiersInQueue(t *testing.T) {
 	}
 	if foundExpected != 2 {
 		t.Errorf("Expected to find 2 expected identifiers, found %d", foundExpected)
+	}
+}
+
+func TestUpdateDownloadQueueLocalChapter(t *testing.T) {
+	db := testutil.SetupTestDB(t)
+	s := store.New(db)
+
+	res, err := db.Exec(`INSERT INTO download_queue (series_title, chapter_title, chapter_identifier, provider_id, created_at, status) VALUES ('Series', 'Chapter', 'ch-id', 'prov', ?, 'completed')`, time.Now())
+	if err != nil {
+		t.Fatalf("insert: %v", err)
+	}
+	id, _ := res.LastInsertId()
+
+	if err := s.UpdateDownloadQueueLocalChapter(id, 42, 7); err != nil {
+		t.Fatalf("UpdateDownloadQueueLocalChapter: %v", err)
+	}
+
+	var chapID, folderID int64
+	err = db.QueryRow("SELECT local_chapter_id, local_folder_id FROM download_queue WHERE id = ?", id).Scan(&chapID, &folderID)
+	if err != nil {
+		t.Fatalf("select: %v", err)
+	}
+	if chapID != 42 || folderID != 7 {
+		t.Errorf("DB columns: want chapter=42 folder=7, got %d %d", chapID, folderID)
+	}
+
+	item, err := s.GetDownloadQueueItem(id)
+	if err != nil {
+		t.Fatalf("GetDownloadQueueItem: %v", err)
+	}
+	if item.LocalChapterID == nil || *item.LocalChapterID != 42 {
+		t.Errorf("GetDownloadQueueItem LocalChapterID: want 42, got %v", item.LocalChapterID)
+	}
+	if item.LocalFolderID == nil || *item.LocalFolderID != 7 {
+		t.Errorf("GetDownloadQueueItem LocalFolderID: want 7, got %v", item.LocalFolderID)
+	}
+
+	items, err := s.GetDownloadQueue()
+	if err != nil {
+		t.Fatalf("GetDownloadQueue: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("GetDownloadQueue: want 1 item, got %d", len(items))
+	}
+	if items[0].LocalChapterID == nil || *items[0].LocalChapterID != 42 {
+		t.Errorf("GetDownloadQueue LocalChapterID: want 42, got %v", items[0].LocalChapterID)
+	}
+	if items[0].LocalFolderID == nil || *items[0].LocalFolderID != 7 {
+		t.Errorf("GetDownloadQueue LocalFolderID: want 7, got %v", items[0].LocalFolderID)
 	}
 }

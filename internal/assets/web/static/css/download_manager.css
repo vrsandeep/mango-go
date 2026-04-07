@@ -172,7 +172,7 @@
 /* Action Buttons */
 .actions-cell {
   text-align: center;
-  width: 120px;
+  width: 160px;
   white-space: nowrap;
 }
 
@@ -191,6 +191,16 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+a.reader-link-btn {
+  text-decoration: none;
+  box-sizing: border-box;
+  vertical-align: middle;
+}
+
+a.reader-link-btn:hover {
+  text-decoration: none;
 }
 
 .action-btn:hover:not(:disabled) {
@@ -277,7 +287,7 @@
   }
 
   .actions-cell {
-    width: 100px;
+    width: 132px;
   }
 
   .action-btn {

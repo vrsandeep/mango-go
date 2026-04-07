@@ -9,6 +9,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   const pauseResumeBtn = document.getElementById('pause-resume-btn');
   let ws;
 
+  const escapeHtml = str =>
+    String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/"/g, '&quot;');
+
+  const readerHref = (folderId, chapterId) =>
+    `/reader/series/${folderId}/chapters/${chapterId}`;
+
   const renderRow = item => {
     let row = document.getElementById(`item-${item.id}`);
     if (!row) {
@@ -17,11 +26,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     const statusClass = `status-${item.status.replace(' ', '_').toLowerCase()}`;
 
-    let actionButtons = generateActionCellContent(item.id, item.status);
+    const canRead =
+      item.status === 'completed' &&
+      item.local_chapter_id != null &&
+      item.local_folder_id != null;
+    const fid = canRead ? item.local_folder_id : null;
+    const cid = canRead ? item.local_chapter_id : null;
+
+    let actionButtons = generateActionCellContent(item.id, item.status, fid, cid);
 
     row.innerHTML = `
-      <td title="${item.chapter_title}">${item.chapter_title}</td>
-      <td title="${item.series_title}">${item.series_title}</td>
+      <td title="${escapeHtml(item.chapter_title)}">${escapeHtml(item.chapter_title)}</td>
+      <td title="${escapeHtml(item.series_title)}">${escapeHtml(item.series_title)}</td>
       <td>
           <div class="progress-bar-container">
               <div class="progress-bar" style="width: ${item.progress}%;">${item.progress}%</div>
@@ -35,10 +51,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     return row;
   };
 
-  const generateActionCellContent = (itemId, status) => {
+  const generateActionCellContent = (itemId, status, folderId, chapterId) => {
+    let readerLink = '';
+    if (status === 'completed' && folderId != null && chapterId != null) {
+      readerLink = `<a class="reader-link-btn action-btn" href="${readerHref(folderId, chapterId)}" aria-label="Open in reader" title="Open in reader"><i class="ph-bold ph-book-open"></i></a>`;
+    }
     let actionButtons = '';
     if (status === 'queued' || status === 'completed') {
-      actionButtons = `<button class="action-btn delete-btn" data-action="delete" data-id="${itemId}" title="Delete">🗑️</button>`;
+      actionButtons = `${readerLink}<button class="action-btn delete-btn" data-action="delete" data-id="${itemId}" title="Delete">🗑️</button>`;
     } else if (status === 'failed') {
       actionButtons = `<button class="action-btn retry-btn" data-action="retry" data-id="${itemId}" title="Retry"><i class="ph-bold ph-arrow-clockwise"></i></button> <button class="action-btn delete-btn" data-action="delete" data-id="${itemId}" title="Delete">🗑️</button>`;
     } else if (status === 'in_progress') {
@@ -99,7 +119,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Update action buttons based on new status
       const actionsCell = row.querySelector('.actions-cell');
       if (actionsCell) {
-        actionsCell.innerHTML = generateActionCellContent(data.item_id, data.status);
+        actionsCell.innerHTML = generateActionCellContent(
+          data.item_id,
+          data.status,
+          data.local_folder_id,
+          data.local_chapter_id
+        );
       }
     };
 
@@ -209,7 +234,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Add event delegation for individual item action buttons
   queueTableBody.addEventListener('click', async e => {
-    const button = e.target.closest('.action-btn');
+    const button = e.target.closest('button.action-btn');
     if (!button) return;
 
     const action = button.dataset.action;
