@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 
 	"github.com/vrsandeep/mango-go/internal/jobs"
+	"github.com/vrsandeep/mango-go/internal/library/chapterfiles"
 	"github.com/vrsandeep/mango-go/internal/models"
 	"github.com/vrsandeep/mango-go/internal/store"
 )
@@ -31,7 +32,7 @@ func DetectBadFiles(ctx jobs.JobContext) {
 		if err != nil {
 			return err
 		}
-		if !d.IsDir() && IsSupportedChapterFile(d.Name()) {
+		if !d.IsDir() && chapterfiles.IsSupportedChapterFile(d.Name()) {
 			archiveFiles = append(archiveFiles, path)
 		}
 		return nil
@@ -66,7 +67,7 @@ func DetectBadFiles(ctx jobs.JobContext) {
 		}
 
 		// Try to parse the archive
-		_, _, parseErr := InspectChapterFile(context.Background(), filePath)
+		_, _, parseErr := chapterfiles.InspectChapterFile(context.Background(), filePath)
 		if parseErr != nil {
 			// File is corrupted or invalid
 			errorMsg := categorizeError(parseErr)

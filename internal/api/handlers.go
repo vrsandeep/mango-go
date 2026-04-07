@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/vrsandeep/mango-go/internal/library"
+	"github.com/vrsandeep/mango-go/internal/library/chapterfiles"
 )
 
 // getListParams extracts all query params for list endpoints.
@@ -59,12 +59,12 @@ func (s *Server) handleGetPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !library.IsSupportedChapterFile(filepath.Base(chapter.Path)) {
+	if !chapterfiles.IsSupportedChapterFile(filepath.Base(chapter.Path)) {
 		RespondWithError(w, http.StatusUnsupportedMediaType, "Unsupported chapter file type")
 		return
 	}
 
-	pageData, fileName, err := library.GetChapterPage(r.Context(), chapter.Path, pageIndex)
+	pageData, fileName, err := chapterfiles.GetChapterPage(r.Context(), chapter.Path, pageIndex)
 	if err != nil {
 		log.Printf("Error extracting page %d from chapter file %s: %v", pageIndex, chapter.Path, err)
 		if strings.Contains(err.Error(), "out of bounds") {
