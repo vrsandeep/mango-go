@@ -62,6 +62,19 @@ func (s *Store) GetChapterByID(id int64, userID int64) (*models.Chapter, error) 
 	return &chapter, nil
 }
 
+// GetChapterByDiskPath returns the chapter row for an on-disk archive path, or nil if none.
+func (s *Store) GetChapterByDiskPath(diskPath string) (*models.Chapter, error) {
+	var c models.Chapter
+	err := s.db.QueryRow(`SELECT id, folder_id, path FROM chapters WHERE path = ?`, diskPath).Scan(&c.ID, &c.FolderID, &c.Path)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
 // GetAllChaptersByHash retrieves all chapters and maps them by their content hash for efficient lookup.
 func (s *Store) GetAllChaptersByHash() (map[string]ChapterInfo, error) {
 	rows, err := s.db.Query("SELECT id, path, content_hash, file_mtime, file_size FROM chapters")

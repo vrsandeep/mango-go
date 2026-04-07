@@ -109,6 +109,10 @@
   background: rgba(var(--accent-color-rgb), 0.05);
 }
 
+.queue-table tbody tr.queue-row--readable {
+  cursor: pointer;
+}
+
 .queue-table th:nth-child(3),
 .queue-table td:nth-child(3) {
   width: 20%;

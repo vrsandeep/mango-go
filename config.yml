@@ -1,6 +1,6 @@
 ---
 port: 8080
-scan_interval: 60 # The interval in minutes between scans of the manga library.
+scan_interval: 0 # Minutes between full library scans; 0 disables periodic scans (watcher / manual sync still run).
 database:
   # The path to the SQLite database file.
   path: "./mango.db"

@@ -9,6 +9,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   const pauseResumeBtn = document.getElementById('pause-resume-btn');
   let ws;
 
+  const applyReaderLinkToRow = (row, chapterId, folderId) => {
+    if (chapterId != null && folderId != null) {
+      row.dataset.chapterId = String(chapterId);
+      row.dataset.folderId = String(folderId);
+      row.classList.add('queue-row--readable');
+      row.title = 'Open in reader';
+    } else {
+      delete row.dataset.chapterId;
+      delete row.dataset.folderId;
+      row.classList.remove('queue-row--readable');
+      row.removeAttribute('title');
+    }
+  };
+
   const renderRow = item => {
     let row = document.getElementById(`item-${item.id}`);
     if (!row) {
@@ -32,6 +46,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       <td>${item.provider_id}</td>
       <td class="actions-cell">${actionButtons}</td>
     `;
+    if (
+      item.status === 'completed' &&
+      item.local_chapter_id != null &&
+      item.local_folder_id != null
+    ) {
+      applyReaderLinkToRow(row, item.local_chapter_id, item.local_folder_id);
+    } else {
+      applyReaderLinkToRow(row, null, null);
+    }
     return row;
   };
 
@@ -100,6 +123,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       const actionsCell = row.querySelector('.actions-cell');
       if (actionsCell) {
         actionsCell.innerHTML = generateActionCellContent(data.item_id, data.status);
+      }
+
+      if (data.local_chapter_id != null && data.local_folder_id != null) {
+        applyReaderLinkToRow(row, data.local_chapter_id, data.local_folder_id);
+      } else if (data.status === 'completed') {
+        applyReaderLinkToRow(row, null, null);
       }
     };
 
@@ -205,6 +234,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         setTimeout(loadQueue, 500); // Give backend a moment before refreshing
       }
     });
+  });
+
+  queueTableBody.addEventListener('click', e => {
+    if (e.target.closest('.action-btn')) return;
+    const tr = e.target.closest('tr');
+    if (!tr?.id?.startsWith('item-')) return;
+    if (!tr.classList.contains('queue-row--readable')) return;
+    const chapterId = tr.dataset.chapterId;
+    const folderId = tr.dataset.folderId;
+    if (chapterId && folderId) {
+      window.location.href = `/reader/series/${folderId}/chapters/${chapterId}`;
+    }
   });
 
   // Add event delegation for individual item action buttons

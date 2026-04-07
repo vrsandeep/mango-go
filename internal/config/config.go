@@ -41,7 +41,7 @@ func Load() (*Config, error) {
 
 	// Set default values
 	viper.SetDefault("port", 8080)
-	viper.SetDefault("scan_interval", 60)
+	viper.SetDefault("scan_interval", 0)
 	viper.SetDefault("database.path", "./mango.db")
 	viper.SetDefault("library.path", "./manga")
 	viper.SetDefault("plugins.path", "../mango-go-plugins")
