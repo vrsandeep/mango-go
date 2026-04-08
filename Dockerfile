@@ -1,4 +1,4 @@
-FROM golang:1.24.4-alpine AS builder
+FROM golang:1.26.2-alpine AS builder
 
 # Install build tools needed for CGo and SQLite.
 RUN apk add --no-cache build-base sqlite-dev nodejs npm

@@ -6,13 +6,13 @@ This document provides guidelines for setting up Mango-Go for development and co
 
 Before you begin, ensure you have the following installed:
 
-- **Go 1.24.4 or later**: [Install Go](https://golang.org/dl/)
+- **Go 1.26.2 or later**: [Install Go](https://go.dev/dl/)
 - **Git**: [Install Git](https://git-scm.com/downloads)
-- **Node.js 18 or later**: [Install Node.js](https://nodejs.org/) (Required for esbuild)
+- **Node.js** (optional): Only needed for `**make prettify`** and `**make format-check`**, which run [Prettier](https://prettier.io/) via `npx`. If you skip those targets, you can still format Go with `go fmt ./...` and build the app without Node.
 - **SQLite3**: Usually comes with Go, but you may need to install it separately on some systems
 - **Make**: For using the provided Makefile commands
 - **Docker & Docker Compose:** (Optional, for containerized development)
-- **esbuild:** (Required for asset bundling) A very fast JavaScript and CSS bundler:
+- **esbuild:** (Required for `make assets` / `make run` / `make build`) A very fast JavaScript and CSS bundler:
     ```sh
     # Using npm (recommended)
     npm install -g esbuild
@@ -41,36 +41,35 @@ go mod download
 The project provides several Make commands for different development scenarios:
 
 **For local development (recommended):**
+
 ```bash
 make run
 ```
+
 This command creates un-minified bundles for easier debugging and runs the application.
 
 **For production builds:**
+
 ```bash
 make build
 ```
+
 This command creates minified bundles and builds the production binary.
 
 **Other useful commands:**
+
 ```bash
-make assets          # Build assets only
-make clean           # Clean build artifacts
+make assets           # Build minified CSS/JS bundles (requires esbuild on PATH)
+make clean            # Clean build artifacts
 make download-go-deps # Download and tidy Go dependencies
+make prettify         # Format all Go code and Prettier-format static CSS/JS
+make format           # Same as make prettify
+make format-check     # Verify Go (gofmt) and CSS/JS (Prettier) formatting
 ```
 
 ### 4. Create Configuration
 
-Create a `config.yml` file in the project root:
-
-```yaml
-library:
-  path: "./manga"  # Path to your manga library
-database:
-  path: "./mango.db"  # SQLite database path
-port: 8080
-scan_interval: 30  # Library scan interval in minutes
-```
+Add a `config.yml` in the project root. Use the checked-in [config.yml](config.yml) as the template: copy it or adjust paths (library, database, plugins, and other options) for your environment.
 
 ### 5. Set Up Test Data
 
@@ -93,11 +92,13 @@ manga/
 ### 6. Run the Application
 
 **For development:**
+
 ```bash
 make run
 ```
 
 **For production:**
+
 ```bash
 make build
 ./build/mango-go
@@ -110,21 +111,25 @@ The application will start on `http://localhost:8080`. On first run, it will cre
 ### Running Tests
 
 Run all tests:
+
 ```bash
 go test ./...
 ```
 
 Run tests with verbose output:
+
 ```bash
 go test -v ./...
 ```
 
 Run tests for a specific package:
+
 ```bash
 go test ./internal/api
 ```
 
 Run tests with coverage:
+
 ```bash
 go test -cover ./...
 ```
@@ -133,43 +138,46 @@ go test -cover ./...
 
 The project uses several tools to maintain code quality:
 
-1. **Format code**:
-   ```bash
-   go fmt ./...
-   ```
-
+1. **Format code** (Go plus static CSS/JS):
+  ```bash
+   make prettify
+  ```
+   This runs `go fmt ./...` and then Prettier on `internal/assets/web/static/css` and `internal/assets/web/static/js` (see [Code Formatting](#code-formatting) below). To format Go only:
 2. **Vet code**:
-   ```bash
+  ```bash
    go vet ./...
-   ```
-
+  ```
 3. **Run linter** (if you have golangci-lint installed):
-   ```bash
+  ```bash
    golangci-lint run
-   ```
+  ```
 
 ### Development Best Practices
 
 **Code Style:**
-- Follow standard Go formatting (`go fmt`)
+
+- Follow standard Go formatting (`go fmt`, or `make prettify` together with front-end formatting)
 - Use meaningful variable and function names
 - Write self-documenting code with clear comments
 - Keep functions small and focused
 - Use interfaces for abstraction
 
 **Error Handling:**
+
 - Always handle errors explicitly
 - Use `errors.Wrap()` for context when wrapping errors
 - Log errors at appropriate levels
 - Return meaningful error messages
 
 **Security:**
+
 - Validate all user inputs
 - Use parameterized queries for database operations
 - Sanitize file paths and user-provided data
 - Follow the principle of least privilege
 
 **Testing:**
+
 - Test edge cases and error conditions
 - Use table-driven tests for multiple scenarios
 - Mock external dependencies appropriately
@@ -193,35 +201,27 @@ The frontend is built with vanilla HTML, CSS, and JavaScript. Files are located 
 
 #### Code Formatting
 
-The project uses Prettier to maintain consistent code formatting for CSS and JavaScript files.
+`make prettify` (alias: `make format`) does two steps in order:
 
-**Format all CSS and JS files:**
-```bash
-make format
-```
+1. `**go fmt ./...`** — all packages in the module.
+2. `**npx prettier --write`** — static CSS and JavaScript under `internal/assets/web/static/css` and `internal/assets/web/static/js`. Paths excluded by `.prettierignore` (for example `internal/assets/web/static/css/ext/` and `internal/assets/web/dist/`) are left unchanged.
 
-**Check if files are properly formatted:**
+**Check formatting without writing files:**
+
 ```bash
 make format-check
 ```
 
-**Format only CSS files:**
-```bash
-npm run format:css
-```
+This fails if any `.go` file would change under `gofmt`, or if Prettier would change any matched CSS/JS file.
 
-**Format only JavaScript files:**
-```bash
-npm run format:js
-```
-
-Prettier configuration is defined in `.prettierrc` and ignores files listed in `.prettierignore`.
+Prettier options live in `.prettierrc`.
 
 ### Docker Development
 
 The project includes Docker support for containerized development and deployment:
 
 **Development with Docker Compose:**
+
 ```bash
 # Start the application with Docker Compose
 docker-compose up -d
@@ -234,6 +234,7 @@ docker-compose down
 ```
 
 **Building Docker Images:**
+
 ```bash
 # Build the Docker image
 docker build -t mango-go .
@@ -243,11 +244,13 @@ docker run -p 8080:8080 -v $(pwd)/manga:/app/manga mango-go
 ```
 
 **Docker Configuration:**
+
 - `Dockerfile`: Multi-stage build for production images
 - `docker-compose.yml`: Development environment setup
 - `.dockerignore`: Excludes unnecessary files from Docker context
 
 **Container Development Guidelines:**
+
 - Use volume mounts for development (manga library, config)
 - Ensure proper file permissions for mounted volumes
 - Use environment variables for configuration in containers
@@ -267,6 +270,7 @@ mango-go/
 │   ├── assets/        # Web assets and migrations
 │   │   ├── migrations/ # Database migration files
 │   │   └── web/       # Frontend assets (HTML, CSS, JS)
+│   ├── plugins/       # Plugin loader, registry, and runtime (Go)
 │   ├── auth/          # Authentication logic
 │   ├── config/        # Configuration management
 │   ├── core/          # Core application setup
@@ -286,10 +290,13 @@ mango-go/
 ├── go.sum             # Dependency checksums
 ├── config.yml         # Configuration file
 ├── Makefile           # Build and development commands
+├── PLUGIN_SYSTEM_DESIGN.md # Plugin system architecture notes
 ├── Dockerfile         # Container configuration
 ├── docker-compose.yml # Docker Compose setup
 └── README.md          # User documentation
 ```
+
+See `PLUGIN_SYSTEM_DESIGN.md` for how plugins are loaded and executed.
 
 ## Contributing
 
@@ -304,50 +311,49 @@ mango-go/
 The project provides issue templates to help structure bug reports and feature requests:
 
 **Bug Reports** (`.github/ISSUE_TEMPLATE/bug_report.md`):
+
 - Use the "[Bug Report]" prefix in the title
 - Include environment details (OS, browser, Mango version)
 - Provide clear reproduction steps
 - Include Docker configuration if applicable
 
 **Feature Requests** (`.github/ISSUE_TEMPLATE/feature_request.md`):
+
 - Use the "[Feature Request]" prefix in the title
 - Describe the problem and proposed solution
 - Provide use cases and benefits
 - Include mockups or examples when helpful
 
 **General Questions** (`.github/ISSUE_TEMPLATE/general-question.md`):
+
 - For questions that don't fit bug reports or feature requests
 - Use for discussions and clarifications
 
 ### Making Changes
 
 1. **Create a feature branch**:
-   ```bash
+  ```bash
    git checkout -b feature/your-feature-name
-   ```
-
+  ```
 2. **Plan your development in phases**:
-   - Break large features into smaller, manageable phases
-   - Fully implement and test each phase before proceeding
-   - This approach ensures stable, incremental progress
-
+  - Break large features into smaller, manageable phases
+  - Fully implement and test each phase before proceeding
+  - This approach ensures stable, incremental progress
 3. **Make your changes** following the coding standards:
-   - Write tests for new functionality
-   - Update documentation as needed
-   - Follow Go naming conventions
-   - Keep changes focused and atomic
-
+  - Write tests for new functionality
+  - Update documentation as needed
+  - Follow Go naming conventions
+  - Keep changes focused and atomic
 4. **Test your changes**:
-   ```bash
+  ```bash
    go test ./...
    go build .
-   ```
-
+  ```
 5. **Commit your changes**:
-   ```bash
+  ```bash
    git add .
    git commit -m "feat: add new feature description"
-   ```
+  ```
 
 ### Commit Message Format
 
@@ -364,16 +370,14 @@ Use conventional commit format:
 ### Submitting a Pull Request
 
 1. **Push your branch**:
-   ```bash
+  ```bash
    git push origin feature/your-feature-name
-   ```
-
+  ```
 2. **Create a Pull Request** on GitHub with:
-   - Clear description of changes
-   - Reference to related issues
-   - Screenshots for UI changes
-   - Test results
-
+  - Clear description of changes
+  - Reference to related issues
+  - Screenshots for UI changes
+  - Test results
 3. **Ensure CI passes** before requesting review
 
 ### Continuous Integration
@@ -381,20 +385,23 @@ Use conventional commit format:
 The project uses GitHub Actions for automated testing and building:
 
 **Test Pipeline** (`.github/workflows/test.yml`):
-- Runs on every push and pull request to master
-- Tests on Ubuntu with Go 1.24.4 and Node.js 18
-- Installs dependencies and builds assets
-- Runs the full test suite with `go test ./...`
+
+- Runs on every push and pull request to `master`
+- Uses **Go 1.26.2** on Ubuntu (`actions/setup-go@v6`)
+- Installs **esbuild** globally with npm (for `make assets` in CI), then system packages (`libsqlite3-dev`, `make`)
+- Runs `make assets download-go-deps` and the full test suite with `go test ./...`
 
 **Release Pipeline** (`.github/workflows/release.yml`):
-- Triggers on version tags (v*.*.*)
+
+- Triggers on version tags (`v*.*.`*)
 - Builds binaries for multiple platforms:
-  - Linux (amd64, arm64)
-  - macOS (amd64, arm64)
+  - Linux (amd64; ARM64 Linux builds are currently disabled in the workflow matrix)
+  - macOS (amd64 and arm64)
 - Creates release archives with checksums
 - Publishes to GitHub Releases
 
 **Docker Pipeline** (`.github/workflows/docker-*.yml`):
+
 - Builds and publishes Docker images
 - Supports both edge and release versions
 
@@ -428,6 +435,7 @@ Use the test utilities in `internal/testutil/` for common testing tasks:
 ### Testing Patterns
 
 **For API handlers:**
+
 ```go
 func TestHandler(t *testing.T) {
     server, db, jobManager := testutil.SetupTestServer(t)
@@ -436,6 +444,7 @@ func TestHandler(t *testing.T) {
 ```
 
 **For database operations:**
+
 ```go
 func TestStore(t *testing.T) {
     db := testutil.SetupTestDB(t)
@@ -444,6 +453,7 @@ func TestStore(t *testing.T) {
 ```
 
 **For integration tests:**
+
 ```go
 func TestIntegration(t *testing.T) {
     app := testutil.SetupTestApp(t)
@@ -493,9 +503,11 @@ Then access profiling data at `http://localhost:8080/debug/pprof/`
 
 ### Build Issues
 
-- Ensure you're using Go 1.24.4+
+- Ensure you're using Go 1.26.2+
 - Run `go mod tidy` to clean dependencies
 - Check that all dependencies are properly installed
+- Confirm `esbuild` is on your `PATH` if `make run` / `make build` fails while bundling assets
+- If `make prettify` or `make format-check` fails on Prettier, install Node.js/npm or run `go fmt ./...` for Go-only formatting
 
 ### Database Issues
 
@@ -522,7 +534,7 @@ Then access profiling data at `http://localhost:8080/debug/pprof/`
 1. Update version in relevant files
 2. Add new git tag locally and push it
 3. This triggers the build and release
-5. Modify release notes
+4. Modify release notes
 
 ---
 

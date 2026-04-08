@@ -10,13 +10,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   let ws;
 
   const escapeHtml = str =>
-    String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/"/g, '&quot;');
+    String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
 
-  const readerHref = (folderId, chapterId) =>
-    `/reader/series/${folderId}/chapters/${chapterId}`;
+  const readerHref = (folderId, chapterId) => `/reader/series/${folderId}/chapters/${chapterId}`;
 
   const renderRow = item => {
     let row = document.getElementById(`item-${item.id}`);
@@ -27,9 +23,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const statusClass = `status-${item.status.replace(' ', '_').toLowerCase()}`;
 
     const canRead =
-      item.status === 'completed' &&
-      item.local_chapter_id != null &&
-      item.local_folder_id != null;
+      item.status === 'completed' && item.local_chapter_id != null && item.local_folder_id != null;
     const fid = canRead ? item.local_folder_id : null;
     const cid = canRead ? item.local_chapter_id : null;
 
