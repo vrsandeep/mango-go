@@ -205,16 +205,6 @@ make format
 make format-check
 ```
 
-**Format only CSS files:**
-```bash
-npm run format:css
-```
-
-**Format only JavaScript files:**
-```bash
-npm run format:js
-```
-
 Prettier configuration is defined in `.prettierrc` and ignores files listed in `.prettierignore`.
 
 ### Docker Development
@@ -382,7 +372,7 @@ The project uses GitHub Actions for automated testing and building:
 
 **Test Pipeline** (`.github/workflows/test.yml`):
 - Runs on every push and pull request to master
-- Tests on Ubuntu with Go 1.26.2 and Node.js 18
+- Tests on Ubuntu with Go 1.26.2
 - Installs dependencies and builds assets
 - Runs the full test suite with `go test ./...`
 
