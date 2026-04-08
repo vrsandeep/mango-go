@@ -6,7 +6,7 @@ This document provides guidelines for setting up Mango-Go for development and co
 
 Before you begin, ensure you have the following installed:
 
-- **Go 1.24.4 or later**: [Install Go](https://golang.org/dl/)
+- **Go 1.26.2 or later**: [Install Go](https://golang.org/dl/)
 - **Git**: [Install Git](https://git-scm.com/downloads)
 - **Node.js 18 or later**: [Install Node.js](https://nodejs.org/) (Required for esbuild)
 - **SQLite3**: Usually comes with Go, but you may need to install it separately on some systems
@@ -382,7 +382,7 @@ The project uses GitHub Actions for automated testing and building:
 
 **Test Pipeline** (`.github/workflows/test.yml`):
 - Runs on every push and pull request to master
-- Tests on Ubuntu with Go 1.24.4 and Node.js 18
+- Tests on Ubuntu with Go 1.26.2 and Node.js 18
 - Installs dependencies and builds assets
 - Runs the full test suite with `go test ./...`
 
@@ -493,7 +493,7 @@ Then access profiling data at `http://localhost:8080/debug/pprof/`
 
 ### Build Issues
 
-- Ensure you're using Go 1.24.4+
+- Ensure you're using Go 1.26.2+
 - Run `go mod tidy` to clean dependencies
 - Check that all dependencies are properly installed
 
