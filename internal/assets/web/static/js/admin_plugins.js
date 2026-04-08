@@ -365,25 +365,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     pluginsList.innerHTML = state.installedPlugins
-      .map(
-        plugin => {
-          const hasUpdate = state.updates.find(u => u.plugin_id === plugin.id);
-          const updateInfo = hasUpdate
-            ? `<span class="update-available">Update available: v${escapeHtml(hasUpdate.available_version)}</span>`
-            : '';
+      .map(plugin => {
+        const hasUpdate = state.updates.find(u => u.plugin_id === plugin.id);
+        const updateInfo = hasUpdate
+          ? `<span class="update-available">Update available: v${escapeHtml(hasUpdate.available_version)}</span>`
+          : '';
 
-          return `
+        return `
         <div class="plugin-card ${plugin.error ? 'plugin-error' : ''}">
           <div class="plugin-header">
             <div>
               <h3>${escapeHtml(plugin.name || plugin.id)}</h3>
               ${plugin.version ? `<span class="plugin-version">v${escapeHtml(plugin.version)}</span>` : ''}
             </div>
-            ${plugin.loaded
-              ? '<span class="status-badge status-active">Loaded</span>'
-              : plugin.error
-                ? '<span class="status-badge status-error">Failed</span>'
-                : '<span class="status-badge status-pending">Ready</span>'}
+            ${
+              plugin.loaded
+                ? '<span class="status-badge status-active">Loaded</span>'
+                : plugin.error
+                  ? '<span class="status-badge status-error">Failed</span>'
+                  : '<span class="status-badge status-pending">Ready</span>'
+            }
           </div>
           ${plugin.description ? `<p class="plugin-description">${escapeHtml(plugin.description)}</p>` : ''}
           <div class="plugin-meta">
@@ -394,23 +395,34 @@ document.addEventListener('DOMContentLoaded', async () => {
           ${updateInfo ? `<div class="plugin-update-info">${updateInfo}</div>` : ''}
           ${plugin.error ? `<div class="plugin-error-msg"><i class="ph-bold ph-warning"></i> ${escapeHtml(plugin.error)}</div>` : ''}
           <div class="plugin-actions">
-            ${hasUpdate ? `<button class="btn btn-primary update-plugin-btn" data-plugin-id="${plugin.id}" data-repo-id="${hasUpdate.repository_id}">
+            ${
+              hasUpdate
+                ? `<button class="btn btn-primary update-plugin-btn" data-plugin-id="${plugin.id}" data-repo-id="${hasUpdate.repository_id}">
               <i class="ph-bold ph-arrow-clockwise"></i>
               Update
-            </button>` : ''}
-            ${plugin.loaded ? `<button class="btn btn-secondary reload-plugin-btn" data-plugin-id="${plugin.id}">
+            </button>`
+                : ''
+            }
+            ${
+              plugin.loaded
+                ? `<button class="btn btn-secondary reload-plugin-btn" data-plugin-id="${plugin.id}">
               <i class="ph-bold ph-arrow-clockwise"></i>
               Reload
-            </button>` : ''}
-            ${plugin.loaded ? `<button class="btn btn-danger unload-plugin-btn" data-plugin-id="${plugin.id}">
+            </button>`
+                : ''
+            }
+            ${
+              plugin.loaded
+                ? `<button class="btn btn-danger unload-plugin-btn" data-plugin-id="${plugin.id}">
               <i class="ph-bold ph-x"></i>
               Unload
-            </button>` : ''}
+            </button>`
+                : ''
+            }
           </div>
         </div>
       `;
-        }
-      )
+      })
       .join('');
 
     // Attach event listeners
@@ -470,10 +482,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             <i class="ph-bold ph-magnifying-glass"></i>
             Browse Plugins
           </button>
-          ${isDefault ? '' : `<button class="btn btn-danger delete-repo-btn" data-repo-id="${repo.id}">
+          ${
+            isDefault
+              ? ''
+              : `<button class="btn btn-danger delete-repo-btn" data-repo-id="${repo.id}">
             <i class="ph-bold ph-trash"></i>
             Delete
-          </button>`}
+          </button>`
+          }
         </div>
       </div>
     `;
@@ -527,7 +543,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const repo = state.repositories.find(r => r.id == repositoryId);
     if (!repo) return;
 
-    pluginsGrid.innerHTML = '<div class="loading-state"><i class="ph-bold ph-spinner ph-spin"></i> Loading plugins...</div>';
+    pluginsGrid.innerHTML =
+      '<div class="loading-state"><i class="ph-bold ph-spinner ph-spin"></i> Loading plugins...</div>';
 
     const plugins = await fetchAvailablePlugins(repositoryId);
     state.availablePlugins[repositoryId] = plugins;
@@ -547,7 +564,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       .map(plugin => {
         const installed = state.installedPlugins.find(p => p.id === plugin.id);
         const hasUpdate = state.updates.find(u => u.plugin_id === plugin.id);
-        const canUpdate = installed && (hasUpdate || (installed.version && installed.version !== plugin.version));
+        const canUpdate =
+          installed && (hasUpdate || (installed.version && installed.version !== plugin.version));
 
         return `
       <div class="plugin-card">

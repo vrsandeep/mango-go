@@ -495,4 +495,3 @@ document.addEventListener('DOMContentLoaded', async () => {
   await fetchInstalledPlugins();
   await checkForUpdates(); // Check for updates on page load
 });
-

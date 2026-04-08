@@ -12,7 +12,10 @@ IMAGE_OUT = internal/assets/web/dist/images
 BINARY_NAME=mango-go
 BUILD_DIR=./build
 
-.PHONY: all assets clean build run download-go-deps format format-check install-prettier
+# Source trees passed to Prettier (.prettierignore excludes ext/, dist/, etc.)
+PRETTIER_DIRS = internal/assets/web/static/css internal/assets/web/static/js
+
+.PHONY: all assets clean build run download-go-deps prettify format format-check
 
 all: build
 
@@ -52,19 +55,19 @@ clean:
 	@rm -rf ./$(BUILD_DIR)
 	@echo "✅ Cleanup complete."
 
-# Install Prettier dependencies
-install-prettier:
-	@echo "📦 Installing Prettier..."
-	@npm install
-	@echo "✅ Prettier installed successfully."
+# Format Go, then prettify static CSS/JS (Prettier: .prettierrc / .prettierignore)
+prettify:
+	@echo "🎨 Formatting Go..."
+	@go fmt ./...
+	@echo "🎨 Prettifying CSS and JS..."
+	@npx --yes prettier --write $(PRETTIER_DIRS)
+	@echo "✅ Prettify complete."
 
-# Format CSS and JS files with Prettier
-format: install-prettier
-	@echo "🎨 Formatting CSS and JS files..."
-	@npm run format
-	@echo "✅ Files formatted successfully."
+format: prettify
 
-# Check if files are formatted correctly
-format-check: install-prettier
-	@echo "🔍 Checking file formatting..."
-	@npm run format:check
+format-check:
+	@echo "🔍 Checking Go formatting..."
+	@test -z "$$(gofmt -l .)" || (echo "Go files need formatting; run make prettify" >&2 && gofmt -l . >&2 && exit 1)
+	@echo "🔍 Checking CSS/JS formatting..."
+	@npx --yes prettier --check $(PRETTIER_DIRS)
+	@echo "✅ Format check passed."

@@ -826,7 +826,6 @@ body.light-theme .anilist-button:hover {
     font-size: 0.9rem;
   }
 
-
   .header-thumb {
     width: 80px;
     height: 112px;
@@ -849,7 +848,6 @@ body.light-theme .anilist-button:hover {
   .sort-controls select {
     width: 100%;
   }
-
 
   /* Smaller mobile modal positioning */
   .modal-overlay {
