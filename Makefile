@@ -2,6 +2,7 @@ CSS_FILES = $(wildcard internal/assets/web/static/css/*.css)
 CSS_EXT_FILES = $(wildcard internal/assets/web/static/css/ext/*.css)
 JS_FILES = $(wildcard internal/assets/web/static/js/*.js)
 IMAGE_FILES = $(wildcard internal/assets/web/static/images/*)
+PRETTIER_DIRS = internal/assets/web/static/css internal/assets/web/static/js
 
 # Output directories for the minified bundles.
 CSS_OUT = internal/assets/web/dist/css
@@ -11,9 +12,6 @@ IMAGE_OUT = internal/assets/web/dist/images
 
 BINARY_NAME=mango-go
 BUILD_DIR=./build
-
-# Source trees passed to Prettier (.prettierignore excludes ext/, dist/, etc.)
-PRETTIER_DIRS = internal/assets/web/static/css internal/assets/web/static/js
 
 .PHONY: all assets clean build run download-go-deps prettify format format-check
 
