@@ -1,4 +1,4 @@
-// This file handles database operations for bad/corrupted archive files.
+// This file handles database operations for bad or unreadable chapter files.
 
 package store
 

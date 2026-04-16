@@ -36,7 +36,7 @@ func (h archiveHandler) Inspect(ctx context.Context, filePath string) ([]*models
 	case "rar":
 		return h.parseCBR(ctx, filePath)
 	default:
-		return nil, nil, fmt.Errorf("unsupported archive %s: %s", filePath, filepath.Ext(filePath))
+		return nil, nil, fmt.Errorf("unsupported chapter file %s: %s", filePath, filepath.Ext(filePath))
 	}
 }
 
@@ -47,7 +47,7 @@ func (h archiveHandler) Page(ctx context.Context, filePath string, pageIndex int
 	case "rar":
 		return h.getPageFromCBR(ctx, filePath, pageIndex)
 	default:
-		return nil, "", fmt.Errorf("unsupported archive type: %s", filepath.Ext(filePath))
+		return nil, "", fmt.Errorf("unsupported chapter file type: %s", filepath.Ext(filePath))
 	}
 }
 
@@ -157,7 +157,7 @@ func (archiveHandler) parseCBZ(filePath string) ([]*models.Page, []byte, error) 
 
 	imageFiles := findImageFilesInZip(r)
 	if len(imageFiles) == 0 {
-		return []*models.Page{}, nil, fmt.Errorf("no image files found in archive")
+		return []*models.Page{}, nil, fmt.Errorf("no image files found in chapter file")
 	}
 
 	// Extract filenames for page creation
@@ -205,7 +205,7 @@ func (archiveHandler) parseCBR(ctx context.Context, path string) ([]*models.Page
 	}
 
 	if len(imageFiles) == 0 {
-		return nil, nil, fmt.Errorf("no image files found in archive %s", path)
+		return nil, nil, fmt.Errorf("no image files found in chapter file %s", path)
 	}
 
 	// Sort image files lexically
@@ -233,7 +233,7 @@ func (archiveHandler) getPageFromCBZ(filePath string, pageIndex int) ([]byte, st
 
 	imageFiles := findImageFilesInZip(r)
 	if len(imageFiles) == 0 {
-		return nil, "", fmt.Errorf("no image files found in archive")
+		return nil, "", fmt.Errorf("no image files found in chapter file")
 	}
 
 	// Sort files alphabetically to ensure correct order
@@ -276,7 +276,7 @@ func (archiveHandler) getPageFromCBR(ctx context.Context, filePath string, pageI
 	}
 
 	if len(imageFiles) == 0 {
-		return nil, "", fmt.Errorf("no image files found in archive")
+		return nil, "", fmt.Errorf("no image files found in chapter file")
 	}
 
 	// Sort files alphabetically to ensure correct order

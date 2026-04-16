@@ -26,7 +26,7 @@ func TestBadFileDetector(t *testing.T) {
 		goodFile := filepath.Join(testDir, "good.cbz")
 		testutil.CreateTestCBZ(t, testDir, "good.cbz", []string{"p1.jpg"})
 
-		// Create a bad file (invalid archive)
+		// Create a bad file (invalid CBZ / not a zip)
 		badFile := filepath.Join(testDir, "bad.cbz")
 		err := os.WriteFile(badFile, []byte("This is not a valid CBZ file"), 0644)
 		if err != nil {
@@ -61,14 +61,14 @@ func TestBadFileDetector(t *testing.T) {
 		for _, bf := range badFiles {
 			if bf.Path == badFile {
 				foundBadFile = true
-				if bf.Error != string(models.ErrorCorruptedArchive) {
-					t.Errorf("Bad file should have error %s, got %s", models.ErrorCorruptedArchive, bf.Error)
+				if bf.Error != string(models.ErrorCorruptedChapterFile) {
+					t.Errorf("Bad file should have error %s, got %s", models.ErrorCorruptedChapterFile, bf.Error)
 				}
 			}
 			if bf.Path == corruptedFile {
 				foundCorruptedFile = true
-				if bf.Error != string(models.ErrorCorruptedArchive) {
-					t.Errorf("Corrupted file should have error %s, got %s", models.ErrorCorruptedArchive, bf.Error)
+				if bf.Error != string(models.ErrorCorruptedChapterFile) {
+					t.Errorf("Corrupted file should have error %s, got %s", models.ErrorCorruptedChapterFile, bf.Error)
 				}
 			}
 		}
@@ -180,7 +180,7 @@ func TestErrorCategorization(t *testing.T) {
 	app := testutil.SetupTestApp(t)
 	libraryRoot := app.Config().Library.Path
 
-	t.Run("Test categorizeError_CorruptedArchive", func(t *testing.T) {
+	t.Run("Test categorizeError_CorruptedChapterFile", func(t *testing.T) {
 		// Test ZIP corruption error
 		testDir := filepath.Join(libraryRoot, "Error Categorization Test", "Corrupted")
 		os.MkdirAll(testDir, 0755)
@@ -195,7 +195,7 @@ func TestErrorCategorization(t *testing.T) {
 		// Run detection
 		library.DetectBadFiles(app)
 
-		// Check that the file was categorized as corrupted archive
+		// Check that the file was categorized as corrupted chapter file
 		badFileStore := store.NewBadFileStore(app.DB())
 		badFiles, err := badFileStore.GetAllBadFiles()
 		if err != nil {
@@ -206,8 +206,8 @@ func TestErrorCategorization(t *testing.T) {
 		for _, bf := range badFiles {
 			if bf.Path == corruptedFile {
 				found = true
-				if bf.Error != string(models.ErrorCorruptedArchive) {
-					t.Errorf("Expected error %s, got %s", models.ErrorCorruptedArchive, bf.Error)
+				if bf.Error != string(models.ErrorCorruptedChapterFile) {
+					t.Errorf("Expected error %s, got %s", models.ErrorCorruptedChapterFile, bf.Error)
 				}
 				break
 			}
@@ -273,8 +273,8 @@ func TestErrorCategorization(t *testing.T) {
 		}
 	})
 
-	t.Run("Test categorizeError_EmptyArchive", func(t *testing.T) {
-		// Test empty archive error
+	t.Run("Test categorizeError_EmptyChapterFile", func(t *testing.T) {
+		// Test empty chapter file / no readable pages
 		testDir := filepath.Join(libraryRoot, "Error Categorization Test", "Empty")
 		os.MkdirAll(testDir, 0755)
 
@@ -298,7 +298,7 @@ func TestErrorCategorization(t *testing.T) {
 		// Run detection
 		library.DetectBadFiles(app)
 
-		// Check that the file was categorized as empty archive
+		// Check that the file was categorized as empty / no pages
 		badFileStore := store.NewBadFileStore(app.DB())
 		badFiles, err := badFileStore.GetAllBadFiles()
 		if err != nil {
@@ -309,14 +309,14 @@ func TestErrorCategorization(t *testing.T) {
 		for _, bf := range badFiles {
 			if bf.Path == emptyFile {
 				found = true
-				if bf.Error != string(models.ErrorEmptyArchive) {
-					t.Errorf("Expected error %s, got %s", models.ErrorEmptyArchive, bf.Error)
+				if bf.Error != string(models.ErrorEmptyChapterFile) {
+					t.Errorf("Expected error %s, got %s", models.ErrorEmptyChapterFile, bf.Error)
 				}
 				break
 			}
 		}
 		if !found {
-			t.Error("Empty archive file was not detected")
+			t.Error("Empty chapter file was not detected")
 		}
 	})
 
@@ -450,9 +450,9 @@ func TestErrorCategorization(t *testing.T) {
 				found = true
 				// Should be categorized as invalid format (default for unknown errors)
 				if bf.Error != string(models.ErrorInvalidFormat) &&
-					bf.Error != string(models.ErrorCorruptedArchive) {
+					bf.Error != string(models.ErrorCorruptedChapterFile) {
 					t.Errorf("Expected error %s or %s, got %s",
-						models.ErrorInvalidFormat, models.ErrorCorruptedArchive, bf.Error)
+						models.ErrorInvalidFormat, models.ErrorCorruptedChapterFile, bf.Error)
 				}
 				break
 			}
@@ -469,9 +469,9 @@ func TestErrorCategorization(t *testing.T) {
 
 		// Create files that should trigger different error types
 		testFiles := map[string]string{
-			"corrupted.zip":    string(models.ErrorCorruptedArchive),
+			"corrupted.zip":    string(models.ErrorCorruptedChapterFile),
 			"unsupported.cbz":  string(models.ErrorUnsupportedFormat),
-			"empty.zip":        string(models.ErrorEmptyArchive),
+			"empty.zip":        string(models.ErrorEmptyChapterFile),
 			"inaccessible.cbz": string(models.ErrorIOError),
 		}
 
@@ -480,7 +480,7 @@ func TestErrorCategorization(t *testing.T) {
 			filePath := filepath.Join(testDir, filename)
 
 			switch expectedError {
-			case string(models.ErrorCorruptedArchive):
+			case string(models.ErrorCorruptedChapterFile):
 				// Corrupted ZIP
 				err := os.WriteFile(filePath, []byte("PK\x03\x04"), 0644)
 				if err != nil {
@@ -492,7 +492,7 @@ func TestErrorCategorization(t *testing.T) {
 				if err != nil {
 					t.Fatalf("Failed to create %s: %v", filename, err)
 				}
-			case string(models.ErrorEmptyArchive):
+			case string(models.ErrorEmptyChapterFile):
 				// Empty ZIP
 				emptyZipData := []byte{
 					0x50, 0x4B, 0x05, 0x06, 0x00, 0x00, 0x00, 0x00,

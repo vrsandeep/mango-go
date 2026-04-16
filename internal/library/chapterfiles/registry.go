@@ -55,7 +55,7 @@ func (r *Registry) IsSupportedChapterFile(baseName string) bool {
 func (r *Registry) InspectChapterFile(ctx context.Context, path string) ([]*models.Page, []byte, error) {
 	h := r.handlerForPath(path)
 	if h == nil {
-		return nil, nil, fmt.Errorf("unsupported archive %s: %s", path, filepath.Ext(path))
+		return nil, nil, fmt.Errorf("unsupported chapter file %s: %s", path, filepath.Ext(path))
 	}
 	return h.Inspect(ctx, path)
 }
@@ -64,7 +64,7 @@ func (r *Registry) InspectChapterFile(ctx context.Context, path string) ([]*mode
 func (r *Registry) GetChapterPage(ctx context.Context, path string, pageIndex int) ([]byte, string, error) {
 	h := r.handlerForPath(path)
 	if h == nil {
-		return nil, "", fmt.Errorf("unsupported archive type: %s", filepath.Ext(path))
+		return nil, "", fmt.Errorf("unsupported chapter file type: %s", filepath.Ext(path))
 	}
 	return h.Page(ctx, path, pageIndex)
 }

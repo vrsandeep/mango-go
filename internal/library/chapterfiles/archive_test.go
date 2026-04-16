@@ -1,4 +1,4 @@
-// Tests for archive chapter handler (CBZ/CBR/zip/rar/7z).
+// Tests for the archive chapter-file handler (CBZ, CBR, zip, rar, 7z).
 
 package chapterfiles_test
 
@@ -89,11 +89,11 @@ func createTestCBZWithContent(t *testing.T, dir, filename string, files []struct
 	return file.Name()
 }
 
-// Test that archive type detection works correctly through ParseArchive
+// TestSupportedExtensions verifies InspectChapterFile for supported vs unsupported basenames.
 func TestArchiveTypeDetection(t *testing.T) {
 	tempDir := t.TempDir()
 
-	// Create test files for different archive types
+	// Supported extensions use real zip payloads where needed; others are skipped (hard to synthesize).
 	testCases := []struct {
 		name          string
 		filename      string
