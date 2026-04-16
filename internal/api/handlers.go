@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/vrsandeep/mango-go/internal/library"
+	"github.com/vrsandeep/mango-go/internal/library/chapterfiles"
 )
 
 // getListParams extracts all query params for list endpoints.
@@ -28,7 +28,7 @@ func getListParams(r *http.Request) (page, perPage int, search, sortBy, sortDir 
 	return
 }
 
-// handleGetPage finds a specific page within an archive and serves it as an image.
+// handleGetPage finds a specific page within a chapter file and serves it as an image.
 func (s *Server) handleGetPage(w http.ResponseWriter, r *http.Request) {
 	chapterIDStr := chi.URLParam(r, "chapterID")
 	chapterID, err := strconv.ParseInt(chapterIDStr, 10, 64)
@@ -59,21 +59,18 @@ func (s *Server) handleGetPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// --- Image Extraction Logic ---
-	// Check if the archive type is supported
-	if !library.IsSupportedArchive(chapter.Path) {
-		RespondWithError(w, http.StatusUnsupportedMediaType, "Unsupported archive type")
+	if !chapterfiles.IsSupportedChapterFile(filepath.Base(chapter.Path)) {
+		RespondWithError(w, http.StatusUnsupportedMediaType, "Unsupported chapter file type")
 		return
 	}
 
-	// Extract the specific page from the archive
-	pageData, fileName, err := library.GetPageFromArchive(chapter.Path, pageIndex)
+	pageData, fileName, err := chapterfiles.GetChapterPage(r.Context(), chapter.Path, pageIndex)
 	if err != nil {
-		log.Printf("Error extracting page %d from archive %s: %v", pageIndex, chapter.Path, err)
+		log.Printf("Error extracting page %d from chapter file %s: %v", pageIndex, chapter.Path, err)
 		if strings.Contains(err.Error(), "out of bounds") {
-			RespondWithError(w, http.StatusNotFound, "Page not found in archive")
+			RespondWithError(w, http.StatusNotFound, "Page not found")
 		} else {
-			RespondWithError(w, http.StatusInternalServerError, "Could not read page from archive")
+			RespondWithError(w, http.StatusInternalServerError, "Could not read page")
 		}
 		return
 	}

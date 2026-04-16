@@ -1,10 +1,10 @@
-// This file defines the data structure for tracking bad/corrupted archive files.
+// Bad-file records for chapter files that fail library inspection.
 
 package models
 
 import "time"
 
-// BadFile represents a corrupted or invalid archive file in the library.
+// BadFile represents a corrupted or invalid chapter file on disk.
 type BadFile struct {
 	ID          int64     `json:"id"`
 	Path        string    `json:"path"`
@@ -19,30 +19,39 @@ type BadFile struct {
 type BadFileError string
 
 const (
-	ErrorCorruptedArchive  BadFileError = "corrupted_archive"
+	// ErrorCorruptedChapterFile means the file could not be parsed (e.g. invalid zip).
+	ErrorCorruptedChapterFile BadFileError = "corrupted_archive"
+	// ErrorCorruptedArchive is an alias for ErrorCorruptedChapterFile (same stored value).
+	ErrorCorruptedArchive = ErrorCorruptedChapterFile
+
 	ErrorInvalidFormat     BadFileError = "invalid_format"
 	ErrorPasswordProtected BadFileError = "password_protected"
-	ErrorEmptyArchive      BadFileError = "empty_archive"
+
+	// ErrorEmptyChapterFile means there were no readable pages (e.g. no images in archive).
+	ErrorEmptyChapterFile BadFileError = "empty_archive"
+	// ErrorEmptyArchive is an alias for ErrorEmptyChapterFile (same stored value).
+	ErrorEmptyArchive = ErrorEmptyChapterFile
+
 	ErrorUnsupportedFormat BadFileError = "unsupported_format"
 	ErrorIOError           BadFileError = "io_error"
 )
 
-// String returns the human-readable error description
+// String returns a short human-readable label for admin UI and exports.
 func (e BadFileError) String() string {
 	switch e {
-	case ErrorCorruptedArchive:
-		return "Corrupted Archive"
+	case ErrorCorruptedChapterFile:
+		return "Corrupt file"
 	case ErrorInvalidFormat:
-		return "Invalid Format"
+		return "Invalid format"
 	case ErrorPasswordProtected:
-		return "Password Protected"
-	case ErrorEmptyArchive:
-		return "Empty Archive"
+		return "Password protected"
+	case ErrorEmptyChapterFile:
+		return "No readable pages"
 	case ErrorUnsupportedFormat:
-		return "Unsupported Format"
+		return "Unsupported format"
 	case ErrorIOError:
-		return "I/O Error"
+		return "I/O error"
 	default:
-		return "Unknown Error"
+		return "Unknown error"
 	}
 }

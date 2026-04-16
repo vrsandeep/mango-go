@@ -47,7 +47,7 @@ func (s *Server) handleGetAdminJobsStatus(w http.ResponseWriter, r *http.Request
 	RespondWithJSON(w, http.StatusOK, statuses)
 }
 
-// handleGetBadFiles retrieves all bad files from the database
+// handleGetBadFiles retrieves all bad chapter-file records from the database.
 func (s *Server) handleGetBadFiles(w http.ResponseWriter, r *http.Request) {
 	badFileStore := store.NewBadFileStore(s.app.DB())
 

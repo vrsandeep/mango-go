@@ -1,10 +1,11 @@
 // This file contains the main logic for scanning the library directory.
-// It walks the directory tree, identifies manga archives, and uses other
-// helper modules to parse them and extract metadata.
+// It walks the directory tree, finds supported chapter files, and uses
+// chapterfiles handlers to parse them and extract metadata.
 
 package library
 
 import (
+	"context"
 	"crypto/sha1"
 	"database/sql"
 	"encoding/hex"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/vrsandeep/mango-go/internal/config"
 	"github.com/vrsandeep/mango-go/internal/jobs"
+	"github.com/vrsandeep/mango-go/internal/library/chapterfiles"
 	"github.com/vrsandeep/mango-go/internal/models"
 	"github.com/vrsandeep/mango-go/internal/store"
 )
@@ -242,7 +244,7 @@ func syncChapters(st *store.Store, diskItems map[string]diskItem, dbChapters map
 	parsedCount := 0
 
 	for path, item := range diskItems {
-		if item.isDir || !IsSupportedArchive(filepath.Base(path)) {
+		if item.isDir || !chapterfiles.IsSupportedChapterFile(filepath.Base(path)) {
 			continue
 		}
 
@@ -272,15 +274,14 @@ func syncChapters(st *store.Store, diskItems map[string]diskItem, dbChapters map
 
 		// File is new or changed - parse it
 		parsedCount++
-		pages, firstPageData, err := ParseArchive(path)
+		pages, firstPageData, err := chapterfiles.InspectChapterFile(context.Background(), path)
 		if err != nil {
-			// Skip corrupted chapters - don't save them to the database
-			log.Printf("Skipping corrupted archive %s: %v", path, err)
+			log.Printf("Skipping unreadable chapter file %s: %v", path, err)
 			parsingErrors[path] = err
 			continue
 		}
 
-		// Only proceed with valid archives
+		// Only proceed with successfully inspected chapter files
 		hash := generateContentHash(firstPageData, filepath.Base(path))
 
 		if existingChapter, ok := dbChapters[hash]; ok {
@@ -344,7 +345,7 @@ func prune(st *store.Store, diskItems map[string]diskItem, dbFolders map[string]
 			log.Printf("Pruning deleted folder: %s", path)
 			st.DeleteFolder(folder.ID)
 		} else if diskItems[path].isDir {
-			// Check if the folder still contains manga archives
+			// Check if the folder still contains any supported chapter files
 			if !hasMangaArchives(path) {
 				log.Printf("Pruning empty folder: %s", path)
 				st.DeleteFolder(folder.ID)
@@ -360,7 +361,7 @@ func generateContentHash(data []byte, filename string) string {
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
-// hasMangaArchives checks if a directory contains any manga archive files
+// hasMangaArchives reports whether dirPath contains any supported chapter files.
 func hasMangaArchives(dirPath string) bool {
 	hasArchives := false
 	filepath.WalkDir(dirPath, func(path string, d fs.DirEntry, err error) error {
@@ -371,10 +372,10 @@ func hasMangaArchives(dirPath string) bool {
 		if path == dirPath {
 			return nil
 		}
-		// If we find a manga archive, mark this directory as non-empty
-		if !d.IsDir() && IsSupportedArchive(d.Name()) {
+		// If we find a manga chapter file, mark this directory as non-empty
+		if !d.IsDir() && chapterfiles.IsSupportedChapterFile(d.Name()) {
 			hasArchives = true
-			return filepath.SkipAll // Stop walking once we find an archive
+			return filepath.SkipAll // Stop walking once we find a supported chapter file
 		}
 		return nil
 	})
@@ -384,7 +385,7 @@ func hasMangaArchives(dirPath string) bool {
 // checkBadFilesDuringSync checks for bad files during library sync
 func checkBadFilesDuringSync(badFileStore *store.BadFileStore, diskItems map[string]diskItem, parsingErrors map[string]error) {
 	for path, item := range diskItems {
-		if item.isDir || !IsSupportedArchive(filepath.Base(path)) {
+		if item.isDir || !chapterfiles.IsSupportedChapterFile(filepath.Base(path)) {
 			continue
 		}
 

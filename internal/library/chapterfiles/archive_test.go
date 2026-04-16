@@ -1,21 +1,20 @@
-// This file tests the archive parsing logic for CBZ and CBR files.
-// It includes a helper function to create a temporary test CBZ file.
+// Tests for the archive chapter-file handler (CBZ, CBR, zip, rar, 7z).
 
-package library_test
+package chapterfiles_test
 
 import (
 	"archive/zip"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/vrsandeep/mango-go/internal/library"
+	"github.com/vrsandeep/mango-go/internal/library/chapterfiles"
 )
 
-// createTestCBZ is a helper function that creates a temporary CBZ file
-// for testing purposes. It returns the path to the created file.
+// createTestCBZ creates a temporary CBZ file for testing. It returns the path to the created file.
 func createTestCBZ(t *testing.T, dir string) string {
 	t.Helper()
 
@@ -90,11 +89,11 @@ func createTestCBZWithContent(t *testing.T, dir, filename string, files []struct
 	return file.Name()
 }
 
-// Test that archive type detection works correctly through ParseArchive
+// TestSupportedExtensions verifies InspectChapterFile for supported vs unsupported basenames.
 func TestArchiveTypeDetection(t *testing.T) {
 	tempDir := t.TempDir()
 
-	// Create test files for different archive types
+	// Supported extensions use real zip payloads where needed; others are skipped (hard to synthesize).
 	testCases := []struct {
 		name          string
 		filename      string
@@ -110,6 +109,7 @@ func TestArchiveTypeDetection(t *testing.T) {
 		{"No extension", "filename", false},
 	}
 
+	ctx := context.Background()
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.shouldSucceed {
@@ -130,12 +130,11 @@ func TestArchiveTypeDetection(t *testing.T) {
 						t.Fatalf("Failed to create zip entry: %v", err)
 					}
 					writer.Write([]byte("fake image data"))
-
 					zipWriter.Close()
 
-					_, _, err = library.ParseArchive(file.Name())
+					_, _, err = chapterfiles.InspectChapterFile(ctx, file.Name())
 					if err != nil {
-						t.Errorf("Expected ParseArchive to succeed for %s, got error: %v", tc.filename, err)
+						t.Errorf("Expected InspectChapterFile to succeed for %s, got error: %v", tc.filename, err)
 					}
 				} else {
 					// For other archive types, just test that they're recognized as supported
@@ -143,31 +142,31 @@ func TestArchiveTypeDetection(t *testing.T) {
 					t.Skipf("Skipping test for %s - cannot easily create test file", tc.filename)
 				}
 			} else {
-				// For unsupported types, create a simple text file
+				// For unsupported types, create a file with content and test that it's recognized as unsupported
 				unsupportedPath := filepath.Join(tempDir, tc.filename)
 				if err := os.WriteFile(unsupportedPath, []byte("content"), 0644); err != nil {
 					t.Fatalf("Failed to create unsupported file: %v", err)
 				}
 
-				_, _, err := library.ParseArchive(unsupportedPath)
+				_, _, err := chapterfiles.InspectChapterFile(ctx, unsupportedPath)
 				if err == nil {
-					t.Errorf("Expected ParseArchive to fail for %s, but got no error", tc.filename)
+					t.Errorf("Expected InspectChapterFile to fail for %s, but got no error", tc.filename)
 				}
 			}
 		})
 	}
 }
 
-func TestParseArchive(t *testing.T) {
-	// Create a temporary directory for our test files
+func TestInspectChapterFile_CBZ(t *testing.T) {
 	tempDir := t.TempDir()
+	ctx := context.Background()
 
 	t.Run("Parse Valid CBZ", func(t *testing.T) {
 		cbzPath := createTestCBZ(t, tempDir)
 
-		pages, firstPageData, err := library.ParseArchive(cbzPath)
+		pages, firstPageData, err := chapterfiles.InspectChapterFile(ctx, cbzPath)
 		if err != nil {
-			t.Fatalf("ParseArchive failed for CBZ: %v", err)
+			t.Fatalf("InspectChapterFile failed for CBZ: %v", err)
 		}
 
 		// Check page count - should only include images
@@ -180,7 +179,6 @@ func TestParseArchive(t *testing.T) {
 			t.Errorf("Pages are not sorted correctly: got %s, %s, %s", pages[0].FileName, pages[1].FileName, pages[2].FileName)
 		}
 
-		// Check indices
 		if pages[0].Index != 0 || pages[1].Index != 1 || pages[2].Index != 2 {
 			t.Errorf("Page indices are not set correctly")
 		}
@@ -190,27 +188,27 @@ func TestParseArchive(t *testing.T) {
 		}
 	})
 
-	t.Run("Unsupported Archive Type", func(t *testing.T) {
+	t.Run("Unsupported type", func(t *testing.T) {
 		unsupportedPath := filepath.Join(tempDir, "test.txt")
 		os.WriteFile(unsupportedPath, []byte("hello"), 0644)
 
-		_, _, err := library.ParseArchive(unsupportedPath)
+		_, _, err := chapterfiles.InspectChapterFile(ctx, unsupportedPath)
 		if err == nil {
-			t.Error("Expected an error for unsupported archive type, but got nil")
+			t.Error("Expected an error for unsupported type, but got nil")
 		}
 	})
 }
 
-func TestParseCBR(t *testing.T) {
-	// The file contains three images and one directory.
+func TestInspectChapterFile_CBR(t *testing.T) {
 	originalWD, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("Failed to get current working directory: %v", err)
 	}
-	// Change to project root (which is two levels up from internal/api)
-	if err := os.Chdir("../"); err != nil {
-		t.Fatalf("Failed to change directory to project root: %v", err)
+	// From internal/library/chapterfiles, go up to internal/
+	if err := os.Chdir("../.."); err != nil {
+		t.Fatalf("Failed to change directory: %v", err)
 	}
+
 	// Ensure we change back to the original directory after the test
 	defer os.Chdir(originalWD)
 
@@ -219,25 +217,27 @@ func TestParseCBR(t *testing.T) {
 		t.Fatalf("Failed to get asset directory: %v", err)
 	}
 	cbrPath := filepath.Join(assetDir, "testutil", "asset", "test.cbr")
-	// print cbrPath for debugging
+	if _, err := os.Stat(cbrPath); err != nil {
+		t.Skipf("CBR fixture not present (%s): %v", cbrPath, err)
+	}
 	t.Logf("Testing CBR parsing with file: %s", cbrPath)
 
-	pages, firstPageData, err := library.ParseArchive(cbrPath)
+	pages, firstPageData, err := chapterfiles.InspectChapterFile(context.Background(), cbrPath)
 	if err != nil {
-		t.Fatalf("ParseArchive failed for CBR: %v", err)
+		t.Fatalf("InspectChapterFile failed for CBR: %v", err)
 	}
 	if len(pages) != 4 {
-		t.Errorf("Expected 4 pages for unimplemented CBR, got %d", len(pages))
+		t.Errorf("Expected 4 pages for CBR, got %d", len(pages))
 	}
 	if firstPageData == nil {
 		t.Error("Expected first page data to be not nil")
 	}
 }
 
-func TestGetPageFromArchive(t *testing.T) {
+func TestGetChapterPage_CBZ(t *testing.T) {
 	tempDir := t.TempDir()
+	ctx := context.Background()
 
-	// Create a test CBZ with multiple pages
 	files := []struct {
 		Name    string
 		Content string
@@ -246,15 +246,13 @@ func TestGetPageFromArchive(t *testing.T) {
 		{"02.png", "page 2 content"},
 		{"03.jpeg", "page 3 content"},
 	}
-	defer os.RemoveAll(tempDir)
 
 	cbzPath := createTestCBZWithContent(t, tempDir, "test.cbz", files)
 
 	t.Run("Valid page index", func(t *testing.T) {
-		// Test getting first page (index 0)
-		data, filename, err := library.GetPageFromArchive(cbzPath, 0)
+		data, filename, err := chapterfiles.GetChapterPage(ctx, cbzPath, 0)
 		if err != nil {
-			t.Fatalf("GetPageFromArchive failed: %v", err)
+			t.Fatalf("GetChapterPage failed: %v", err)
 		}
 
 		if filename != "01.jpg" {
@@ -266,9 +264,9 @@ func TestGetPageFromArchive(t *testing.T) {
 		}
 
 		// Test getting second page (index 1)
-		data, filename, err = library.GetPageFromArchive(cbzPath, 1)
+		data, filename, err = chapterfiles.GetChapterPage(ctx, cbzPath, 1)
 		if err != nil {
-			t.Fatalf("GetPageFromArchive failed for page 1: %v", err)
+			t.Fatalf("GetChapterPage failed for page 1: %v", err)
 		}
 
 		if filename != "02.png" {
@@ -281,82 +279,74 @@ func TestGetPageFromArchive(t *testing.T) {
 	})
 
 	t.Run("Invalid page index", func(t *testing.T) {
-		// Test negative index
-		_, _, err := library.GetPageFromArchive(cbzPath, -1)
+		_, _, err := chapterfiles.GetChapterPage(ctx, cbzPath, -1)
 		if err == nil {
 			t.Error("Expected error for negative page index, got nil")
 		}
 
-		// Test out of bounds index
-		_, _, err = library.GetPageFromArchive(cbzPath, 10)
+		// Test getting page index out of bounds (10)
+		_, _, err = chapterfiles.GetChapterPage(ctx, cbzPath, 10)
 		if err == nil {
 			t.Error("Expected error for out of bounds page index, got nil")
 		}
 	})
 
-	t.Run("Unsupported archive type", func(t *testing.T) {
-		// Create an unsupported file
+	t.Run("Unsupported type", func(t *testing.T) {
 		unsupportedPath := filepath.Join(tempDir, "test.txt")
 		if err := os.WriteFile(unsupportedPath, []byte("content"), 0644); err != nil {
 			t.Fatalf("Failed to create unsupported file: %v", err)
 		}
 
-		_, _, err := library.GetPageFromArchive(unsupportedPath, 0)
+		_, _, err := chapterfiles.GetChapterPage(ctx, unsupportedPath, 0)
 		if err == nil {
-			t.Error("Expected error for unsupported archive type, got nil")
+			t.Error("Expected error for unsupported type, got nil")
 		}
 	})
 }
 
-// Test that the refactored functions maintain the same behavior
-func TestWeirdFileOrdering(t *testing.T) {
+func TestPageSortingConsistency(t *testing.T) {
 	tempDir := t.TempDir()
+	ctx := context.Background()
 
-	t.Run("Page sorting and indexing consistency", func(t *testing.T) {
-		// Create a CBZ with unsorted filenames
-		files := []struct {
-			Name    string
-			Content string
-		}{
-			{"003.png", "page 2"},
-			{"02.jpg", "page 1"},
-			{"04.jpeg", "page 3"},
-			{"__1.jpg", "page 4"},
+	files := []struct {
+		Name    string
+		Content string
+	}{
+		{"003.png", "page 2"},
+		{"02.jpg", "page 1"},
+		{"04.jpeg", "page 3"},
+		{"__1.jpg", "page 4"},
+	}
+
+	cbzPath := createTestCBZWithContent(t, tempDir, "unsorted.cbz", files)
+
+	pages, _, err := chapterfiles.InspectChapterFile(ctx, cbzPath)
+	if err != nil {
+		t.Fatalf("InspectChapterFile failed: %v", err)
+	}
+
+	expectedOrder := []string{"02.jpg", "003.png", "04.jpeg", "__1.jpg"}
+	for i, page := range pages {
+		if page.FileName != expectedOrder[i] {
+			t.Errorf("Page[%d] filename = %s, want %s", i, page.FileName, expectedOrder[i])
 		}
+		if page.Index != i {
+			t.Errorf("Page[%d] index = %d, want %d", i, page.Index, i)
+		}
+	}
 
-		cbzPath := createTestCBZWithContent(t, tempDir, "unsorted.cbz", files)
-
-		// Parse the archive
-		pages, _, err := library.ParseArchive(cbzPath)
+	for i, expectedFilename := range expectedOrder {
+		data, filename, err := chapterfiles.GetChapterPage(ctx, cbzPath, i)
 		if err != nil {
-			t.Fatalf("ParseArchive failed: %v", err)
+			t.Fatalf("GetChapterPage failed for page %d: %v", i, err)
 		}
 
-		// Verify pages are sorted and indexed correctly
-		expectedOrder := []string{"02.jpg", "003.png", "04.jpeg", "__1.jpg"}
-		for i, page := range pages {
-			if page.FileName != expectedOrder[i] {
-				t.Errorf("Page[%d] filename = %s, want %s", i, page.FileName, expectedOrder[i])
-			}
-			if page.Index != i {
-				t.Errorf("Page[%d] index = %d, want %d", i, page.Index, i)
-			}
+		if filename != expectedFilename {
+			t.Errorf("GetChapterPage(%d) returned filename %s, want %s", i, filename, expectedFilename)
 		}
 
-		// Test that GetPageFromArchive returns pages in the same order
-		for i, expectedFilename := range expectedOrder {
-			data, filename, err := library.GetPageFromArchive(cbzPath, i)
-			if err != nil {
-				t.Fatalf("GetPageFromArchive failed for page %d: %v", i, err)
-			}
-
-			if filename != expectedFilename {
-				t.Errorf("GetPageFromArchive(%d) returned filename %s, want %s", i, filename, expectedFilename)
-			}
-
-			if string(data) != fmt.Sprintf("page %d", i+1) {
-				t.Errorf("GetPageFromArchive(%d) returned wrong content: %s", i, string(data))
-			}
+		if string(data) != fmt.Sprintf("page %d", i+1) {
+			t.Errorf("GetChapterPage(%d) returned wrong content: %s", i, string(data))
 		}
-	})
+	}
 }

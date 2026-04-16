@@ -1,7 +1,4 @@
-// This file is responsible for parsing archive files like .cbz (ZIP) and
-// .cbr (RAR) to get a list of the image files they contain.
-
-package library
+package chapterfiles
 
 import (
 	"archive/zip"
@@ -20,8 +17,58 @@ import (
 	"github.com/vrsandeep/mango-go/internal/util"
 )
 
-// IsImageFile checks if a filename has a common image file extension.
+type archiveHandler struct{}
+
+func (archiveHandler) SupportsBaseName(name string) bool {
+	ext := strings.ToLower(filepath.Ext(name))
+	switch ext {
+	case ".cbz", ".zip", ".cbr", ".rar", ".7z", ".cb7":
+		return true
+	default:
+		return false
+	}
+}
+
+func (h archiveHandler) Inspect(ctx context.Context, filePath string) ([]*models.Page, []byte, error) {
+	switch h.archiveType(filePath) {
+	case "zip":
+		return h.parseCBZ(filePath)
+	case "rar":
+		return h.parseCBR(ctx, filePath)
+	default:
+		return nil, nil, fmt.Errorf("unsupported chapter file %s: %s", filePath, filepath.Ext(filePath))
+	}
+}
+
+func (h archiveHandler) Page(ctx context.Context, filePath string, pageIndex int) ([]byte, string, error) {
+	switch h.archiveType(filePath) {
+	case "zip":
+		return h.getPageFromCBZ(filePath, pageIndex)
+	case "rar":
+		return h.getPageFromCBR(ctx, filePath, pageIndex)
+	default:
+		return nil, "", fmt.Errorf("unsupported chapter file type: %s", filepath.Ext(filePath))
+	}
+}
+
+func (archiveHandler) archiveType(filePath string) string {
+	ext := strings.ToLower(filepath.Ext(filePath))
+	switch ext {
+	case ".cbz", ".zip":
+		return "zip"
+	case ".cbr", ".rar", ".7z", ".cb7":
+		return "rar"
+	default:
+		return "unknown"
+	}
+}
+
+// IsImageFile reports whether the filename has a common raster image extension.
 func IsImageFile(name string) bool {
+	return hasImageExtension(name)
+}
+
+func hasImageExtension(name string) bool {
 	imageExts := map[string]bool{
 		".jpg":  true,
 		".jpeg": true,
@@ -35,34 +82,6 @@ func IsImageFile(name string) bool {
 	return imageExts[ext]
 }
 
-// IsSupportedArchive checks if a filename has a supported archive extension.
-func IsSupportedArchive(name string) bool {
-	archiveExts := map[string]bool{
-		".cbz": true,
-		".zip": true,
-		".cbr": true,
-		".rar": true,
-		".7z":  true,
-		".cb7": true,
-	}
-	ext := strings.ToLower(filepath.Ext(name))
-	return archiveExts[ext]
-}
-
-// getArchiveType returns the normalized archive type based on file extension
-func getArchiveType(filePath string) string {
-	ext := strings.ToLower(filepath.Ext(filePath))
-	switch ext {
-	case ".cbz", ".zip":
-		return "zip"
-	case ".cbr", ".rar", ".7z", ".cb7":
-		return "rar"
-	default:
-		return "unknown"
-	}
-}
-
-// createAndSortPages creates Page models from filenames and sorts them
 func createAndSortPages(filenames []string) []*models.Page {
 	pages := make([]*models.Page, len(filenames))
 	for i, filename := range filenames {
@@ -87,32 +106,29 @@ func readFirstImageData(files []string, fsys fs.FS) ([]byte, error) {
 	if len(files) == 0 {
 		return nil, fmt.Errorf("no image files found")
 	}
-
 	firstImage := files[0]
 	f, err := fsys.Open(firstImage)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open first image file: %w", err)
 	}
 	defer f.Close()
-
 	return io.ReadAll(f)
 }
 
-// findImageFilesInZip finds all image files in a ZIP archive
+// findImageFilesInZip finds all image files in a zip archive
 func findImageFilesInZip(r *zip.ReadCloser) []*zip.File {
 	var imageFiles []*zip.File
 	for _, f := range r.Reader.File {
-		if !f.FileInfo().IsDir() && IsImageFile(f.Name) {
+		if !f.FileInfo().IsDir() && hasImageExtension(f.Name) {
 			imageFiles = append(imageFiles, f)
 		}
 	}
 	return imageFiles
 }
 
-// findImageFilesInFS finds all image files in a filesystem
+// findImageFilesInFS finds all image files in a file system
 func findImageFilesInFS(fsys fs.FS) ([]string, error) {
 	var imageFiles []string
-
 	err := fs.WalkDir(fsys, ".", func(fpath string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -120,34 +136,19 @@ func findImageFilesInFS(fsys fs.FS) ([]string, error) {
 		if d.IsDir() {
 			return nil
 		}
-		if IsImageFile(d.Name()) {
+		if hasImageExtension(d.Name()) {
 			imageFiles = append(imageFiles, fpath)
 		}
 		return nil
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to walk file system: %w", err)
 	}
-
 	return imageFiles, nil
 }
 
-// ParseArchive loads the archive file and returns a list of pages and the first page's data.
-func ParseArchive(filePath string) (pages []*models.Page, firstPageData []byte, err error) {
-	archiveType := getArchiveType(filePath)
-	switch archiveType {
-	case "zip":
-		return parseCBZ(filePath)
-	case "rar":
-		return parseCBR(filePath)
-	default:
-		return nil, nil, fmt.Errorf("unsupported archive %s: %s", filePath, filepath.Ext(filePath))
-	}
-}
-
 // parseCBZ reads a .cbz (zip) file and returns a sorted list of image pages.
-func parseCBZ(filePath string) ([]*models.Page, []byte, error) {
+func (archiveHandler) parseCBZ(filePath string) ([]*models.Page, []byte, error) {
 	r, err := zip.OpenReader(filePath)
 	if err != nil {
 		return nil, nil, err
@@ -156,7 +157,7 @@ func parseCBZ(filePath string) ([]*models.Page, []byte, error) {
 
 	imageFiles := findImageFilesInZip(r)
 	if len(imageFiles) == 0 {
-		return []*models.Page{}, nil, fmt.Errorf("no image files found in archive")
+		return []*models.Page{}, nil, fmt.Errorf("no image files found in chapter file")
 	}
 
 	// Extract filenames for page creation
@@ -189,8 +190,8 @@ func parseCBZ(filePath string) ([]*models.Page, []byte, error) {
 
 // parseCBR opens the given archive or directory path, finds all image files, picks the lexically first image file,
 // and returns its bytes.
-func parseCBR(path string) ([]*models.Page, []byte, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+func (archiveHandler) parseCBR(ctx context.Context, path string) ([]*models.Page, []byte, error) {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	fsys, err := archives.FileSystem(ctx, path, nil)
@@ -204,7 +205,7 @@ func parseCBR(path string) ([]*models.Page, []byte, error) {
 	}
 
 	if len(imageFiles) == 0 {
-		return nil, nil, fmt.Errorf("no image files found in archive %s", path)
+		return nil, nil, fmt.Errorf("no image files found in chapter file %s", path)
 	}
 
 	// Sort image files lexically
@@ -219,26 +220,11 @@ func parseCBR(path string) ([]*models.Page, []byte, error) {
 	if err != nil {
 		return pages, nil, err
 	}
-
 	return pages, firstPageData, nil
 }
 
-// GetPageFromArchive extracts a specific page from an archive file and returns its data.
-// pageIndex is 0-based.
-func GetPageFromArchive(filePath string, pageIndex int) ([]byte, string, error) {
-	archiveType := getArchiveType(filePath)
-	switch archiveType {
-	case "zip":
-		return getPageFromCBZ(filePath, pageIndex)
-	case "rar":
-		return getPageFromCBR(filePath, pageIndex)
-	default:
-		return nil, "", fmt.Errorf("unsupported archive type: %s", filepath.Ext(filePath))
-	}
-}
-
 // getPageFromCBZ extracts a specific page from a .cbz (zip) file.
-func getPageFromCBZ(filePath string, pageIndex int) ([]byte, string, error) {
+func (archiveHandler) getPageFromCBZ(filePath string, pageIndex int) ([]byte, string, error) {
 	r, err := zip.OpenReader(filePath)
 	if err != nil {
 		return nil, "", err
@@ -247,7 +233,7 @@ func getPageFromCBZ(filePath string, pageIndex int) ([]byte, string, error) {
 
 	imageFiles := findImageFilesInZip(r)
 	if len(imageFiles) == 0 {
-		return nil, "", fmt.Errorf("no image files found in archive")
+		return nil, "", fmt.Errorf("no image files found in chapter file")
 	}
 
 	// Sort files alphabetically to ensure correct order
@@ -274,9 +260,9 @@ func getPageFromCBZ(filePath string, pageIndex int) ([]byte, string, error) {
 	return data, imageFile.Name, nil
 }
 
-// getPageFromCBR extracts a specific page from a .cbr/.rar/.7z/.cb7 file.
-func getPageFromCBR(filePath string, pageIndex int) ([]byte, string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+// getPageFromCBR extracts a specific page from a .cbr (rar) file.
+func (archiveHandler) getPageFromCBR(ctx context.Context, filePath string, pageIndex int) ([]byte, string, error) {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	fsys, err := archives.FileSystem(ctx, filePath, nil)
@@ -290,10 +276,10 @@ func getPageFromCBR(filePath string, pageIndex int) ([]byte, string, error) {
 	}
 
 	if len(imageFiles) == 0 {
-		return nil, "", fmt.Errorf("no image files found in archive")
+		return nil, "", fmt.Errorf("no image files found in chapter file")
 	}
 
-	// Sort image files lexically
+	// Sort files alphabetically to ensure correct order
 	sort.Slice(imageFiles, func(i, j int) bool {
 		return pageSortFunc(imageFiles[i], imageFiles[j])
 	})
@@ -324,7 +310,6 @@ func getPageFromCBR(filePath string, pageIndex int) ([]byte, string, error) {
 // It does not handle files starting with __ or . that are not numbers. It
 // will put them at the end.
 func pageSortFunc(a, b string) bool {
-
 	// if a.Name starts with __ it is likely a hidden file
 	if strings.HasPrefix(a, "__") || strings.HasPrefix(a, ".") {
 		return false

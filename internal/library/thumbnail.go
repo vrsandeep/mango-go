@@ -2,6 +2,7 @@ package library
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"fmt"
 	"image"
@@ -9,6 +10,7 @@ import (
 	_ "image/png" // Register PNG decoder
 
 	"github.com/nfnt/resize"
+	"github.com/vrsandeep/mango-go/internal/library/chapterfiles"
 )
 
 const thumbnailWidth uint = 200
@@ -45,4 +47,16 @@ func GenerateThumbnail(imageData []byte) (string, error) {
 
 	// Format as a Data URI.
 	return fmt.Sprintf("data:image/jpeg;base64,%s", base64Str), nil
+}
+
+// ThumbnailForChapterFile builds a data-URI thumbnail from the first page of a chapter file.
+func ThumbnailForChapterFile(ctx context.Context, path string) (string, error) {
+	_, first, err := chapterfiles.InspectChapterFile(ctx, path)
+	if err != nil {
+		return "", err
+	}
+	if len(first) == 0 {
+		return "", fmt.Errorf("no first page bytes for thumbnail")
+	}
+	return GenerateThumbnail(first)
 }

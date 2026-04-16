@@ -13,6 +13,7 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/vrsandeep/mango-go/internal/jobs"
+	"github.com/vrsandeep/mango-go/internal/library/chapterfiles"
 )
 
 // WatcherService watches the library directory for file system changes
@@ -162,7 +163,7 @@ func (w *WatcherService) handleEvent(event fsnotify.Event) {
 func (w *WatcherService) isRelevantFile(path string) bool {
 	// Only trigger on actual archive files, not directories
 	// This prevents triggering scans when folders are opened/accessed
-	return IsSupportedArchive(filepath.Base(path))
+	return chapterfiles.IsSupportedChapterFile(filepath.Base(path))
 }
 
 // TriggerIncrementalScanForPath manually triggers an incremental scan for a specific path.

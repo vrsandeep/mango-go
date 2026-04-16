@@ -1,20 +1,23 @@
-// This file handles detection of bad/corrupted archive files in the library.
+// This file handles detection of bad or unreadable chapter files in the library.
 
 package library
 
 import (
+	"context"
 	"fmt"
 	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/vrsandeep/mango-go/internal/jobs"
+	"github.com/vrsandeep/mango-go/internal/library/chapterfiles"
 	"github.com/vrsandeep/mango-go/internal/models"
 	"github.com/vrsandeep/mango-go/internal/store"
 )
 
-// DetectBadFiles scans the library for corrupted or invalid archive files.
+// DetectBadFiles scans the library for chapter files that fail inspection (corrupt or invalid).
 func DetectBadFiles(ctx jobs.JobContext) {
 	jobId := "detect-bad-files"
 	sendProgress(ctx, jobId, "Starting bad file detection...", 0, false)
@@ -22,16 +25,15 @@ func DetectBadFiles(ctx jobs.JobContext) {
 	badFileStore := store.NewBadFileStore(ctx.DB())
 
 	rootPath := ctx.Config().Library.Path
-	sendProgress(ctx, jobId, "Scanning library for bad files...", 10, false)
+	sendProgress(ctx, jobId, "Scanning library for chapter files...", 10, false)
 
-	// Get all archive files in the library
-	var archiveFiles []string
+	var chapterFilePaths []string
 	err := filepath.WalkDir(rootPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if !d.IsDir() && IsSupportedArchive(d.Name()) {
-			archiveFiles = append(archiveFiles, path)
+		if !d.IsDir() && chapterfiles.IsSupportedChapterFile(d.Name()) {
+			chapterFilePaths = append(chapterFilePaths, path)
 		}
 		return nil
 	})
@@ -42,17 +44,17 @@ func DetectBadFiles(ctx jobs.JobContext) {
 		return
 	}
 
-	totalFiles := len(archiveFiles)
+	totalFiles := len(chapterFilePaths)
 	if totalFiles == 0 {
-		sendProgress(ctx, jobId, "No archive files found in library", 100, true)
+		sendProgress(ctx, jobId, "No chapters found in library", 100, true)
 		return
 	}
 
-	sendProgress(ctx, jobId, fmt.Sprintf("Found %d archive files, checking for corruption...", totalFiles), 20, false)
+	sendProgress(ctx, jobId, fmt.Sprintf("Found %d chapters, checking for problems...", totalFiles), 20, false)
 
-	// Check each archive file
+	// Check each chapter file
 	badFileCount := 0
-	for i, filePath := range archiveFiles {
+	for i, filePath := range chapterFilePaths {
 		progress := 20 + (float64(i) / float64(totalFiles) * 70)
 		sendProgress(ctx, jobId, fmt.Sprintf("Checking file %d/%d: %s", i+1, totalFiles, filepath.Base(filePath)), progress, false)
 
@@ -64,8 +66,8 @@ func DetectBadFiles(ctx jobs.JobContext) {
 			continue
 		}
 
-		// Try to parse the archive
-		_, _, parseErr := ParseArchive(filePath)
+		// Try to parse the chapter file
+		_, _, parseErr := chapterfiles.InspectChapterFile(context.Background(), filePath)
 		if parseErr != nil {
 			// File is corrupted or invalid
 			errorMsg := categorizeError(parseErr)
@@ -84,25 +86,27 @@ func DetectBadFiles(ctx jobs.JobContext) {
 
 	// Final progress update
 	if badFileCount == 0 {
-		sendProgress(ctx, jobId, "No bad files detected. All archives are valid.", 100, true)
+		sendProgress(ctx, jobId, "No bad files detected. All chapters look valid.", 100, true)
 	} else {
 		sendProgress(ctx, jobId, fmt.Sprintf("Detection complete. Found %d bad files.", badFileCount), 100, true)
 	}
 }
 
-// categorizeError categorizes parsing errors into user-friendly categories
+// categorizeError maps parser errors to stable BadFileError values stored in the DB.
 func categorizeError(err error) string {
 	errorStr := err.Error()
 
 	// Check for specific error patterns
 	if contains(errorStr, "zip: not a valid zip file") || contains(errorStr, "archive/zip: not a valid zip file") {
-		return string(models.ErrorCorruptedArchive)
+		return string(models.ErrorCorruptedChapterFile)
 	}
-	if contains(errorStr, "unsupported archive type") {
+	if contains(errorStr, "unsupported archive type") ||
+		strings.Contains(errorStr, "unsupported chapter file") ||
+		strings.Contains(errorStr, "unsupported archive ") {
 		return string(models.ErrorUnsupportedFormat)
 	}
-	if contains(errorStr, "no image files found") {
-		return string(models.ErrorEmptyArchive)
+	if contains(errorStr, "no image files found") || contains(errorStr, "no pages found") {
+		return string(models.ErrorEmptyChapterFile)
 	}
 	if contains(errorStr, "failed to open") || contains(errorStr, "permission denied") {
 		return string(models.ErrorIOError)

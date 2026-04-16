@@ -3,6 +3,7 @@
 package library
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"math"
@@ -55,14 +56,10 @@ func updateChaptersThumbnails(
 	totalChapters int,
 ) {
 	for i, chapter := range chapters {
-		_, firstPageData, err := ParseArchive(chapter.Path)
+		thumbnail, err := ThumbnailForChapterFile(context.Background(), chapter.Path)
 		if err != nil {
-			log.Printf("Error parsing archive %s: %v %v", chapter.Path, err, chapter)
+			log.Printf("Error regenerating thumbnail for chapter %s (id %d): %v", chapter.Path, chapter.ID, err)
 			continue
-		}
-		thumbnail, err := GenerateThumbnail(firstPageData)
-		if err != nil {
-			log.Printf("Error generating thumbnail for chapter %d: %v", chapter.ID, err)
 		}
 		st.UpdateChapterThumbnail(chapter.ID, thumbnail)
 
