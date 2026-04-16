@@ -87,15 +87,21 @@ func createAndSortPages(filenames []string) []*models.Page {
 	for i, filename := range filenames {
 		pages[i] = &models.Page{FileName: filename}
 	}
+
+	// Sort pages alphabetically by filename to ensure correct order
 	sort.Slice(pages, func(i, j int) bool {
 		return pageSortFunc(pages[i].FileName, pages[j].FileName)
 	})
+
+	// Assign index after sorting
 	for i := range pages {
 		pages[i].Index = i
 	}
+
 	return pages
 }
 
+// readFirstImageData reads the first image file from a list of files
 func readFirstImageData(files []string, fsys fs.FS) ([]byte, error) {
 	if len(files) == 0 {
 		return nil, fmt.Errorf("no image files found")
@@ -109,6 +115,7 @@ func readFirstImageData(files []string, fsys fs.FS) ([]byte, error) {
 	return io.ReadAll(f)
 }
 
+// findImageFilesInZip finds all image files in a zip archive
 func findImageFilesInZip(r *zip.ReadCloser) []*zip.File {
 	var imageFiles []*zip.File
 	for _, f := range r.Reader.File {
@@ -119,6 +126,7 @@ func findImageFilesInZip(r *zip.ReadCloser) []*zip.File {
 	return imageFiles
 }
 
+// findImageFilesInFS finds all image files in a file system
 func findImageFilesInFS(fsys fs.FS) ([]string, error) {
 	var imageFiles []string
 	err := fs.WalkDir(fsys, ".", func(fpath string, d fs.DirEntry, err error) error {
@@ -139,6 +147,7 @@ func findImageFilesInFS(fsys fs.FS) ([]string, error) {
 	return imageFiles, nil
 }
 
+// parseCBZ reads a .cbz (zip) file and returns a sorted list of image pages.
 func (archiveHandler) parseCBZ(filePath string) ([]*models.Page, []byte, error) {
 	r, err := zip.OpenReader(filePath)
 	if err != nil {
@@ -151,12 +160,15 @@ func (archiveHandler) parseCBZ(filePath string) ([]*models.Page, []byte, error) 
 		return []*models.Page{}, nil, fmt.Errorf("no image files found in archive")
 	}
 
+	// Extract filenames for page creation
 	filenames := make([]string, len(imageFiles))
 	for i, f := range imageFiles {
 		filenames[i] = f.Name
 	}
+
 	pages := createAndSortPages(filenames)
 
+	// Read the first image for thumbnail
 	firstFile := imageFiles[0]
 	rc, err := firstFile.Open()
 	if err != nil {
@@ -172,9 +184,12 @@ func (archiveHandler) parseCBZ(filePath string) ([]*models.Page, []byte, error) 
 	if err != nil {
 		return pages, nil, fmt.Errorf("failed to read first page for thumbnail: %w", err)
 	}
+
 	return pages, firstPageData, nil
 }
 
+// parseCBR opens the given archive or directory path, finds all image files, picks the lexically first image file,
+// and returns its bytes.
 func (archiveHandler) parseCBR(ctx context.Context, path string) ([]*models.Page, []byte, error) {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
@@ -188,15 +203,19 @@ func (archiveHandler) parseCBR(ctx context.Context, path string) ([]*models.Page
 	if err != nil {
 		return nil, nil, err
 	}
+
 	if len(imageFiles) == 0 {
 		return nil, nil, fmt.Errorf("no image files found in archive %s", path)
 	}
 
+	// Sort image files lexically
 	sort.Slice(imageFiles, func(i, j int) bool {
 		return pageSortFunc(imageFiles[i], imageFiles[j])
 	})
+
 	pages := createAndSortPages(imageFiles)
 
+	// Read the first image for thumbnail
 	firstPageData, err := readFirstImageData(imageFiles, fsys)
 	if err != nil {
 		return pages, nil, err
@@ -204,6 +223,7 @@ func (archiveHandler) parseCBR(ctx context.Context, path string) ([]*models.Page
 	return pages, firstPageData, nil
 }
 
+// getPageFromCBZ extracts a specific page from a .cbz (zip) file.
 func (archiveHandler) getPageFromCBZ(filePath string, pageIndex int) ([]byte, string, error) {
 	r, err := zip.OpenReader(filePath)
 	if err != nil {
@@ -216,6 +236,7 @@ func (archiveHandler) getPageFromCBZ(filePath string, pageIndex int) ([]byte, st
 		return nil, "", fmt.Errorf("no image files found in archive")
 	}
 
+	// Sort files alphabetically to ensure correct order
 	sort.Slice(imageFiles, func(i, j int) bool {
 		return pageSortFunc(imageFiles[i].Name, imageFiles[j].Name)
 	})
@@ -235,9 +256,11 @@ func (archiveHandler) getPageFromCBZ(filePath string, pageIndex int) ([]byte, st
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to read image file: %w", err)
 	}
+
 	return data, imageFile.Name, nil
 }
 
+// getPageFromCBR extracts a specific page from a .cbr (rar) file.
 func (archiveHandler) getPageFromCBR(ctx context.Context, filePath string, pageIndex int) ([]byte, string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
@@ -251,10 +274,12 @@ func (archiveHandler) getPageFromCBR(ctx context.Context, filePath string, pageI
 	if err != nil {
 		return nil, "", err
 	}
+
 	if len(imageFiles) == 0 {
 		return nil, "", fmt.Errorf("no image files found in archive")
 	}
 
+	// Sort files alphabetically to ensure correct order
 	sort.Slice(imageFiles, func(i, j int) bool {
 		return pageSortFunc(imageFiles[i], imageFiles[j])
 	})
@@ -263,20 +288,29 @@ func (archiveHandler) getPageFromCBR(ctx context.Context, filePath string, pageI
 		return nil, "", fmt.Errorf("page index %d out of bounds (0-%d)", pageIndex, len(imageFiles)-1)
 	}
 
+	// Open the specific image file
 	f, err := fsys.Open(imageFiles[pageIndex])
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to open image file: %w", err)
 	}
 	defer f.Close()
 
+	// Read all bytes from the image file
 	data, err := io.ReadAll(f)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to read image file: %w", err)
 	}
+
 	return data, imageFiles[pageIndex], nil
 }
 
+// pageSortFunc sorts pages by filename.
+// It handles files starting with __ or . by putting them at the end.
+// It also handles natural sorting of numbers.
+// It does not handle files starting with __ or . that are not numbers. It
+// will put them at the end.
 func pageSortFunc(a, b string) bool {
+	// if a.Name starts with __ it is likely a hidden file
 	if strings.HasPrefix(a, "__") || strings.HasPrefix(a, ".") {
 		return false
 	}
