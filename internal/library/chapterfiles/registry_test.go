@@ -8,12 +8,12 @@ import (
 )
 
 func TestIsSupportedChapterFile_ArchiveExtensions(t *testing.T) {
-	for _, ext := range []string{"book.cbz", "a.zip", "x.cbr", "y.rar", "z.7z", "q.cb7"} {
+	for _, ext := range []string{"book.cbz", "a.zip", "x.cbr", "y.rar", "z.7z", "q.cb7", "doc.pdf", "scan.PDF"} {
 		if !IsSupportedChapterFile(ext) {
 			t.Errorf("expected supported: %q", ext)
 		}
 	}
-	for _, ext := range []string{"doc.pdf", "a.txt", "noext", "image.jpg"} {
+	for _, ext := range []string{"a.txt", "noext", "image.jpg"} {
 		if IsSupportedChapterFile(ext) {
 			t.Errorf("expected unsupported: %q", ext)
 		}

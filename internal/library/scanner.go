@@ -197,7 +197,7 @@ func syncFolders(st *store.Store, rootPath string, diskItems map[string]diskItem
 	// Collect all directories and sort them by path depth (shorter paths first)
 	var dirPaths []string
 	for path, item := range diskItems {
-		if item.isDir && hasMangaArchives(path) {
+		if item.isDir && hasChapterFiles(path) {
 			dirPaths = append(dirPaths, path)
 		}
 	}
@@ -346,7 +346,7 @@ func prune(st *store.Store, diskItems map[string]diskItem, dbFolders map[string]
 			st.DeleteFolder(folder.ID)
 		} else if diskItems[path].isDir {
 			// Check if the folder still contains any supported chapter files
-			if !hasMangaArchives(path) {
+			if !hasChapterFiles(path) {
 				log.Printf("Pruning empty folder: %s", path)
 				st.DeleteFolder(folder.ID)
 			}
@@ -361,9 +361,9 @@ func generateContentHash(data []byte, filename string) string {
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
-// hasMangaArchives reports whether dirPath contains any supported chapter files.
-func hasMangaArchives(dirPath string) bool {
-	hasArchives := false
+// hasChapterFiles reports whether dirPath contains any supported chapter files.
+func hasChapterFiles(dirPath string) bool {
+	found := false
 	filepath.WalkDir(dirPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -372,14 +372,14 @@ func hasMangaArchives(dirPath string) bool {
 		if path == dirPath {
 			return nil
 		}
-		// If we find a manga chapter file, mark this directory as non-empty
+		// If we find a chapter file, mark this directory as non-empty
 		if !d.IsDir() && chapterfiles.IsSupportedChapterFile(d.Name()) {
-			hasArchives = true
+			found = true
 			return filepath.SkipAll // Stop walking once we find a supported chapter file
 		}
 		return nil
 	})
-	return hasArchives
+	return found
 }
 
 // checkBadFilesDuringSync checks for bad files during library sync

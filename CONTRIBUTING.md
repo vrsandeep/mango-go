@@ -80,7 +80,8 @@ manga/
 ├── Series A/
 │   ├── Volume 1/
 │   │   ├── Chapter 1.cbr
-│   │   └── Chapter 2.cbr
+│   │   ├── Chapter 2.cbr
+│   │   └── Chapter 3.pdf
 │   └── Volume 2/
 │       └── Chapter 3.cbr
 └── Series B/
@@ -518,7 +519,7 @@ Then access profiling data at `http://localhost:8080/debug/pprof/`
 ### Library Scanning Issues
 
 - Check file permissions on manga directory
-- Ensure supported archive formats (.cbz, .cbr, .zip, .rar)
+- Ensure supported chapter formats (archives: `.cbz`, `.cbr`, `.cb7`, `.zip`, `.rar`, `.7z`; plus `.pdf`)
 - Verify manga files are not corrupted
 - Do not have folders with just images.
 

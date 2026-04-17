@@ -100,6 +100,10 @@ func categorizeError(err error) string {
 	if contains(errorStr, "zip: not a valid zip file") || contains(errorStr, "archive/zip: not a valid zip file") {
 		return string(models.ErrorCorruptedChapterFile)
 	}
+	if strings.Contains(errorStr, "fitz: cannot open document") ||
+		strings.Contains(errorStr, "fitz: cannot open memory") {
+		return string(models.ErrorCorruptedChapterFile)
+	}
 	if contains(errorStr, "unsupported archive type") ||
 		strings.Contains(errorStr, "unsupported chapter file") ||
 		strings.Contains(errorStr, "unsupported archive ") {
