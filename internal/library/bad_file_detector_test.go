@@ -462,6 +462,34 @@ func TestErrorCategorization(t *testing.T) {
 		}
 	})
 
+	t.Run("Test categorizeError_corruptedPDF", func(t *testing.T) {
+		testDir := filepath.Join(libraryRoot, "Error Categorization Test", "CorruptedPDF")
+		os.MkdirAll(testDir, 0755)
+		garbagePDF := filepath.Join(testDir, "garbage.pdf")
+		if err := os.WriteFile(garbagePDF, []byte("not a pdf"), 0644); err != nil {
+			t.Fatalf("Failed to write: %v", err)
+		}
+		library.DetectBadFiles(app)
+		badFileStore := store.NewBadFileStore(app.DB())
+		badFiles, err := badFileStore.GetAllBadFiles()
+		if err != nil {
+			t.Fatalf("Failed to get bad files: %v", err)
+		}
+		var found bool
+		for _, bf := range badFiles {
+			if bf.Path == garbagePDF {
+				found = true
+				if bf.Error != string(models.ErrorCorruptedChapterFile) {
+					t.Errorf("Expected %s, got %s", models.ErrorCorruptedChapterFile, bf.Error)
+				}
+				break
+			}
+		}
+		if !found {
+			t.Error("Corrupted PDF was not detected")
+		}
+	})
+
 	t.Run("Test categorizeError_Integration", func(t *testing.T) {
 		// Test that all error types are properly categorized in a single run
 		testDir := filepath.Join(libraryRoot, "Error Categorization Test", "Integration")

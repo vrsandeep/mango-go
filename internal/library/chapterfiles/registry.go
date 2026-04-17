@@ -1,4 +1,4 @@
-// Package chapterfiles routes chapter files (archives today; PDF later) to type-specific handlers.
+// Package chapterfiles routes chapter files (archives and PDF) to type-specific handlers.
 package chapterfiles
 
 import (
@@ -74,6 +74,7 @@ var defaultRegistry *Registry
 func init() {
 	defaultRegistry = NewRegistry()
 	defaultRegistry.Register(&archiveHandler{})
+	defaultRegistry.Register(&pdfHandler{})
 }
 
 // RegisterHandler adds a handler to the default registry (e.g. PDF from another package's init).

@@ -360,7 +360,7 @@ func TestDirectoryWithNonArchives(t *testing.T) {
 		t.Fatalf("Failed to create text file: %v", err)
 	}
 
-	// Test hasMangaArchives function through LibrarySync
+	// Test hasChapterFiles behavior through LibrarySync
 	library.LibrarySync(app)
 
 	folders, _ := store.New(app.DB()).GetAllFoldersByPath()
