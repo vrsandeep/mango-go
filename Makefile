@@ -13,6 +13,11 @@ IMAGE_OUT = internal/assets/web/dist/images
 BINARY_NAME=mango-go
 BUILD_DIR=./build
 
+# go-fitz (PDF): on Alpine/musl (e.g. Docker), set GO_BUILD_TAGS=musl so bundled MuPDF
+# archives match libc. Leave empty on glibc (Ubuntu, macOS).
+GO_BUILD_TAGS ?=
+GO_TAGS_FLAG := $(if $(strip $(GO_BUILD_TAGS)),-tags=$(GO_BUILD_TAGS),)
+
 .PHONY: all assets clean build run download-go-deps prettify format format-check
 
 all: build
@@ -27,7 +32,7 @@ run: assets
 # It creates minified bundles and builds the binary with the 'prod' tag.
 build: download-go-deps assets
 	@echo "📦 Building production binary..."
-	@CGO_ENABLED=1 GIN_MODE=release go build -ldflags="-w -s" -o $(BUILD_DIR)/$(BINARY_NAME) .
+	@CGO_ENABLED=1 GIN_MODE=release go build $(GO_TAGS_FLAG) -ldflags="-w -s" -o $(BUILD_DIR)/$(BINARY_NAME) .
 	@echo "✅ Production binary created at '$(pwd)/$(BUILD_DIR)/$(BINARY_NAME)'."
 
 download-go-deps:
