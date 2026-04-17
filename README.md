@@ -73,14 +73,15 @@ manga/
 ├── One Piece/
 │   ├── Volume 1/
 │   │   ├── Chapter 1.cbr
-│   │   └── Chapter 2.cbr
+│   │   ├── Chapter 2.cbr
+│   │   └── Chapter 3.pdf
 │   └── Volume 2/
 └── Naruto/
     ├── Volume 1.cbz
     └── Volume 2.cbz
 ```
 
-**Supported formats:** `.cbz`, `.cbr`, `.cb7`, `.zip`, `.rar`, `.7z`
+**Supported formats:** `.cbz`, `.cbr`, `.cb7`, `.zip`, `.rar`, `.7z`, `.pdf` (each PDF is one chapter; pages are rasterized on the server for the web reader)
 
 ## Configuration
 
