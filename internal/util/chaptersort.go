@@ -8,6 +8,9 @@ import (
 	"unicode"
 )
 
+// scanRe matches: key (non-digit chars not space), optional space, int or float.
+var scanRe = regexp.MustCompile(`([^0-9\n\r ]*)[ ]*([0-9]*\.?[0-9]+)`)
+
 // Item represents a parsed item with keys and their numeric values.
 type Item struct {
 	Numbers map[string]*big.Float
@@ -122,16 +125,42 @@ func NewChapterSorter(strs []string) *ChapterSorter {
 	return cs
 }
 
-// hasKeyWithVariation checks if key is a variant of any available key.
-func (cs *ChapterSorter) hasKeyWithVariation(key string, availableKeys []string) (string, bool) {
-	sanitizedKey := sanitizeKey(key)
-	for _, k := range availableKeys {
-		sanitizedK := sanitizeKey(k)
-		if strings.Contains(sanitizedKey, sanitizedK) || strings.Contains(sanitizedK, sanitizedKey) {
-			return k, true
+// keyKind classifies a sanitized scan key. 0 = not used for vol/ch merge, 1 = volume, 2 = chapter.
+// We use strict prefix rules so words like "school" (containing the letters "c","h" but not as a
+// "Vol"/"Ch" label) are never merged with chapter keys.
+func keyKind(san string) int {
+	switch {
+	case len(san) == 0:
+		return 0
+	case san == "v" || strings.HasPrefix(san, "vol"):
+		return 1
+	case san == "ch" || strings.HasPrefix(san, "chap"):
+		return 2
+	default:
+		return 0
+	}
+}
+
+// mapToTopKey maps a raw scan key onto one of the selected top keys when they denote the
+// same field (volume vs chapter), using keyKind. No substring fuzzy matching.
+func (cs *ChapterSorter) mapToTopKey(key string) (string, bool) {
+	if cs == nil {
+		return "", false
+	}
+	san := sanitizeKey(key)
+	if kind := keyKind(san); kind != 0 {
+		for _, tk := range cs.sortedKeys {
+			if keyKind(sanitizeKey(tk)) == kind {
+				return tk, true
+			}
 		}
 	}
-	return "", false
+	for _, tk := range cs.sortedKeys {
+		if key == tk {
+			return tk, true
+		}
+	}
+	return key, false
 }
 
 // mergeRepeatedKeyRanges merges key ranges of variant keys.
@@ -145,10 +174,18 @@ func (cs *ChapterSorter) mergeRepeatedKeyRanges(topKeys []string, keyRanges map[
 		if _, ok := topKeySet[key]; ok {
 			continue
 		}
-		if topKey, found := cs.hasKeyWithVariation(key, topKeys); found {
-			topKR := keyRanges[topKey]
-			topKR.Update(kr.Min)
-			topKR.Update(kr.Max)
+		san := sanitizeKey(key)
+		kind := keyKind(san)
+		if kind == 0 {
+			continue
+		}
+		for _, tk := range topKeys {
+			if keyKind(sanitizeKey(tk)) == kind {
+				topKR := keyRanges[tk]
+				topKR.Update(kr.Min)
+				topKR.Update(kr.Max)
+				break
+			}
 		}
 	}
 }
@@ -163,12 +200,12 @@ func (cs *ChapterSorter) Compare(a, b string) int {
 // strToItem parses a string into an Item.
 func (cs *ChapterSorter) strToItem(str string) *Item {
 	numbers := make(map[string]*big.Float)
-	for k, v := range scan(str) {
-		sanitizedK, found := cs.hasKeyWithVariation(k, cs.sortedKeys)
+	for _, pair := range scanOrdered(str) {
+		sanitizedK, found := cs.mapToTopKey(pair.key)
 		if !found {
-			sanitizedK = k
+			sanitizedK = pair.key
 		}
-		numbers[sanitizedK] = v
+		numbers[sanitizedK] = pair.value
 	}
 	return NewItem(numbers)
 }
@@ -184,28 +221,38 @@ func sanitizeKey(s string) string {
 	return b.String()
 }
 
-// scan extracts keys and numeric values from a string.
-// Returns a map of key -> *big.Float
-func scan(str string) map[string]*big.Float {
-	// Regex to match: ([^0-9\n\r ]*)[ ]*([0-9]*\.?[0-9]+)
-	// i.e. key (non-digit chars), optional spaces, then number (int or float)
-	re := regexp.MustCompile(`([^0-9\n\r ]*)[ ]*([0-9]*\.?[0-9]+)`)
-	matches := re.FindAllStringSubmatch(str, -1)
+type scanPair struct {
+	key   string
+	value *big.Float
+}
 
-	result := make(map[string]*big.Float)
+// scanOrdered returns key/value matches in left-to-right string order. Later matches with
+// the same raw key overwrite the map built in scan (last match wins for duplicate keys).
+func scanOrdered(str string) []scanPair {
+	matches := scanRe.FindAllStringSubmatch(str, -1)
+	out := make([]scanPair, 0, len(matches))
 	for _, match := range matches {
 		if len(match) < 3 {
 			continue
 		}
 		key := match[1]
 		numStr := match[2]
-
 		num, _, err := big.ParseFloat(numStr, 10, 256, big.ToNearestEven)
 		if err != nil {
-			// Ignore parse errors, or optionally handle them
 			continue
 		}
-		result[key] = num
+		out = append(out, scanPair{key: key, value: num})
+	}
+	return out
+}
+
+// scan extracts keys and numeric values from a string.
+// If the same key appears more than once, the rightmost (last) match in the string wins.
+func scan(str string) map[string]*big.Float {
+	pairs := scanOrdered(str)
+	result := make(map[string]*big.Float, len(pairs))
+	for _, p := range pairs {
+		result[p.key] = p.value
 	}
 	return result
 }
