@@ -8,7 +8,6 @@
   --reader-accent: #1e90ff;
   --reader-accent-rgb: 30, 144, 255;
   --reader-accent-dark: #1a7ce8;
-  --page-margin: 1rem;
 }
 
 body.light-theme {
@@ -40,7 +39,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--page-margin);
+  gap: 0;
   width: 100%;
   max-width: 1200px;
   padding: 1rem;
@@ -551,4 +550,133 @@ body {
     padding: 0.5rem 0.75rem;
     font-size: 0.85rem;
   }
+}
+
+/* Double-page spread container: two images side by side. */
+.page-spread {
+  display: none; /* shown/hidden by JS per active spread */
+  flex-direction: row;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+}
+
+/* Each page within a spread fills half the spread width. */
+.spread-page {
+  flex: 1;
+  min-width: 0;
+  max-width: 50%;
+  height: auto;
+  display: block !important; /* override single-page hide rules */
+}
+
+/* Cover or lone last page: let it fill the full width like a normal single page. */
+.page-spread--single .spread-page {
+  max-width: 100%;
+}
+
+/* Zoom transform: scale from the top-center so content grows downward. */
+.reader-container {
+  transform-origin: top center;
+}
+
+/* Zoom level badge shown in the top-right corner when zoom != 100%. */
+.zoom-indicator {
+  display: none;
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  z-index: 50;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+}
+
+/* Zoom control row in the settings modal: [−] [100%] [+] */
+.zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.zoom-controls button {
+  width: 38px;
+  height: 38px;
+  border-radius: 6px;
+  border: 2px solid var(--reader-border);
+  background: var(--reader-bg);
+  color: var(--reader-text);
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.zoom-controls button:hover {
+  background: var(--reader-accent);
+  border-color: var(--reader-accent);
+  color: #fff;
+}
+
+/* Center button shows current level and resets on click. */
+#zoom-level-btn {
+  flex: 1;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+/* Page counter badge: "N / Total" shown in paged modes, hidden in continuous. */
+.page-counter {
+  display: none;
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.3rem 0.8rem;
+  border-radius: 4px;
+  z-index: 50;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+  white-space: nowrap;
+}
+
+/* Floating settings button — always visible, opens the settings modal. */
+.settings-btn {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1rem;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  backdrop-filter: blur(4px);
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+.settings-btn:hover {
+  background: rgba(var(--reader-accent-rgb), 0.85);
+  transform: scale(1.1) rotate(30deg);
 }

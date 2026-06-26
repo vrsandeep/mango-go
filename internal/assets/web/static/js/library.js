@@ -152,9 +152,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const allItems = [null, ...allTags];
     const overflow = allItems.length > FILTER_CHIPS_LIMIT;
 
-    let toShow = (!filterChipsExpanded && overflow)
-      ? allItems.slice(0, FILTER_CHIPS_LIMIT)
-      : allItems;
+    let toShow =
+      !filterChipsExpanded && overflow ? allItems.slice(0, FILTER_CHIPS_LIMIT) : allItems;
 
     // Always keep the active tag visible even if it falls beyond the limit,
     // so the user can see which filter is applied without having to expand first.
@@ -200,13 +199,22 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!filterChipsExpanded) {
         toggleEl.textContent = hidden > 0 ? `+${hidden} more` : 'show less';
         if (hidden > 0) {
-          toggleEl.addEventListener('click', () => { filterChipsExpanded = true; renderTagFilterBar(); });
+          toggleEl.addEventListener('click', () => {
+            filterChipsExpanded = true;
+            renderTagFilterBar();
+          });
         } else {
-          toggleEl.addEventListener('click', () => { filterChipsExpanded = false; renderTagFilterBar(); });
+          toggleEl.addEventListener('click', () => {
+            filterChipsExpanded = false;
+            renderTagFilterBar();
+          });
         }
       } else {
         toggleEl.textContent = 'show less';
-        toggleEl.addEventListener('click', () => { filterChipsExpanded = false; renderTagFilterBar(); });
+        toggleEl.addEventListener('click', () => {
+          filterChipsExpanded = false;
+          renderTagFilterBar();
+        });
       }
       tagFilterChips.appendChild(toggleEl);
     }
@@ -275,7 +283,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       (!data.subfolders || data.subfolders.length === 0) &&
       (!data.chapters || data.chapters.length === 0)
     ) {
-      const hasActiveFilter = state.search || state.unreadOnly || state.filterTagId || state.currentTagId;
+      const hasActiveFilter =
+        state.search || state.unreadOnly || state.filterTagId || state.currentTagId;
       cardsGrid.innerHTML = hasActiveFilter
         ? '<p>No results found.</p>'
         : '<p>This folder is empty.</p>';
@@ -303,9 +312,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Calculate progress for the folder
     const progressPercent =
       folder.total_chapters > 0 ? (folder.read_chapters / folder.total_chapters) * 100 : 0;
-    const ratingBadge = folder.rating
-      ? `<div class="rating-badge">★ ${folder.rating}</div>`
-      : '';
+    const ratingBadge = folder.rating ? `<div class="rating-badge">★ ${folder.rating}</div>` : '';
     card.innerHTML = `
             <div class="thumbnail-container">
                 <img class="thumbnail" src="${folder.thumbnail || '/static/images/logo.svg'}" loading="lazy" alt="Cover for ${folder.name}">
@@ -544,9 +551,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     tagsContainer.innerHTML = '';
 
     const overflow = currentFolderTags.length > TAGS_COLLAPSED_LIMIT;
-    const toShow = (!tagsExpanded && overflow)
-      ? currentFolderTags.slice(0, TAGS_COLLAPSED_LIMIT)
-      : currentFolderTags;
+    const toShow =
+      !tagsExpanded && overflow
+        ? currentFolderTags.slice(0, TAGS_COLLAPSED_LIMIT)
+        : currentFolderTags;
 
     // .expanded switches from nowrap-scroll to wrapping layout
     tagsContainer.classList.toggle('expanded', tagsExpanded || !overflow);
