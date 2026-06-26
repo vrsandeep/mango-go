@@ -199,13 +199,6 @@ body.light-theme .anilist-button:hover {
   font-size: clamp(1.2rem, 2.5vw, 2rem);
 }
 
-.page-header-left {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
 .breadcrumb {
   font-size: 1rem;
   color: var(--subtle-text-color);
@@ -574,10 +567,6 @@ body.light-theme .anilist-button:hover {
   .page-header {
     flex-direction: column;
     align-items: stretch;
-  }
-
-  .page-header-left {
-    justify-content: center;
   }
 
   .breadcrumb {

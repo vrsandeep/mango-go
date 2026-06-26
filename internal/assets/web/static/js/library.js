@@ -132,7 +132,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     return parts.length > 1 ? parts[1] : null;
   };
   const getTagNameFromId = async id => {
-    return allTags.find(tag => tag.id === parseInt(id)).name;
+    const tag = allTags.find(tag => tag.id === parseInt(id));
+    return tag ? tag.name : '';
   };
 
   // Renders the horizontal tag filter bar shown only at the library root.
@@ -140,6 +141,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const renderTagFilterBar = () => {
     const isRoot = !state.currentFolderId && !state.currentTagId;
     if (!isRoot || allTags.length === 0) {
+      filterChipsExpanded = false;
       tagFilterBar.style.display = 'none';
       return;
     }
@@ -273,7 +275,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       (!data.subfolders || data.subfolders.length === 0) &&
       (!data.chapters || data.chapters.length === 0)
     ) {
-      cardsGrid.innerHTML = '<p>This folder is empty.</p>';
+      const hasActiveFilter = state.search || state.unreadOnly || state.filterTagId || state.currentTagId;
+      cardsGrid.innerHTML = hasActiveFilter
+        ? '<p>No results found.</p>'
+        : '<p>This folder is empty.</p>';
       return;
     }
 
