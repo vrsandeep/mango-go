@@ -27,21 +27,38 @@ document.addEventListener('DOMContentLoaded', async () => {
   const totalCountEl = document.getElementById('total-count');
   const markAllReadBtn = document.getElementById('mark-all-read-btn');
   const markAllUnreadBtn = document.getElementById('mark-all-unread-btn');
+  const unreadFilterBtn = document.getElementById('unread-filter-btn');
+  const tagFilterBar = document.getElementById('tag-filter-bar');
+  const tagFilterChips = document.getElementById('tag-filter-chips');
+  const ratingWidget = document.getElementById('rating-widget');
+  const ratingStars = document.getElementById('rating-stars');
+  const ratingClearBtn = document.getElementById('rating-clear-btn');
+  const progressActions = document.getElementById('progress-actions');
+  const folderTagsSection = document.getElementById('folder-tags-section');
 
   // --- State Management ---
   let state = {
     currentFolderId: null,
     currentTagId: null,
+    filterTagId: null,
     currentPage: 1,
     search: '',
     sortBy: null,
     sortDir: null,
+    unreadOnly: localStorage.getItem('unreadOnly') === 'true',
     isLoading: false,
     totalItems: 0,
     perPage: 100,
+    currentRating: null,
   };
   let allTags = [];
   let currentFolderTags = [];
+  // Separate expand states so collapsing one doesn't affect the other
+  let tagsExpanded = false;
+  let filterChipsExpanded = false;
+  // Show first N items before adding a "+X more" toggle
+  const TAGS_COLLAPSED_LIMIT = 8;
+  const FILTER_CHIPS_LIMIT = 10;
 
   // --- Core Functions ---
 
@@ -84,35 +101,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     }, 100); // Small delay to ensure DOM is ready
   };
 
-  // Helper function to add AniList button to page header
+  // Appends the AniList link button into the existing header-actions row.
+  // Inserting here (rather than wrapping the h1) avoids breaking the flex layout.
   const addAniListButtonToHeader = anilistUrl => {
-    const pageTitle = document.getElementById('page-title');
-    if (!pageTitle) return;
+    const headerActions = document.querySelector('.header-actions');
+    // Guard: skip if the container is missing or the button was already added
+    if (!headerActions || document.querySelector('.anilist-button')) return;
 
-    // Create a container div for the title and button
-    const titleContainer = document.createElement('div');
-    titleContainer.className = 'title-container';
-
-    // Move the title into the container
-    pageTitle.parentNode.insertBefore(titleContainer, pageTitle);
-    titleContainer.appendChild(pageTitle);
-
-    // Create the AniList button with icon
     const button = document.createElement('a');
     button.href = anilistUrl;
     button.target = '_blank';
     button.className = 'anilist-button';
 
-    // Create icon element
     const icon = document.createElement('img');
     icon.src = '/static/images/anilist-icon.svg';
     icon.alt = 'AniList';
     icon.className = 'anilist-icon';
 
     button.appendChild(icon);
-
-    // Add button to the title container
-    titleContainer.appendChild(button);
+    headerActions.appendChild(button);
   };
 
   // Get the current folder ID from the URL path.
@@ -125,7 +132,120 @@ document.addEventListener('DOMContentLoaded', async () => {
     return parts.length > 1 ? parts[1] : null;
   };
   const getTagNameFromId = async id => {
-    return allTags.find(tag => tag.id === parseInt(id)).name;
+    const tag = allTags.find(tag => tag.id === parseInt(id));
+    return tag ? tag.name : '';
+  };
+
+  // Renders the horizontal tag filter bar shown only at the library root.
+  // Hidden when inside a folder or browsing by a URL tag.
+  const renderTagFilterBar = () => {
+    const isRoot = !state.currentFolderId && !state.currentTagId;
+    if (!isRoot || allTags.length === 0) {
+      filterChipsExpanded = false;
+      tagFilterBar.style.display = 'none';
+      return;
+    }
+    tagFilterBar.style.display = 'flex';
+    tagFilterChips.innerHTML = '';
+
+    // null sentinel represents the "All" chip (clears the tag filter)
+    const allItems = [null, ...allTags];
+    const overflow = allItems.length > FILTER_CHIPS_LIMIT;
+
+    let toShow = (!filterChipsExpanded && overflow)
+      ? allItems.slice(0, FILTER_CHIPS_LIMIT)
+      : allItems;
+
+    // Always keep the active tag visible even if it falls beyond the limit,
+    // so the user can see which filter is applied without having to expand first.
+    if (!filterChipsExpanded && overflow && state.filterTagId !== null) {
+      const activeIdx = allItems.findIndex(t => t !== null && t.id === state.filterTagId);
+      if (activeIdx >= FILTER_CHIPS_LIMIT) {
+        toShow = [...allItems.slice(0, FILTER_CHIPS_LIMIT - 1), allItems[activeIdx]];
+      }
+    }
+
+    // .expanded switches the row from nowrap-scroll to wrapping layout
+    tagFilterChips.classList.toggle('expanded', filterChipsExpanded || !overflow);
+
+    toShow.forEach(tag => {
+      const chip = document.createElement('button');
+      if (tag === null) {
+        chip.className = 'tag-chip' + (state.filterTagId === null ? ' active' : '');
+        chip.textContent = 'All';
+        chip.addEventListener('click', () => {
+          state.filterTagId = null;
+          state.currentPage = 1;
+          renderTagFilterBar();
+          loadFolderContents();
+        });
+      } else {
+        chip.className = 'tag-chip' + (state.filterTagId === tag.id ? ' active' : '');
+        chip.textContent = tag.name;
+        chip.addEventListener('click', () => {
+          // Clicking the active chip again clears the filter (toggle behaviour)
+          state.filterTagId = state.filterTagId === tag.id ? null : tag.id;
+          state.currentPage = 1;
+          renderTagFilterBar();
+          loadFolderContents();
+        });
+      }
+      tagFilterChips.appendChild(chip);
+    });
+
+    if (overflow) {
+      const hidden = allItems.length - toShow.length;
+      const toggleEl = document.createElement('button');
+      toggleEl.className = 'tag-show-more';
+      if (!filterChipsExpanded) {
+        toggleEl.textContent = hidden > 0 ? `+${hidden} more` : 'show less';
+        if (hidden > 0) {
+          toggleEl.addEventListener('click', () => { filterChipsExpanded = true; renderTagFilterBar(); });
+        } else {
+          toggleEl.addEventListener('click', () => { filterChipsExpanded = false; renderTagFilterBar(); });
+        }
+      } else {
+        toggleEl.textContent = 'show less';
+        toggleEl.addEventListener('click', () => { filterChipsExpanded = false; renderTagFilterBar(); });
+      }
+      tagFilterChips.appendChild(toggleEl);
+    }
+  };
+
+  // Renders the 1-10 rating stars for the current folder.
+  const renderRating = rating => {
+    state.currentRating = rating ?? null;
+    ratingStars.innerHTML = '';
+    for (let i = 1; i <= 5; i++) {
+      const star = document.createElement('button');
+      star.className = 'rating-star' + (i <= (rating ?? 0) ? ' filled' : '');
+      star.textContent = '★';
+      star.dataset.value = i;
+      star.addEventListener('click', () => setRating(i));
+      star.addEventListener('mouseover', () => highlightStars(i));
+      star.addEventListener('mouseout', () => highlightStars(state.currentRating ?? 0));
+      ratingStars.appendChild(star);
+    }
+  };
+
+  const highlightStars = value => {
+    ratingStars.querySelectorAll('.rating-star').forEach((s, idx) => {
+      s.classList.toggle('filled', idx < value);
+    });
+  };
+
+  const setRating = async value => {
+    if (!state.currentFolderId) return;
+    const body = { rating: state.currentRating === value ? 0 : value };
+    const res = await fetch(`/api/folders/${state.currentFolderId}/rating`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      renderRating(data.rating);
+    }
   };
 
   // Fetches and renders the breadcrumb navigation.
@@ -155,7 +275,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       (!data.subfolders || data.subfolders.length === 0) &&
       (!data.chapters || data.chapters.length === 0)
     ) {
-      cardsGrid.innerHTML = '<p>This folder is empty.</p>';
+      const hasActiveFilter = state.search || state.unreadOnly || state.filterTagId || state.currentTagId;
+      cardsGrid.innerHTML = hasActiveFilter
+        ? '<p>No results found.</p>'
+        : '<p>This folder is empty.</p>';
       return;
     }
 
@@ -180,9 +303,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Calculate progress for the folder
     const progressPercent =
       folder.total_chapters > 0 ? (folder.read_chapters / folder.total_chapters) * 100 : 0;
+    const ratingBadge = folder.rating
+      ? `<div class="rating-badge">★ ${folder.rating}</div>`
+      : '';
     card.innerHTML = `
             <div class="thumbnail-container">
                 <img class="thumbnail" src="${folder.thumbnail || '/static/images/logo.svg'}" loading="lazy" alt="Cover for ${folder.name}">
+                ${ratingBadge}
             </div>
             <div class="item-title" title="${folder.name}">${folder.name}</div>
             <div class="progress-bar-container">
@@ -260,8 +387,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (state.currentFolderId) {
         params.set('folderId', state.currentFolderId);
       }
-      if (state.currentTagId) {
-        params.set('tagId', state.currentTagId);
+      const activeTagId = state.currentTagId || state.filterTagId;
+      if (activeTagId) {
+        params.set('tagId', activeTagId);
+      }
+      if (state.unreadOnly) {
+        params.set('unread_only', 'true');
       }
 
       const response = await fetch(`/api/browse?${params.toString()}`);
@@ -286,9 +417,27 @@ document.addEventListener('DOMContentLoaded', async () => {
       folderThumb.src = data.current_folder ? data.current_folder.thumbnail : '';
       folderThumb.style.display = data.current_folder ? 'block' : 'none';
 
-      // Show the Edit button only when viewing a specific folder
-      editFolderBtn.style.display = data.current_folder ? 'block' : 'none';
-      renderTags(data.current_folder ? data.current_folder.tags : []);
+      const inFolder = !!data.current_folder;
+
+      // Controls that only make sense when viewing a specific folder
+      editFolderBtn.style.display = inFolder ? 'block' : 'none';
+      progressActions.style.display = inFolder ? 'flex' : 'none';
+      folderTagsSection.style.display = inFolder ? 'flex' : 'none';
+      renderTags(inFolder ? data.current_folder.tags : []);
+
+      // Rating widget: show on folder detail pages only
+      if (inFolder) {
+        ratingWidget.style.display = 'flex';
+        renderRating(data.current_folder.rating ?? null);
+      } else {
+        ratingWidget.style.display = 'none';
+      }
+
+      // Tag filter chips at root level
+      renderTagFilterBar();
+
+      // Unread button active state
+      unreadFilterBtn.classList.toggle('active', state.unreadOnly);
 
       renderGrid(data);
 
@@ -386,24 +535,62 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   };
 
-  const renderTags = tags => {
+  // Renders inline folder tags with collapse/expand behaviour.
+  // preserveExpanded=true keeps the current expand state (used after add/remove/toggle);
+  // false (default) resets to collapsed when navigating to a new folder.
+  const renderTags = (tags, preserveExpanded = false) => {
+    if (!preserveExpanded) tagsExpanded = false;
     currentFolderTags = tags || [];
     tagsContainer.innerHTML = '';
-    currentFolderTags.forEach(tag => {
+
+    const overflow = currentFolderTags.length > TAGS_COLLAPSED_LIMIT;
+    const toShow = (!tagsExpanded && overflow)
+      ? currentFolderTags.slice(0, TAGS_COLLAPSED_LIMIT)
+      : currentFolderTags;
+
+    // .expanded switches from nowrap-scroll to wrapping layout
+    tagsContainer.classList.toggle('expanded', tagsExpanded || !overflow);
+
+    toShow.forEach(tag => {
       const tagEl = document.createElement('div');
       tagEl.className = 'tag';
-      tagEl.innerHTML = `<span>${tag.name}</span><span class="tag-remove-btn" data-tag-id="${tag.id}">&times;</span>`;
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'tag-name';
+      nameSpan.textContent = tag.name;
+
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'tag-remove-btn';
+      removeBtn.title = `Remove ${tag.name}`;
+      removeBtn.textContent = '×';
+      // Direct listener (not delegation) so the hit-target is reliable
+      removeBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        removeTag(tag.id);
+      });
+
+      tagEl.appendChild(nameSpan);
+      tagEl.appendChild(removeBtn);
       tagsContainer.appendChild(tagEl);
     });
 
-    // Update icon visibility based on whether there are tags
-    const tagsDisplay = document.querySelector('.tags-display');
-    if (tagsDisplay) {
-      if (currentFolderTags.length === 0) {
-        tagsDisplay.classList.add('no-tags');
+    if (overflow) {
+      const toggleEl = document.createElement('button');
+      toggleEl.className = 'tag-show-more';
+      if (!tagsExpanded) {
+        toggleEl.textContent = `+${currentFolderTags.length - TAGS_COLLAPSED_LIMIT} more`;
+        toggleEl.addEventListener('click', () => {
+          tagsExpanded = true;
+          renderTags(currentFolderTags, true);
+        });
       } else {
-        tagsDisplay.classList.remove('no-tags');
+        toggleEl.textContent = 'show less';
+        toggleEl.addEventListener('click', () => {
+          tagsExpanded = false;
+          renderTags(currentFolderTags, true);
+        });
       }
+      tagsContainer.appendChild(toggleEl);
     }
   };
 
@@ -427,7 +614,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       autocompleteSuggestions.style.display = 'none';
       const newTag = await response.json();
       currentFolderTags.push(newTag);
-      renderTags(currentFolderTags);
+      renderTags(currentFolderTags, true);
     }
   };
 
@@ -436,7 +623,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       method: 'DELETE',
     });
     currentFolderTags = currentFolderTags.filter(t => t.id != tagId);
-    renderTags(currentFolderTags);
+    renderTags(currentFolderTags, true);
   };
 
   const handleSearch = () => {
@@ -484,11 +671,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       body: JSON.stringify({ read }),
     });
     if (response.ok) {
-      // Dismiss the modal
-      editFolderModal.style.display = 'none';
-      // Show success toast
       toast.success(`All chapters marked as ${read ? 'read' : 'unread'}`);
-      // Reload folder contents
       loadFolderContents();
     } else {
       toast.error(`Failed to mark all chapters as ${read ? 'read' : 'unread'}`);
@@ -536,11 +719,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && editFolderModal.style.display === 'flex') {
       editFolderModal.style.display = 'none';
-    }
-  });
-  tagsContainer.addEventListener('click', e => {
-    if (e.target.classList.contains('tag-remove-btn')) {
-      removeTag(e.target.dataset.tagId);
     }
   });
   tagInput.addEventListener('keydown', e => {
@@ -600,6 +778,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   markAllUnreadBtn.addEventListener('click', async () => {
     markAllAs(false);
   });
+
+  unreadFilterBtn.addEventListener('click', () => {
+    state.unreadOnly = !state.unreadOnly;
+    state.currentPage = 1;
+    localStorage.setItem('unreadOnly', state.unreadOnly);
+    unreadFilterBtn.classList.toggle('active', state.unreadOnly);
+    loadFolderContents();
+  });
+
+  ratingClearBtn.addEventListener('click', () => setRating(0));
 
   const init = async () => {
     state.currentFolderId = getFolderIdFromUrl();

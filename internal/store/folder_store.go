@@ -52,11 +52,12 @@ func (s *Store) GetFolder(id int64) (*models.Folder, error) {
 	var folder models.Folder
 	var parentID sql.NullInt64
 	var thumbnail sql.NullString
+	var rating sql.NullInt64
 	if id == 0 {
 		return nil, fmt.Errorf("folder ID cannot be 0")
 	}
-	query := "SELECT id, path, name, parent_id, thumbnail, created_at, updated_at FROM folders WHERE id = ?"
-	err := s.db.QueryRow(query, id).Scan(&folder.ID, &folder.Path, &folder.Name, &parentID, &thumbnail, &folder.CreatedAt, &folder.UpdatedAt)
+	query := "SELECT id, path, name, parent_id, thumbnail, rating, created_at, updated_at FROM folders WHERE id = ?"
+	err := s.db.QueryRow(query, id).Scan(&folder.ID, &folder.Path, &folder.Name, &parentID, &thumbnail, &rating, &folder.CreatedAt, &folder.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrFolderNotFound
@@ -67,6 +68,10 @@ func (s *Store) GetFolder(id int64) (*models.Folder, error) {
 		folder.ParentID = &parentID.Int64
 	}
 	folder.Thumbnail = thumbnail.String
+	if rating.Valid {
+		r := int(rating.Int64)
+		folder.Rating = &r
+	}
 
 	// Fetch associated tags
 	tagQuery := "SELECT t.id, t.name FROM tags t JOIN folder_tags ft ON t.id = ft.tag_id WHERE ft.folder_id = ?"
@@ -221,14 +226,15 @@ func (s *Store) updateSingleFolderThumbnail(folderID int64) {
 
 // ListItemsOptions provides flexible filtering for listing folders and chapters.
 type ListItemsOptions struct {
-	UserID   int64  `json:"user_id"`
-	ParentID *int64 `json:"parent_id,omitempty"` // Filter by parent folder
-	TagID    *int64 `json:"tag_id,omitempty"`    // Filter by tag
-	Search   string `json:"search,omitempty"`
-	SortBy   string `json:"sort_by,omitempty"`
-	SortDir  string `json:"sort_dir,omitempty"`
-	Page     int    `json:"page"`
-	PerPage  int    `json:"per_page"`
+	UserID     int64  `json:"user_id"`
+	ParentID   *int64 `json:"parent_id,omitempty"` // Filter by parent folder
+	TagID      *int64 `json:"tag_id,omitempty"`    // Filter by tag
+	Search     string `json:"search,omitempty"`
+	SortBy     string `json:"sort_by,omitempty"`
+	SortDir    string `json:"sort_dir,omitempty"`
+	Page       int    `json:"page"`
+	PerPage    int    `json:"per_page"`
+	UnreadOnly bool   `json:"unread_only,omitempty"` // Show only folders with unread chapters
 }
 
 // ListItems is the new generic function for fetching folders and chapters.
@@ -290,7 +296,8 @@ func (s *Store) ListItems(opts ListItemsOptions) (*models.Folder, []*models.Fold
 			NULL as user_read,
 			NULL as user_progress,
 			f.created_at as sort_created_at,
-			f.name as sort_name
+			f.name as sort_name,
+			f.rating as rating
 		FROM folders f %s WHERE %s
 		UNION ALL
 		-- Select Chapters
@@ -306,7 +313,8 @@ func (s *Store) ListItems(opts ListItemsOptions) (*models.Folder, []*models.Fold
 			COALESCE(ucp.read, 0) as user_read,
 			COALESCE(ucp.progress_percent, 0) as user_progress,
 			c.created_at as sort_created_at,
-			c.path as sort_name
+			c.path as sort_name,
+			NULL as rating
 		FROM chapters c
 		LEFT JOIN user_chapter_progress ucp ON c.id = ucp.chapter_id AND ucp.user_id = ?
 		WHERE %s
@@ -337,7 +345,8 @@ func (s *Store) ListItems(opts ListItemsOptions) (*models.Folder, []*models.Fold
 
 	allArgs := append(folderArgs, opts.UserID)
 	allArgs = append(allArgs, chapterArgs...)
-	if opts.SortBy != "" && opts.SortBy != "auto" && opts.PerPage > 0 {
+	// Skip SQL pagination when UnreadOnly is set so we can filter in Go after stats are computed.
+	if opts.SortBy != "" && opts.SortBy != "auto" && opts.PerPage > 0 && !opts.UnreadOnly {
 		finalQuery += " LIMIT ? OFFSET ?"
 		offset := (opts.Page - 1) * opts.PerPage
 		allArgs = append(allArgs, opts.PerPage, offset)
@@ -358,7 +367,7 @@ func (s *Store) ListItems(opts ListItemsOptions) (*models.Folder, []*models.Fold
 		var folder models.Folder
 		var chapter models.Chapter
 		var folderThumb, chapPath, sortName sql.NullString
-		var pageCount, userProgress sql.NullInt64
+		var pageCount, userProgress, folderRating sql.NullInt64
 		var userRead sql.NullBool
 		var createdAtStr, updatedAtStr sql.NullString
 		var createdAt, updatedAt sql.NullTime
@@ -367,7 +376,7 @@ func (s *Store) ListItems(opts ListItemsOptions) (*models.Folder, []*models.Fold
 		if err := rows.Scan(
 			&itemType, &chapter.ID, &chapPath, &folder.Name, &folderThumb,
 			&pageCount,
-			&createdAtStr, &updatedAtStr, &userRead, &userProgress, &sortDate, &sortName); err != nil {
+			&createdAtStr, &updatedAtStr, &userRead, &userProgress, &sortDate, &sortName, &folderRating); err != nil {
 			return currentFolder, nil, nil, 0, err
 		}
 		if createdAtStr.Valid {
@@ -382,6 +391,10 @@ func (s *Store) ListItems(opts ListItemsOptions) (*models.Folder, []*models.Fold
 			folder.ID = chapter.ID
 			folder.Path = chapPath.String
 			folder.Thumbnail = folderThumb.String
+			if folderRating.Valid {
+				r := int(folderRating.Int64)
+				folder.Rating = &r
+			}
 			subfolders = append(subfolders, &folder)
 		} else { // Chapter
 			chapter.FolderID = *opts.ParentID
@@ -409,6 +422,28 @@ func (s *Store) ListItems(opts ListItemsOptions) (*models.Folder, []*models.Fold
 		folder.TotalChapters = totalChapters
 		folder.ReadChapters = readChapters
 	}
+
+	// Apply unread filter after stats are populated.
+	if opts.UnreadOnly {
+		filteredFolders := subfolders[:0]
+		for _, f := range subfolders {
+			if f.TotalChapters > 0 && f.ReadChapters < f.TotalChapters {
+				filteredFolders = append(filteredFolders, f)
+			}
+		}
+		subfolders = filteredFolders
+
+		filteredChapters := chapters[:0]
+		for _, c := range chapters {
+			if !c.Read {
+				filteredChapters = append(filteredChapters, c)
+			}
+		}
+		chapters = filteredChapters
+
+		totalItems = len(subfolders) + len(chapters)
+	}
+
 	// Sort subfolders naturally if requested
 	switch sortBy {
 	case "auto":
@@ -594,6 +629,25 @@ func (s *Store) MarkFolderChaptersAs(folderID int64, read bool, userID int64) er
 		}
 	}
 
+	return nil
+}
+
+// UpdateFolderRating sets or clears the rating for a folder (1-10, or nil to clear).
+func (s *Store) UpdateFolderRating(folderID int64, rating *int) error {
+	var result sql.Result
+	var err error
+	if rating == nil {
+		result, err = s.db.Exec("UPDATE folders SET rating = NULL WHERE id = ?", folderID)
+	} else {
+		result, err = s.db.Exec("UPDATE folders SET rating = ? WHERE id = ?", *rating, folderID)
+	}
+	if err != nil {
+		return err
+	}
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return ErrFolderNotFound
+	}
 	return nil
 }
 

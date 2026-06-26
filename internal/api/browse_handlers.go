@@ -35,15 +35,18 @@ func (s *Server) handleBrowseFolder(w http.ResponseWriter, r *http.Request) {
 		tagID = &id
 	}
 
+	unreadOnly := r.URL.Query().Get("unread_only") == "true"
+
 	opts := store.ListItemsOptions{
-		UserID:   user.ID,
-		ParentID: &folderID,
-		Page:     page,
-		TagID:    tagID,
-		PerPage:  perPage,
-		Search:   search,
-		SortBy:   sortBy,
-		SortDir:  sortDir,
+		UserID:     user.ID,
+		ParentID:   &folderID,
+		Page:       page,
+		TagID:      tagID,
+		PerPage:    perPage,
+		Search:     search,
+		SortBy:     sortBy,
+		SortDir:    sortDir,
+		UnreadOnly: unreadOnly,
 	}
 	folder, subfolders, chapters, total, err := s.store.ListItems(opts)
 	if err != nil {
@@ -223,6 +226,39 @@ func (s *Server) handleUploadFolderCover(w http.ResponseWriter, r *http.Request)
 	}
 
 	RespondWithJSON(w, http.StatusOK, map[string]string{"message": "Cover updated successfully."})
+}
+
+// handleUpdateFolderRating sets or clears the rating for a folder (body: {"rating": 8} or {"rating": 0} to clear).
+func (s *Server) handleUpdateFolderRating(w http.ResponseWriter, r *http.Request) {
+	folderID, err := strconv.ParseInt(chi.URLParam(r, "folderID"), 10, 64)
+	if err != nil {
+		RespondWithError(w, http.StatusBadRequest, "Invalid folder ID")
+		return
+	}
+
+	var payload struct {
+		Rating int `json:"rating"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+
+	var ratingPtr *int
+	if payload.Rating >= 1 && payload.Rating <= 5 {
+		ratingPtr = &payload.Rating
+	}
+
+	if err := s.store.UpdateFolderRating(folderID, ratingPtr); err != nil {
+		if err == store.ErrFolderNotFound {
+			RespondWithError(w, http.StatusNotFound, "Folder not found")
+			return
+		}
+		RespondWithError(w, http.StatusInternalServerError, "Failed to update rating")
+		return
+	}
+
+	RespondWithJSON(w, http.StatusOK, map[string]interface{}{"rating": ratingPtr})
 }
 
 // handleListAllFolders returns a simple list of all folders for subscription folder selection
