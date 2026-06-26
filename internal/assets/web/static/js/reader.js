@@ -1,5 +1,5 @@
-// reader2.js — enhanced reader: RTL direction, double-page spread, zoom + drag-to-pan.
-// To revert to the original reader, change reader.html to load reader.js instead.
+// reader.js — manga reader with RTL direction, double-page spread, zoom/pan,
+// swipe navigation, page counter, and adjacent-page preloading.
 import { checkAuth } from './auth.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -20,7 +20,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     allChapters: [],
     currentPage: 1,
     readingMode: localStorage.getItem('readingMode') || 'continuous',
-    pageMargin: localStorage.getItem('pageMargin') || '10',
     fitMode: localStorage.getItem('fitMode') || 'fit-original',
     // 'ltr' = left-to-right (default); 'rtl' flips arrow key mapping and page order in spreads.
     readingDirection: localStorage.getItem('readingDirection') || 'ltr',
@@ -53,7 +52,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const modalProgress = document.getElementById('modal-progress');
   const jumpToPageSelect = document.getElementById('jump-to-page');
   const modeSelect = document.getElementById('mode-select');
-  const marginSlider = document.getElementById('margin-slider');
   const jumpToEntrySelect = document.getElementById('jump-to-entry');
   const modalPrevBtn = document.getElementById('modal-prev-btn');
   const modalNextBtn = document.getElementById('modal-next-btn');
@@ -62,6 +60,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   const fitModeSelect = document.getElementById('fit-mode-select');
   const directionSelect = document.getElementById('direction-select');
   const zoomIndicator = document.getElementById('zoom-indicator');
+  const zoomOutBtn = document.getElementById('zoom-out-btn');
+  const zoomLevelBtn = document.getElementById('zoom-level-btn');
+  const zoomInBtn = document.getElementById('zoom-in-btn');
+  const pageCounter = document.getElementById('page-counter');
+  const settingsBtn = document.getElementById('settings-btn');
   const footerPrevBtn = document.getElementById('footer-prev-chapter-btn');
   const footerNextBtn = document.getElementById('footer-next-chapter-btn');
   const footerExitBtn = document.getElementById('footer-exit-chapter-btn');
@@ -212,6 +215,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.scrollTo(0, 0);
     updateProgressText();
     updateJumpToPageSelect();
+    updatePageCounter();
+    preloadAdjacentPages();
   };
 
   const applyReadingMode = () => {
@@ -231,6 +236,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       imageContainer.classList.remove('single-page', 'double-page');
       singlePageViewer.style.display = 'none';
       document.querySelectorAll('.page-image').forEach(img => (img.style.display = 'block'));
+      updatePageCounter(); // hides counter in continuous mode
     }
   };
 
@@ -243,6 +249,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.scrollTo(0, 0);
     updateProgressText();
     updateJumpToPageSelect();
+    updatePageCounter();
+    preloadAdjacentPages();
   };
 
   const updateJumpToPageSelect = progressPercent => {
@@ -257,11 +265,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     const page = Math.ceil((progress / 100) * state.chapterData.page_count) || 1;
     jumpToPageSelect.value = page;
-  };
-
-  const applyPageMargin = () => {
-    localStorage.setItem('pageMargin', state.pageMargin);
-    document.documentElement.style.setProperty('--page-margin', `${state.pageMargin}px`);
   };
 
   const applyFitMode = () => {
@@ -312,6 +315,42 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   };
 
+  // --- Page Counter ---
+  const updatePageCounter = () => {
+    if (!pageCounter) return;
+    const isPaged = state.readingMode === 'single_page' || state.readingMode === 'double_page';
+    if (!isPaged) { pageCounter.style.display = 'none'; return; }
+    pageCounter.style.display = 'block';
+    const total = state.chapterData.page_count;
+    if (state.readingMode === 'single_page') {
+      pageCounter.textContent = `${state.currentPage} / ${total}`;
+    } else {
+      const pages = getPagesForSpread(currentSpread);
+      const label = pages.length > 1 ? `${pages[0]}–${pages[1]}` : `${pages[0]}`;
+      pageCounter.textContent = `${label} / ${total}`;
+    }
+  };
+
+  // --- Adjacent Page Preloading ---
+  // Pages are lazy-loaded and hidden in paged modes; preloading the neighbours
+  // avoids a blank flash when the user turns the page.
+  const preloadAdjacentPages = () => {
+    if (state.readingMode === 'continuous') return;
+    const toPreload = new Set();
+    if (state.readingMode === 'single_page') {
+      for (let off = 1; off <= 2; off++) {
+        if (state.currentPage + off <= state.chapterData.page_count) toPreload.add(state.currentPage + off);
+      }
+      if (state.currentPage - 1 >= 1) toPreload.add(state.currentPage - 1);
+    } else {
+      if (currentSpread + 1 < getSpreadCount())
+        getPagesForSpread(currentSpread + 1).forEach(p => toPreload.add(p));
+      if (currentSpread - 1 >= 0)
+        getPagesForSpread(currentSpread - 1).forEach(p => toPreload.add(p));
+    }
+    toPreload.forEach(pageNum => { new Image().src = `/api/chapters/${chapterId}/pages/${pageNum}`; });
+  };
+
   // --- Zoom & Pan ---
   // Note: CSS transform does not expand layout, so in continuous mode the scrollable
   // height reflects unzoomed content. Zoom works best in single/double-page modes.
@@ -323,14 +362,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     imageContainer.style.cursor =
       state.zoomLevel > 1 ? (isPanning ? 'grabbing' : 'grab') : '';
 
+    const pct = `${Math.round(state.zoomLevel * 100)}%`;
     if (zoomIndicator) {
-      if (state.zoomLevel !== 1.0) {
-        zoomIndicator.textContent = `${Math.round(state.zoomLevel * 100)}%`;
-        zoomIndicator.style.display = 'block';
-      } else {
-        zoomIndicator.style.display = 'none';
-      }
+      zoomIndicator.textContent = pct;
+      zoomIndicator.style.display = state.zoomLevel !== 1.0 ? 'block' : 'none';
     }
+    // Keep the modal zoom button label current so it reflects live changes.
+    if (zoomLevelBtn) zoomLevelBtn.textContent = pct;
   };
 
   const zoomIn = () => {
@@ -377,7 +415,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     modeSelect.value = state.readingMode;
-    marginSlider.value = state.pageMargin;
     fitModeSelect.value = state.fitMode;
     if (directionSelect) directionSelect.value = state.readingDirection;
   };
@@ -534,6 +571,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     applyZoom();
   });
 
+  // Touch swipe for page navigation in single/double-page modes.
+  let touchStartX = 0;
+  let touchStartY = 0;
+  document.addEventListener('touchstart', e => {
+    touchStartX = e.changedTouches[0].clientX;
+    touchStartY = e.changedTouches[0].clientY;
+  }, { passive: true });
+  document.addEventListener('touchend', e => {
+    if (state.readingMode === 'continuous') return;
+    if (state.zoomLevel > 1) return; // pan handles touch when zoomed
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return;
+    dx < 0
+      ? (isRTL() ? advanceBack() : advanceForward())
+      : (isRTL() ? advanceForward() : advanceBack());
+  }, { passive: true });
+
+  // Zoom controls inside the modal
+  if (zoomOutBtn) zoomOutBtn.addEventListener('click', zoomOut);
+  if (zoomInBtn) zoomInBtn.addEventListener('click', zoomIn);
+  if (zoomLevelBtn) zoomLevelBtn.addEventListener('click', zoomReset);
+
+  // Settings button opens the modal (alternative to clicking the image).
+  if (settingsBtn) settingsBtn.addEventListener('click', () => (modal.style.display = 'flex'));
+
   // Page navigation buttons
   singlePrevBtn.addEventListener('click', () => {
     if (state.readingMode === 'continuous') jumpToChapter(genPrevChapterId());
@@ -549,18 +612,38 @@ document.addEventListener('DOMContentLoaded', async () => {
   modeSelect.addEventListener('change', e => {
     const prev = state.readingMode;
     state.readingMode = e.target.value;
-    // Re-render DOM when entering or leaving double_page (different node structure)
+
+    // Capture the current page before re-rendering so position can be restored.
+    let targetPage = state.currentPage;
+    if (prev === 'continuous') {
+      const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const progress = scrollableHeight > 0 ? window.scrollY / scrollableHeight : 0;
+      targetPage = Math.max(1, Math.ceil(progress * state.chapterData.page_count));
+    } else if (prev === 'double_page') {
+      targetPage = getPagesForSpread(currentSpread)[0];
+    }
+
+    // Re-render DOM when entering or leaving double_page (different node structure).
     if (prev === 'double_page' || state.readingMode === 'double_page') {
       renderPages();
     } else {
       applyReadingMode();
     }
     applyFitMode();
-  });
 
-  marginSlider.addEventListener('input', e => {
-    state.pageMargin = e.target.value;
-    applyPageMargin();
+    // Restore position in the new mode.
+    if (state.readingMode === 'single_page') {
+      state.currentPage = targetPage;
+      updateSinglePageView();
+    } else if (state.readingMode === 'double_page') {
+      currentSpread = getSpreadForPage(targetPage);
+      updateDoublePageView();
+    } else {
+      // continuous: let the DOM settle before scrolling to the target page element.
+      requestAnimationFrame(() => {
+        document.getElementById(`page-${targetPage}`)?.scrollIntoView({ behavior: 'instant' });
+      });
+    }
   });
 
   fitModeSelect.addEventListener('change', e => {
@@ -609,7 +692,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     await fetchInitialData();
     document.title = `${state.folderData.name} - Mango Reader`;
     await findNeighboringChapters();
-    applyPageMargin();
     renderPages();
     applyFitMode();
     populateModal();

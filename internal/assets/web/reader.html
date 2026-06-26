@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mango Reader</title>
+    <link rel="stylesheet" href="/static/css/ext/phosphor-icons.css">
     <link rel="stylesheet" href="/static/css/reader.css">
     </head>
 
@@ -65,9 +66,13 @@
                             <option value="rtl">Right to Left (RTL)</option>
                         </select>
                     </div>
-                    <div class="modal-form-group modal-slider-group">
-                        <label for="margin-slider">Page Margin</label>
-                        <input type="range" id="margin-slider" min="0" max="100" value="10">
+                    <div class="modal-form-group">
+                        <label>Zoom</label>
+                        <div class="zoom-controls">
+                            <button type="button" id="zoom-out-btn" title="Zoom out (Ctrl+−)">−</button>
+                            <button type="button" id="zoom-level-btn" title="Reset zoom (Ctrl+0)">100%</button>
+                            <button type="button" id="zoom-in-btn" title="Zoom in (Ctrl+=)">+</button>
+                        </div>
                     </div>
                     <div class="modal-form-group">
                         <label for="fit-mode-select">Fit Mode</label>
@@ -97,6 +102,8 @@
         <div id="progress-bar"></div>
     </div>
     <div class="zoom-indicator" id="zoom-indicator"></div>
+    <div class="page-counter" id="page-counter"></div>
+    <button class="settings-btn" id="settings-btn" title="Settings"><i class="ph-bold ph-gear-six"></i></button>
     <script src="/static/js/reader.js"></script>
 </body>
 
