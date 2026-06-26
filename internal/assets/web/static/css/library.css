@@ -161,7 +161,6 @@ body.light-theme .anilist-button:hover {
   animation: fadeIn 0.3s ease;
 }
 
-
 .tag-input {
   margin-bottom: 1rem;
   padding: 0.75rem 1rem;
@@ -238,7 +237,6 @@ body.light-theme .anilist-button:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(var(--accent-color-rgb), 0.3);
 }
-
 
 /* Grid Section Header */
 .grid-section-header {
@@ -850,7 +848,9 @@ body.light-theme .anilist-button:hover {
   height: 100%;
   display: inline-flex;
   align-items: center;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 
 .inline-tags .tag .tag-remove-btn:hover {
@@ -869,7 +869,9 @@ body.light-theme .anilist-button:hover {
   padding: 0.25rem 0.6rem;
   cursor: pointer;
   white-space: nowrap;
-  transition: border-color 0.15s, color 0.15s;
+  transition:
+    border-color 0.15s,
+    color 0.15s;
   align-self: center;
 }
 

@@ -84,12 +84,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   const waitForImagesToLoad = () =>
     new Promise(resolve => {
       const images = document.querySelectorAll('.page-image:not([style*="display: none"])');
-      if (images.length === 0) { resolve(); return; }
+      if (images.length === 0) {
+        resolve();
+        return;
+      }
       let loaded = 0;
-      const done = () => { if (++loaded === images.length) resolve(); };
+      const done = () => {
+        if (++loaded === images.length) resolve();
+      };
       images.forEach(img => {
         if (img.complete) done();
-        else { img.addEventListener('load', done); img.addEventListener('error', done); }
+        else {
+          img.addEventListener('load', done);
+          img.addEventListener('error', done);
+        }
       });
     });
 
@@ -319,7 +327,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const updatePageCounter = () => {
     if (!pageCounter) return;
     const isPaged = state.readingMode === 'single_page' || state.readingMode === 'double_page';
-    if (!isPaged) { pageCounter.style.display = 'none'; return; }
+    if (!isPaged) {
+      pageCounter.style.display = 'none';
+      return;
+    }
     pageCounter.style.display = 'block';
     const total = state.chapterData.page_count;
     if (state.readingMode === 'single_page') {
@@ -339,7 +350,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const toPreload = new Set();
     if (state.readingMode === 'single_page') {
       for (let off = 1; off <= 2; off++) {
-        if (state.currentPage + off <= state.chapterData.page_count) toPreload.add(state.currentPage + off);
+        if (state.currentPage + off <= state.chapterData.page_count)
+          toPreload.add(state.currentPage + off);
       }
       if (state.currentPage - 1 >= 1) toPreload.add(state.currentPage - 1);
     } else {
@@ -348,7 +360,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (currentSpread - 1 >= 0)
         getPagesForSpread(currentSpread - 1).forEach(p => toPreload.add(p));
     }
-    toPreload.forEach(pageNum => { new Image().src = `/api/chapters/${chapterId}/pages/${pageNum}`; });
+    toPreload.forEach(pageNum => {
+      new Image().src = `/api/chapters/${chapterId}/pages/${pageNum}`;
+    });
   };
 
   // --- Zoom & Pan ---
@@ -359,8 +373,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     imageContainer.style.transform = active
       ? `translate(${state.panX}px, ${state.panY}px) scale(${state.zoomLevel})`
       : '';
-    imageContainer.style.cursor =
-      state.zoomLevel > 1 ? (isPanning ? 'grabbing' : 'grab') : '';
+    imageContainer.style.cursor = state.zoomLevel > 1 ? (isPanning ? 'grabbing' : 'grab') : '';
 
     const pct = `${Math.round(state.zoomLevel * 100)}%`;
     if (zoomIndicator) {
@@ -378,7 +391,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const zoomOut = () => {
     state.zoomLevel = Math.max(0.5, +(state.zoomLevel - 0.25).toFixed(2));
-    if (state.zoomLevel === 1.0) { state.panX = 0; state.panY = 0; }
+    if (state.zoomLevel === 1.0) {
+      state.panX = 0;
+      state.panY = 0;
+    }
     applyZoom();
   };
 
@@ -393,7 +409,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const populateModal = () => {
     const chapter = state.chapterData;
     const folder = state.folderData;
-    const lastPart = chapter.path.split(/[\\/]/).pop().replace(/\.[^/.]+$/, '');
+    const lastPart = chapter.path
+      .split(/[\\/]/)
+      .pop()
+      .replace(/\.[^/.]+$/, '');
     modalTitle.textContent = `${folder.name} - ${lastPart}`;
     modalPath.textContent = chapter.path;
 
@@ -409,7 +428,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     state.allChapters.forEach(ch => {
       const option = document.createElement('option');
       option.value = ch.id;
-      option.textContent = ch.path.split(/[\\/]/).pop().replace(/\.[^/.]+$/, '');
+      option.textContent = ch.path
+        .split(/[\\/]/)
+        .pop()
+        .replace(/\.[^/.]+$/, '');
       if (ch.id == chapterId) option.selected = true;
       jumpToEntrySelect.appendChild(option);
     });
@@ -429,7 +451,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       progress = (pages[pages.length - 1] / state.chapterData.page_count) * 100;
     } else {
       const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
-      if (scrollableHeight <= 0) { progressBar.style.width = '100%'; return; }
+      if (scrollableHeight <= 0) {
+        progressBar.style.width = '100%';
+        return;
+      }
       progress = Math.round((window.scrollY / scrollableHeight) * 100);
     }
     progressBar.style.width = `${progress}%`;
@@ -450,9 +475,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const genNextChapterId = () => {
     const cur = jumpToEntrySelect.options[jumpToEntrySelect.selectedIndex];
-    return cur.nextElementSibling
-      ? cur.nextElementSibling.value
-      : state.allChapters[0].id;
+    return cur.nextElementSibling ? cur.nextElementSibling.value : state.allChapters[0].id;
   };
 
   const jumpToChapter = newId => {
@@ -496,24 +519,44 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Click on image area opens settings modal, unless the user is panning while zoomed.
   imageContainer.addEventListener('click', () => {
-    if (panMoved) { panMoved = false; return; }
+    if (panMoved) {
+      panMoved = false;
+      return;
+    }
     if (state.zoomLevel > 1) return;
     modal.style.display = 'flex';
   });
 
   modalCloseBtn.addEventListener('click', () => (modal.style.display = 'none'));
-  modal.addEventListener('click', e => { if (e.target === modal) modal.style.display = 'none'; });
+  modal.addEventListener('click', e => {
+    if (e.target === modal) modal.style.display = 'none';
+  });
 
   // Keyboard shortcuts
   document.addEventListener('keydown', e => {
     // Zoom: Ctrl/Cmd + = (plus), - (minus), 0 (reset)
     if (e.ctrlKey || e.metaKey) {
-      if (e.key === '=' || e.key === '+') { e.preventDefault(); zoomIn(); return; }
-      if (e.key === '-') { e.preventDefault(); zoomOut(); return; }
-      if (e.key === '0') { e.preventDefault(); zoomReset(); return; }
+      if (e.key === '=' || e.key === '+') {
+        e.preventDefault();
+        zoomIn();
+        return;
+      }
+      if (e.key === '-') {
+        e.preventDefault();
+        zoomOut();
+        return;
+      }
+      if (e.key === '0') {
+        e.preventDefault();
+        zoomReset();
+        return;
+      }
     }
 
-    if (e.key === 'Escape') { modal.style.display = 'none'; return; }
+    if (e.key === 'Escape') {
+      modal.style.display = 'none';
+      return;
+    }
 
     // In RTL mode, the "next page" key is ArrowLeft and "prev page" is ArrowRight.
     const nextKey = isRTL() ? 'ArrowLeft' : 'ArrowRight';
@@ -522,13 +565,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     const prevAlpha = isRTL() ? 'd' : 'a';
 
     if (state.readingMode === 'continuous') {
-      const atBottom = window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 10;
+      const atBottom =
+        window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 10;
       const atTop = window.scrollY <= 10;
       if (e.key === nextKey || e.key === nextAlpha) {
-        if (nextChapterId && atBottom) window.location.href = `/reader/series/${folderId}/chapters/${nextChapterId}`;
+        if (nextChapterId && atBottom)
+          window.location.href = `/reader/series/${folderId}/chapters/${nextChapterId}`;
         else window.scrollBy({ top: window.innerHeight, behavior: 'smooth' });
       } else if (e.key === prevKey || e.key === prevAlpha) {
-        if (prevChapterId && atTop) window.location.href = `/reader/series/${folderId}/chapters/${prevChapterId}`;
+        if (prevChapterId && atTop)
+          window.location.href = `/reader/series/${folderId}/chapters/${prevChapterId}`;
         else window.scrollBy({ top: -window.innerHeight, behavior: 'smooth' });
       }
     }
@@ -540,11 +586,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // Ctrl+scroll to zoom
-  window.addEventListener('wheel', e => {
-    if (!e.ctrlKey && !e.metaKey) return;
-    e.preventDefault();
-    e.deltaY < 0 ? zoomIn() : zoomOut();
-  }, { passive: false });
+  window.addEventListener(
+    'wheel',
+    e => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      e.deltaY < 0 ? zoomIn() : zoomOut();
+    },
+    { passive: false }
+  );
 
   // Drag to pan when zoomed in
   imageContainer.addEventListener('pointerdown', e => {
@@ -574,20 +624,32 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Touch swipe for page navigation in single/double-page modes.
   let touchStartX = 0;
   let touchStartY = 0;
-  document.addEventListener('touchstart', e => {
-    touchStartX = e.changedTouches[0].clientX;
-    touchStartY = e.changedTouches[0].clientY;
-  }, { passive: true });
-  document.addEventListener('touchend', e => {
-    if (state.readingMode === 'continuous') return;
-    if (state.zoomLevel > 1) return; // pan handles touch when zoomed
-    const dx = e.changedTouches[0].clientX - touchStartX;
-    const dy = e.changedTouches[0].clientY - touchStartY;
-    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return;
-    dx < 0
-      ? (isRTL() ? advanceBack() : advanceForward())
-      : (isRTL() ? advanceForward() : advanceBack());
-  }, { passive: true });
+  document.addEventListener(
+    'touchstart',
+    e => {
+      touchStartX = e.changedTouches[0].clientX;
+      touchStartY = e.changedTouches[0].clientY;
+    },
+    { passive: true }
+  );
+  document.addEventListener(
+    'touchend',
+    e => {
+      if (state.readingMode === 'continuous') return;
+      if (state.zoomLevel > 1) return; // pan handles touch when zoomed
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      const dy = e.changedTouches[0].clientY - touchStartY;
+      if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return;
+      dx < 0
+        ? isRTL()
+          ? advanceBack()
+          : advanceForward()
+        : isRTL()
+          ? advanceForward()
+          : advanceBack();
+    },
+    { passive: true }
+  );
 
   // Zoom controls inside the modal
   if (zoomOutBtn) zoomOutBtn.addEventListener('click', zoomOut);
