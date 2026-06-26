@@ -21,6 +21,7 @@ type Folder struct {
 	Name      string    `json:"name"`
 	ParentID  *int64    `json:"parent_id"`
 	Thumbnail string    `json:"thumbnail,omitempty"`
+	Rating    *int      `json:"rating,omitempty"`
 	Tags      []*Tag    `json:"tags,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

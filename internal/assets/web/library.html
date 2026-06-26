@@ -45,8 +45,15 @@
         <div class="page-header">
             <img id="folder-thumb" class="header-thumb" style="display: none;">
             <h1 id="page-title">Library</h1>
-            <button class="edit-btn" id="edit-folder-btn" style="display: none;" title="Edit Folder"><i
-                    class="ph-bold ph-pencil-simple"></i></button>
+            <div class="header-actions">
+                <div class="rating-widget" id="rating-widget" style="display: none;" title="Rate this series">
+                    <span class="rating-label">Rating:</span>
+                    <div class="rating-stars" id="rating-stars"></div>
+                    <button class="rating-clear-btn" id="rating-clear-btn" title="Clear rating">×</button>
+                </div>
+                <button class="edit-btn" id="edit-folder-btn" style="display: none;" title="Edit Folder"><i
+                        class="ph-bold ph-pencil-simple"></i></button>
+            </div>
         </div>
         <span id="total-count" class="total-count"></span>
         <div class="library-controls">
@@ -63,7 +70,12 @@
                     <option value="progress">Progress</option>
                 </select>
                 <button id="sort-dir-btn">▲</button>
+                <button id="unread-filter-btn" class="filter-btn" title="Show only unread">Unread</button>
             </div>
+        </div>
+        <div class="tag-filter-bar" id="tag-filter-bar" style="display: none;">
+            <span class="tag-filter-label">Filter by tag:</span>
+            <div class="tag-filter-chips" id="tag-filter-chips"></div>
         </div>
         <div class="grid" id="cards-grid"></div>
         <div class="pagination-container" id="pagination-container"></div>

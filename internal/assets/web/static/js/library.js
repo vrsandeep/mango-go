@@ -27,18 +27,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   const totalCountEl = document.getElementById('total-count');
   const markAllReadBtn = document.getElementById('mark-all-read-btn');
   const markAllUnreadBtn = document.getElementById('mark-all-unread-btn');
+  const unreadFilterBtn = document.getElementById('unread-filter-btn');
+  const tagFilterBar = document.getElementById('tag-filter-bar');
+  const tagFilterChips = document.getElementById('tag-filter-chips');
+  const ratingWidget = document.getElementById('rating-widget');
+  const ratingStars = document.getElementById('rating-stars');
+  const ratingClearBtn = document.getElementById('rating-clear-btn');
 
   // --- State Management ---
   let state = {
     currentFolderId: null,
     currentTagId: null,
+    filterTagId: null,
     currentPage: 1,
     search: '',
     sortBy: null,
     sortDir: null,
+    unreadOnly: localStorage.getItem('unreadOnly') === 'true',
     isLoading: false,
     totalItems: 0,
     perPage: 100,
+    currentRating: null,
   };
   let allTags = [];
   let currentFolderTags = [];
@@ -128,6 +137,77 @@ document.addEventListener('DOMContentLoaded', async () => {
     return allTags.find(tag => tag.id === parseInt(id)).name;
   };
 
+  // Renders tag filter chips at root library level (no folder, no URL tag).
+  const renderTagFilterBar = () => {
+    const isRoot = !state.currentFolderId && !state.currentTagId;
+    if (!isRoot || allTags.length === 0) {
+      tagFilterBar.style.display = 'none';
+      return;
+    }
+    tagFilterBar.style.display = 'flex';
+    tagFilterChips.innerHTML = '';
+
+    const allChip = document.createElement('button');
+    allChip.className = 'tag-chip' + (state.filterTagId === null ? ' active' : '');
+    allChip.textContent = 'All';
+    allChip.addEventListener('click', () => {
+      state.filterTagId = null;
+      state.currentPage = 1;
+      renderTagFilterBar();
+      loadFolderContents();
+    });
+    tagFilterChips.appendChild(allChip);
+
+    allTags.forEach(tag => {
+      const chip = document.createElement('button');
+      chip.className = 'tag-chip' + (state.filterTagId === tag.id ? ' active' : '');
+      chip.textContent = tag.name;
+      chip.addEventListener('click', () => {
+        state.filterTagId = state.filterTagId === tag.id ? null : tag.id;
+        state.currentPage = 1;
+        renderTagFilterBar();
+        loadFolderContents();
+      });
+      tagFilterChips.appendChild(chip);
+    });
+  };
+
+  // Renders the 1-10 rating stars for the current folder.
+  const renderRating = rating => {
+    state.currentRating = rating ?? null;
+    ratingStars.innerHTML = '';
+    for (let i = 1; i <= 5; i++) {
+      const star = document.createElement('button');
+      star.className = 'rating-star' + (i <= (rating ?? 0) ? ' filled' : '');
+      star.textContent = '★';
+      star.dataset.value = i;
+      star.addEventListener('click', () => setRating(i));
+      star.addEventListener('mouseover', () => highlightStars(i));
+      star.addEventListener('mouseout', () => highlightStars(state.currentRating ?? 0));
+      ratingStars.appendChild(star);
+    }
+  };
+
+  const highlightStars = value => {
+    ratingStars.querySelectorAll('.rating-star').forEach((s, idx) => {
+      s.classList.toggle('filled', idx < value);
+    });
+  };
+
+  const setRating = async value => {
+    if (!state.currentFolderId) return;
+    const body = { rating: state.currentRating === value ? 0 : value };
+    const res = await fetch(`/api/folders/${state.currentFolderId}/rating`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      renderRating(data.rating);
+    }
+  };
+
   // Fetches and renders the breadcrumb navigation.
   const renderBreadcrumb = async () => {
     if (!state.currentFolderId) {
@@ -180,9 +260,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Calculate progress for the folder
     const progressPercent =
       folder.total_chapters > 0 ? (folder.read_chapters / folder.total_chapters) * 100 : 0;
+    const ratingBadge = folder.rating
+      ? `<div class="rating-badge">★ ${folder.rating}</div>`
+      : '';
     card.innerHTML = `
             <div class="thumbnail-container">
                 <img class="thumbnail" src="${folder.thumbnail || '/static/images/logo.svg'}" loading="lazy" alt="Cover for ${folder.name}">
+                ${ratingBadge}
             </div>
             <div class="item-title" title="${folder.name}">${folder.name}</div>
             <div class="progress-bar-container">
@@ -260,8 +344,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (state.currentFolderId) {
         params.set('folderId', state.currentFolderId);
       }
-      if (state.currentTagId) {
-        params.set('tagId', state.currentTagId);
+      const activeTagId = state.currentTagId || state.filterTagId;
+      if (activeTagId) {
+        params.set('tagId', activeTagId);
+      }
+      if (state.unreadOnly) {
+        params.set('unread_only', 'true');
       }
 
       const response = await fetch(`/api/browse?${params.toString()}`);
@@ -289,6 +377,20 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Show the Edit button only when viewing a specific folder
       editFolderBtn.style.display = data.current_folder ? 'block' : 'none';
       renderTags(data.current_folder ? data.current_folder.tags : []);
+
+      // Rating widget: show on folder detail pages only
+      if (data.current_folder) {
+        ratingWidget.style.display = 'flex';
+        renderRating(data.current_folder.rating ?? null);
+      } else {
+        ratingWidget.style.display = 'none';
+      }
+
+      // Tag filter chips at root level
+      renderTagFilterBar();
+
+      // Unread button active state
+      unreadFilterBtn.classList.toggle('active', state.unreadOnly);
 
       renderGrid(data);
 
@@ -600,6 +702,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   markAllUnreadBtn.addEventListener('click', async () => {
     markAllAs(false);
   });
+
+  unreadFilterBtn.addEventListener('click', () => {
+    state.unreadOnly = !state.unreadOnly;
+    state.currentPage = 1;
+    localStorage.setItem('unreadOnly', state.unreadOnly);
+    unreadFilterBtn.classList.toggle('active', state.unreadOnly);
+    loadFolderContents();
+  });
+
+  ratingClearBtn.addEventListener('click', () => setRating(0));
 
   const init = async () => {
     state.currentFolderId = getFolderIdFromUrl();

@@ -408,6 +408,323 @@ func TestHandleListAllFolders(t *testing.T) {
 	})
 }
 
+func TestUpdateFolderRating(t *testing.T) {
+	server, router, cookie, folderA, _, _ := setupTestData(t)
+
+	t.Run("Set rating 4", func(t *testing.T) {
+		body := `{"rating": 4}`
+		req, _ := http.NewRequest("PUT", fmt.Sprintf("/api/folders/%d/rating", folderA.ID), bytes.NewBufferString(body))
+		req.AddCookie(cookie)
+		req.Header.Set("Content-Type", "application/json")
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+		}
+
+		var resp struct {
+			Rating *int `json:"rating"`
+		}
+		json.Unmarshal(rr.Body.Bytes(), &resp)
+		if resp.Rating == nil || *resp.Rating != 4 {
+			t.Errorf("expected rating 4, got %v", resp.Rating)
+		}
+
+		f, _ := server.Store().GetFolder(folderA.ID)
+		if f.Rating == nil || *f.Rating != 4 {
+			t.Errorf("expected folder rating 4 in DB, got %v", f.Rating)
+		}
+	})
+
+	t.Run("Update rating to 3", func(t *testing.T) {
+		body := `{"rating": 3}`
+		req, _ := http.NewRequest("PUT", fmt.Sprintf("/api/folders/%d/rating", folderA.ID), bytes.NewBufferString(body))
+		req.AddCookie(cookie)
+		req.Header.Set("Content-Type", "application/json")
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rr.Code)
+		}
+
+		f, _ := server.Store().GetFolder(folderA.ID)
+		if f.Rating == nil || *f.Rating != 3 {
+			t.Errorf("expected rating 3, got %v", f.Rating)
+		}
+	})
+
+	t.Run("Clear rating with 0", func(t *testing.T) {
+		body := `{"rating": 0}`
+		req, _ := http.NewRequest("PUT", fmt.Sprintf("/api/folders/%d/rating", folderA.ID), bytes.NewBufferString(body))
+		req.AddCookie(cookie)
+		req.Header.Set("Content-Type", "application/json")
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rr.Code)
+		}
+
+		f, _ := server.Store().GetFolder(folderA.ID)
+		if f.Rating != nil {
+			t.Errorf("expected nil rating after clearing, got %v", *f.Rating)
+		}
+	})
+
+	t.Run("Rating returned in browse response", func(t *testing.T) {
+		body := `{"rating": 5}`
+		req, _ := http.NewRequest("PUT", fmt.Sprintf("/api/folders/%d/rating", folderA.ID), bytes.NewBufferString(body))
+		req.AddCookie(cookie)
+		req.Header.Set("Content-Type", "application/json")
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+		if rr.Code != http.StatusOK {
+			t.Fatalf("set rating: expected 200, got %d", rr.Code)
+		}
+
+		req, _ = http.NewRequest("GET", "/api/browse", nil)
+		req.AddCookie(cookie)
+		rr = httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		var resp struct {
+			Subfolders []*models.Folder `json:"subfolders"`
+		}
+		json.Unmarshal(rr.Body.Bytes(), &resp)
+
+		var found bool
+		for _, f := range resp.Subfolders {
+			if f.ID == folderA.ID {
+				found = true
+				if f.Rating == nil || *f.Rating != 5 {
+					t.Errorf("expected rating 5 in browse response, got %v", f.Rating)
+				}
+			}
+		}
+		if !found {
+			t.Errorf("Folder A not found in browse response")
+		}
+	})
+
+	t.Run("Non-existent folder returns 404", func(t *testing.T) {
+		body := `{"rating": 5}`
+		req, _ := http.NewRequest("PUT", "/api/folders/99999/rating", bytes.NewBufferString(body))
+		req.AddCookie(cookie)
+		req.Header.Set("Content-Type", "application/json")
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusNotFound {
+			t.Errorf("expected 404, got %d", rr.Code)
+		}
+	})
+
+	t.Run("Invalid JSON returns 400", func(t *testing.T) {
+		req, _ := http.NewRequest("PUT", fmt.Sprintf("/api/folders/%d/rating", folderA.ID), bytes.NewBufferString(`{bad json`))
+		req.AddCookie(cookie)
+		req.Header.Set("Content-Type", "application/json")
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusBadRequest {
+			t.Errorf("expected 400, got %d", rr.Code)
+		}
+	})
+
+	t.Run("Unauthorized returns 401", func(t *testing.T) {
+		req, _ := http.NewRequest("PUT", fmt.Sprintf("/api/folders/%d/rating", folderA.ID), bytes.NewBufferString(`{"rating": 5}`))
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusUnauthorized {
+			t.Errorf("expected 401, got %d", rr.Code)
+		}
+	})
+}
+
+func setupUnreadTestData(t *testing.T) (http.Handler, *http.Cookie, int64, int64, int64) {
+	t.Helper()
+	server, _, _ := testutil.SetupTestServer(t)
+	router := server.Router()
+	cookie := testutil.GetAuthCookie(t, server, "filtuser", "pw", "user")
+
+	folderX, _ := server.Store().CreateFolder("/Folder X", "Folder X", nil)
+	chX1, _ := server.Store().CreateChapter(folderX.ID, "/Folder X/ch1.cbz", "hx1", 5, "")
+	server.Store().CreateChapter(folderX.ID, "/Folder X/ch2.cbz", "hx2", 5, "")
+	server.Store().UpdateChapterProgress(chX1.ID, 1, 100, true)
+
+	folderY, _ := server.Store().CreateFolder("/Folder Y", "Folder Y", nil)
+	chY1, _ := server.Store().CreateChapter(folderY.ID, "/Folder Y/ch1.cbz", "hy1", 5, "")
+	server.Store().UpdateChapterProgress(chY1.ID, 1, 100, true)
+
+	folderZ, _ := server.Store().CreateFolder("/Folder Z", "Folder Z", nil)
+
+	return router, cookie, folderX.ID, folderY.ID, folderZ.ID
+}
+
+func TestBrowseUnreadFilter(t *testing.T) {
+	router, cookie, folderXID, folderYID, folderZID := setupUnreadTestData(t)
+
+	t.Run("Without filter returns all folders", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/api/browse", nil)
+		req.AddCookie(cookie)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rr.Code)
+		}
+
+		var resp struct {
+			Subfolders []*models.Folder `json:"subfolders"`
+		}
+		json.Unmarshal(rr.Body.Bytes(), &resp)
+
+		ids := make(map[int64]bool)
+		for _, f := range resp.Subfolders {
+			ids[f.ID] = true
+		}
+
+		if !ids[folderXID] || !ids[folderYID] || !ids[folderZID] {
+			t.Errorf("expected all 3 folders without filter, got IDs: %v", ids)
+		}
+	})
+
+	t.Run("With unread_only=true returns only folders with unread chapters", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/api/browse?unread_only=true", nil)
+		req.AddCookie(cookie)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rr.Code)
+		}
+
+		var resp struct {
+			Subfolders []*models.Folder `json:"subfolders"`
+		}
+		json.Unmarshal(rr.Body.Bytes(), &resp)
+
+		ids := make(map[int64]bool)
+		for _, f := range resp.Subfolders {
+			ids[f.ID] = true
+		}
+
+		if !ids[folderXID] {
+			t.Errorf("Folder X (partial read) should appear, got IDs: %v", ids)
+		}
+		if ids[folderYID] {
+			t.Errorf("Folder Y (fully read) should not appear, got IDs: %v", ids)
+		}
+		if ids[folderZID] {
+			t.Errorf("Folder Z (no chapters) should not appear, got IDs: %v", ids)
+		}
+		if len(resp.Subfolders) != 1 {
+			t.Errorf("expected 1 folder with unread filter, got %d", len(resp.Subfolders))
+		}
+	})
+}
+
+func TestBrowseUnreadFilterInsideFolder(t *testing.T) {
+	server, _, _ := testutil.SetupTestServer(t)
+	router := server.Router()
+	cookie := testutil.GetAuthCookie(t, server, "chfiltuser", "pw", "user")
+
+	folder, _ := server.Store().CreateFolder("/FX", "FX", nil)
+	chRead, _ := server.Store().CreateChapter(folder.ID, "/FX/ch1.cbz", "hfxa", 5, "")
+	chUnread, _ := server.Store().CreateChapter(folder.ID, "/FX/ch2.cbz", "hfxb", 5, "")
+	server.Store().UpdateChapterProgress(chRead.ID, 1, 100, true)
+
+	req, _ := http.NewRequest("GET", fmt.Sprintf("/api/browse?folderId=%d&unread_only=true", folder.ID), nil)
+	req.AddCookie(cookie)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rr.Code)
+	}
+
+	var resp struct {
+		Chapters []*models.Chapter `json:"chapters"`
+	}
+	json.Unmarshal(rr.Body.Bytes(), &resp)
+
+	if len(resp.Chapters) != 1 || resp.Chapters[0].ID != chUnread.ID {
+		t.Errorf("expected only unread chapter (id=%d), got %+v", chUnread.ID, resp.Chapters)
+	}
+}
+
+func TestBrowseWithTagFilter(t *testing.T) {
+	_, router, cookie, folderA, _, _ := setupTestData(t)
+
+	tagPayload := `{"name": "action"}`
+	req, _ := http.NewRequest("POST", fmt.Sprintf("/api/folders/%d/tags", folderA.ID), bytes.NewBufferString(tagPayload))
+	req.AddCookie(cookie)
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("add tag: expected 201, got %d", rr.Code)
+	}
+
+	var tag models.Tag
+	json.Unmarshal(rr.Body.Bytes(), &tag)
+
+	t.Run("Filter by tag returns only tagged folders", func(t *testing.T) {
+		req, _ = http.NewRequest("GET", fmt.Sprintf("/api/browse?tagId=%d", tag.ID), nil)
+		req.AddCookie(cookie)
+		rr = httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rr.Code)
+		}
+
+		var resp struct {
+			Subfolders []*models.Folder `json:"subfolders"`
+		}
+		json.Unmarshal(rr.Body.Bytes(), &resp)
+
+		if len(resp.Subfolders) != 1 || resp.Subfolders[0].ID != folderA.ID {
+			t.Errorf("expected only Folder A with tag filter, got %+v", resp.Subfolders)
+		}
+	})
+
+	t.Run("Non-existent tag ID returns empty result", func(t *testing.T) {
+		req, _ = http.NewRequest("GET", "/api/browse?tagId=99999", nil)
+		req.AddCookie(cookie)
+		rr = httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rr.Code)
+		}
+
+		var resp struct {
+			Subfolders []*models.Folder `json:"subfolders"`
+		}
+		json.Unmarshal(rr.Body.Bytes(), &resp)
+
+		if len(resp.Subfolders) != 0 {
+			t.Errorf("expected empty result for non-existent tag, got %d folders", len(resp.Subfolders))
+		}
+	})
+
+	t.Run("Invalid tag ID returns 400", func(t *testing.T) {
+		req, _ = http.NewRequest("GET", "/api/browse?tagId=notanumber", nil)
+		req.AddCookie(cookie)
+		rr = httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusBadRequest {
+			t.Errorf("expected 400 for invalid tag ID, got %d", rr.Code)
+		}
+	})
+}
+
 func TestHandleSearchFolders(t *testing.T) {
 	_, router, cookie, folderA, _, _ := setupTestData(t)
 
