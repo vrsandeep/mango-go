@@ -1,4 +1,4 @@
-/* internal/assets/web/static/css/reader.css */
+/* internal/assets/web/static/css/reader.css — base styles + double-page spread + zoom */
 
 :root {
   --reader-bg: #1a1a1a;
@@ -551,4 +551,50 @@ body {
     padding: 0.5rem 0.75rem;
     font-size: 0.85rem;
   }
+}
+
+/* Double-page spread container: two images side by side. */
+.page-spread {
+  display: none; /* shown/hidden by JS per active spread */
+  flex-direction: row;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+}
+
+/* Each page within a spread fills half the spread width. */
+.spread-page {
+  flex: 1;
+  min-width: 0;
+  max-width: 50%;
+  height: auto;
+  display: block !important; /* override single-page hide rules */
+}
+
+/* Cover or lone last page: let it fill the full width like a normal single page. */
+.page-spread--single .spread-page {
+  max-width: 100%;
+}
+
+/* Zoom transform: scale from the top-center so content grows downward. */
+.reader-container {
+  transform-origin: top center;
+}
+
+/* Zoom level badge shown in the top-right corner when zoom != 100%. */
+.zoom-indicator {
+  display: none;
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  z-index: 50;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
 }

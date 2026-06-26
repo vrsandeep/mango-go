@@ -55,6 +55,14 @@
                         <select id="mode-select">
                             <option value="continuous">Continuous</option>
                             <option value="single_page">Single Page</option>
+                            <option value="double_page">Double Page</option>
+                        </select>
+                    </div>
+                    <div class="modal-form-group">
+                        <label for="direction-select">Reading Direction</label>
+                        <select id="direction-select">
+                            <option value="ltr">Left to Right (LTR)</option>
+                            <option value="rtl">Right to Left (RTL)</option>
                         </select>
                     </div>
                     <div class="modal-form-group modal-slider-group">
@@ -88,6 +96,7 @@
     <div class="progress-bar-container">
         <div id="progress-bar"></div>
     </div>
+    <div class="zoom-indicator" id="zoom-indicator"></div>
     <script src="/static/js/reader.js"></script>
 </body>
 
