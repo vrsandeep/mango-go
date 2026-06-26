@@ -33,6 +33,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const ratingWidget = document.getElementById('rating-widget');
   const ratingStars = document.getElementById('rating-stars');
   const ratingClearBtn = document.getElementById('rating-clear-btn');
+  const progressActions = document.getElementById('progress-actions');
+  const folderTagsSection = document.getElementById('folder-tags-section');
 
   // --- State Management ---
   let state = {
@@ -51,6 +53,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
   let allTags = [];
   let currentFolderTags = [];
+  // Separate expand states so collapsing one doesn't affect the other
+  let tagsExpanded = false;
+  let filterChipsExpanded = false;
+  // Show first N items before adding a "+X more" toggle
+  const TAGS_COLLAPSED_LIMIT = 8;
+  const FILTER_CHIPS_LIMIT = 10;
 
   // --- Core Functions ---
 
@@ -93,35 +101,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     }, 100); // Small delay to ensure DOM is ready
   };
 
-  // Helper function to add AniList button to page header
+  // Appends the AniList link button into the existing header-actions row.
+  // Inserting here (rather than wrapping the h1) avoids breaking the flex layout.
   const addAniListButtonToHeader = anilistUrl => {
-    const pageTitle = document.getElementById('page-title');
-    if (!pageTitle) return;
+    const headerActions = document.querySelector('.header-actions');
+    // Guard: skip if the container is missing or the button was already added
+    if (!headerActions || document.querySelector('.anilist-button')) return;
 
-    // Create a container div for the title and button
-    const titleContainer = document.createElement('div');
-    titleContainer.className = 'title-container';
-
-    // Move the title into the container
-    pageTitle.parentNode.insertBefore(titleContainer, pageTitle);
-    titleContainer.appendChild(pageTitle);
-
-    // Create the AniList button with icon
     const button = document.createElement('a');
     button.href = anilistUrl;
     button.target = '_blank';
     button.className = 'anilist-button';
 
-    // Create icon element
     const icon = document.createElement('img');
     icon.src = '/static/images/anilist-icon.svg';
     icon.alt = 'AniList';
     icon.className = 'anilist-icon';
 
     button.appendChild(icon);
-
-    // Add button to the title container
-    titleContainer.appendChild(button);
+    headerActions.appendChild(button);
   };
 
   // Get the current folder ID from the URL path.
@@ -137,7 +135,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     return allTags.find(tag => tag.id === parseInt(id)).name;
   };
 
-  // Renders tag filter chips at root library level (no folder, no URL tag).
+  // Renders the horizontal tag filter bar shown only at the library root.
+  // Hidden when inside a folder or browsing by a URL tag.
   const renderTagFilterBar = () => {
     const isRoot = !state.currentFolderId && !state.currentTagId;
     if (!isRoot || allTags.length === 0) {
@@ -147,29 +146,68 @@ document.addEventListener('DOMContentLoaded', async () => {
     tagFilterBar.style.display = 'flex';
     tagFilterChips.innerHTML = '';
 
-    const allChip = document.createElement('button');
-    allChip.className = 'tag-chip' + (state.filterTagId === null ? ' active' : '');
-    allChip.textContent = 'All';
-    allChip.addEventListener('click', () => {
-      state.filterTagId = null;
-      state.currentPage = 1;
-      renderTagFilterBar();
-      loadFolderContents();
-    });
-    tagFilterChips.appendChild(allChip);
+    // null sentinel represents the "All" chip (clears the tag filter)
+    const allItems = [null, ...allTags];
+    const overflow = allItems.length > FILTER_CHIPS_LIMIT;
 
-    allTags.forEach(tag => {
+    let toShow = (!filterChipsExpanded && overflow)
+      ? allItems.slice(0, FILTER_CHIPS_LIMIT)
+      : allItems;
+
+    // Always keep the active tag visible even if it falls beyond the limit,
+    // so the user can see which filter is applied without having to expand first.
+    if (!filterChipsExpanded && overflow && state.filterTagId !== null) {
+      const activeIdx = allItems.findIndex(t => t !== null && t.id === state.filterTagId);
+      if (activeIdx >= FILTER_CHIPS_LIMIT) {
+        toShow = [...allItems.slice(0, FILTER_CHIPS_LIMIT - 1), allItems[activeIdx]];
+      }
+    }
+
+    // .expanded switches the row from nowrap-scroll to wrapping layout
+    tagFilterChips.classList.toggle('expanded', filterChipsExpanded || !overflow);
+
+    toShow.forEach(tag => {
       const chip = document.createElement('button');
-      chip.className = 'tag-chip' + (state.filterTagId === tag.id ? ' active' : '');
-      chip.textContent = tag.name;
-      chip.addEventListener('click', () => {
-        state.filterTagId = state.filterTagId === tag.id ? null : tag.id;
-        state.currentPage = 1;
-        renderTagFilterBar();
-        loadFolderContents();
-      });
+      if (tag === null) {
+        chip.className = 'tag-chip' + (state.filterTagId === null ? ' active' : '');
+        chip.textContent = 'All';
+        chip.addEventListener('click', () => {
+          state.filterTagId = null;
+          state.currentPage = 1;
+          renderTagFilterBar();
+          loadFolderContents();
+        });
+      } else {
+        chip.className = 'tag-chip' + (state.filterTagId === tag.id ? ' active' : '');
+        chip.textContent = tag.name;
+        chip.addEventListener('click', () => {
+          // Clicking the active chip again clears the filter (toggle behaviour)
+          state.filterTagId = state.filterTagId === tag.id ? null : tag.id;
+          state.currentPage = 1;
+          renderTagFilterBar();
+          loadFolderContents();
+        });
+      }
       tagFilterChips.appendChild(chip);
     });
+
+    if (overflow) {
+      const hidden = allItems.length - toShow.length;
+      const toggleEl = document.createElement('button');
+      toggleEl.className = 'tag-show-more';
+      if (!filterChipsExpanded) {
+        toggleEl.textContent = hidden > 0 ? `+${hidden} more` : 'show less';
+        if (hidden > 0) {
+          toggleEl.addEventListener('click', () => { filterChipsExpanded = true; renderTagFilterBar(); });
+        } else {
+          toggleEl.addEventListener('click', () => { filterChipsExpanded = false; renderTagFilterBar(); });
+        }
+      } else {
+        toggleEl.textContent = 'show less';
+        toggleEl.addEventListener('click', () => { filterChipsExpanded = false; renderTagFilterBar(); });
+      }
+      tagFilterChips.appendChild(toggleEl);
+    }
   };
 
   // Renders the 1-10 rating stars for the current folder.
@@ -374,12 +412,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       folderThumb.src = data.current_folder ? data.current_folder.thumbnail : '';
       folderThumb.style.display = data.current_folder ? 'block' : 'none';
 
-      // Show the Edit button only when viewing a specific folder
-      editFolderBtn.style.display = data.current_folder ? 'block' : 'none';
-      renderTags(data.current_folder ? data.current_folder.tags : []);
+      const inFolder = !!data.current_folder;
+
+      // Controls that only make sense when viewing a specific folder
+      editFolderBtn.style.display = inFolder ? 'block' : 'none';
+      progressActions.style.display = inFolder ? 'flex' : 'none';
+      folderTagsSection.style.display = inFolder ? 'flex' : 'none';
+      renderTags(inFolder ? data.current_folder.tags : []);
 
       // Rating widget: show on folder detail pages only
-      if (data.current_folder) {
+      if (inFolder) {
         ratingWidget.style.display = 'flex';
         renderRating(data.current_folder.rating ?? null);
       } else {
@@ -488,24 +530,62 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   };
 
-  const renderTags = tags => {
+  // Renders inline folder tags with collapse/expand behaviour.
+  // preserveExpanded=true keeps the current expand state (used after add/remove/toggle);
+  // false (default) resets to collapsed when navigating to a new folder.
+  const renderTags = (tags, preserveExpanded = false) => {
+    if (!preserveExpanded) tagsExpanded = false;
     currentFolderTags = tags || [];
     tagsContainer.innerHTML = '';
-    currentFolderTags.forEach(tag => {
+
+    const overflow = currentFolderTags.length > TAGS_COLLAPSED_LIMIT;
+    const toShow = (!tagsExpanded && overflow)
+      ? currentFolderTags.slice(0, TAGS_COLLAPSED_LIMIT)
+      : currentFolderTags;
+
+    // .expanded switches from nowrap-scroll to wrapping layout
+    tagsContainer.classList.toggle('expanded', tagsExpanded || !overflow);
+
+    toShow.forEach(tag => {
       const tagEl = document.createElement('div');
       tagEl.className = 'tag';
-      tagEl.innerHTML = `<span>${tag.name}</span><span class="tag-remove-btn" data-tag-id="${tag.id}">&times;</span>`;
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'tag-name';
+      nameSpan.textContent = tag.name;
+
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'tag-remove-btn';
+      removeBtn.title = `Remove ${tag.name}`;
+      removeBtn.textContent = '×';
+      // Direct listener (not delegation) so the hit-target is reliable
+      removeBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        removeTag(tag.id);
+      });
+
+      tagEl.appendChild(nameSpan);
+      tagEl.appendChild(removeBtn);
       tagsContainer.appendChild(tagEl);
     });
 
-    // Update icon visibility based on whether there are tags
-    const tagsDisplay = document.querySelector('.tags-display');
-    if (tagsDisplay) {
-      if (currentFolderTags.length === 0) {
-        tagsDisplay.classList.add('no-tags');
+    if (overflow) {
+      const toggleEl = document.createElement('button');
+      toggleEl.className = 'tag-show-more';
+      if (!tagsExpanded) {
+        toggleEl.textContent = `+${currentFolderTags.length - TAGS_COLLAPSED_LIMIT} more`;
+        toggleEl.addEventListener('click', () => {
+          tagsExpanded = true;
+          renderTags(currentFolderTags, true);
+        });
       } else {
-        tagsDisplay.classList.remove('no-tags');
+        toggleEl.textContent = 'show less';
+        toggleEl.addEventListener('click', () => {
+          tagsExpanded = false;
+          renderTags(currentFolderTags, true);
+        });
       }
+      tagsContainer.appendChild(toggleEl);
     }
   };
 
@@ -529,7 +609,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       autocompleteSuggestions.style.display = 'none';
       const newTag = await response.json();
       currentFolderTags.push(newTag);
-      renderTags(currentFolderTags);
+      renderTags(currentFolderTags, true);
     }
   };
 
@@ -538,7 +618,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       method: 'DELETE',
     });
     currentFolderTags = currentFolderTags.filter(t => t.id != tagId);
-    renderTags(currentFolderTags);
+    renderTags(currentFolderTags, true);
   };
 
   const handleSearch = () => {
@@ -586,11 +666,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       body: JSON.stringify({ read }),
     });
     if (response.ok) {
-      // Dismiss the modal
-      editFolderModal.style.display = 'none';
-      // Show success toast
       toast.success(`All chapters marked as ${read ? 'read' : 'unread'}`);
-      // Reload folder contents
       loadFolderContents();
     } else {
       toast.error(`Failed to mark all chapters as ${read ? 'read' : 'unread'}`);
@@ -638,11 +714,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && editFolderModal.style.display === 'flex') {
       editFolderModal.style.display = 'none';
-    }
-  });
-  tagsContainer.addEventListener('click', e => {
-    if (e.target.classList.contains('tag-remove-btn')) {
-      removeTag(e.target.dataset.tagId);
     }
   });
   tagInput.addEventListener('keydown', e => {
