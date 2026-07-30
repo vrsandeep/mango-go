@@ -222,7 +222,6 @@ func (s *Server) Router() http.Handler {
 	r.Get("/", serveHTML("home.html"))
 	r.Get("/login", serveHTML("login.html"))
 	r.Get("/library", serveHTML("library.html"))
-	r.Get("/tags", serveHTML("tags.html"))
 	r.Get("/admin", serveHTML("admin.html"))
 	r.Get("/admin/users", serveHTML("admin_users.html"))
 	r.Get("/admin/bad-files", serveHTML("bad_files.html"))
