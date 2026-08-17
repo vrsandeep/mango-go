@@ -240,13 +240,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     button.disabled = true;
 
     try {
-      if (action === 'delete') {
-        if (!confirm('Are you sure you want to delete this item from the queue?')) {
-          button.disabled = false;
-          return;
-        }
-      }
-
       await fetch(`/api/downloads/queue/${itemId}/action`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
