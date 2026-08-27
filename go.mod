@@ -1,6 +1,6 @@
 module github.com/vrsandeep/mango-go
 
-go 1.26.2
+go 1.27.0
 
 require (
 	github.com/Masterminds/semver/v3 v3.5.0
@@ -38,7 +38,6 @@ require (
 	github.com/google/pprof v0.0.0-20260825171938-4d453200e7d9 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
-	github.com/jupiterrider/ffi v0.7.0 // indirect
 	github.com/klauspost/compress v1.19.2 // indirect
 	github.com/klauspost/pgzip v1.2.6 // indirect
 	github.com/mikelolasagasti/xz v1.0.1 // indirect
