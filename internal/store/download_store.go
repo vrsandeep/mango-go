@@ -6,6 +6,7 @@ package store
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/vrsandeep/mango-go/internal/models"
@@ -329,6 +330,82 @@ func (s *Store) GetAllSubscriptions(providerIDFilter string) ([]*models.Subscrip
 		subs = append(subs, &sub)
 	}
 	return subs, nil
+}
+
+// ListSubscriptions returns a page of subscriptions filtered by provider and search.
+func (s *Store) ListSubscriptions(providerID, search string, page, perPage int, sortBy, sortDir string) ([]*models.Subscription, int, error) {
+	if page < 1 {
+		page = 1
+	}
+	if perPage <= 0 {
+		perPage = 50
+	}
+	if perPage > 200 {
+		perPage = 200
+	}
+
+	where := []string{"1=1"}
+	args := []interface{}{}
+	if providerID != "" {
+		where = append(where, "provider_id = ?")
+		args = append(args, providerID)
+	}
+	if search != "" {
+		like := "%" + search + "%"
+		where = append(where, "(series_title LIKE ? OR series_identifier LIKE ? OR provider_id LIKE ? OR IFNULL(folder_path, '') LIKE ?)")
+		args = append(args, like, like, like, like)
+	}
+	whereSQL := strings.Join(where, " AND ")
+
+	var total int
+	countQuery := "SELECT COUNT(*) FROM subscriptions WHERE " + whereSQL
+	if err := s.db.QueryRow(countQuery, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	orderCol := "series_title"
+	switch sortBy {
+	case "series_title", "provider_id", "folder_path", "created_at", "last_checked_at":
+		orderCol = sortBy
+	}
+	dir := "ASC"
+	if strings.EqualFold(sortDir, "desc") {
+		dir = "DESC"
+	}
+
+	offset := (page - 1) * perPage
+	query := fmt.Sprintf(`SELECT id, series_title, series_identifier, provider_id, folder_path, created_at, last_checked_at
+		FROM subscriptions WHERE %s ORDER BY %s %s, series_title ASC LIMIT ? OFFSET ?`, whereSQL, orderCol, dir)
+	queryArgs := append(append([]interface{}{}, args...), perPage, offset)
+
+	rows, err := s.db.Query(query, queryArgs...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	subs := []*models.Subscription{}
+	for rows.Next() {
+		var sub models.Subscription
+		var createdAt time.Time
+		var lastCheckedAt sql.NullTime
+		var folderPath sql.NullString
+		if err := rows.Scan(&sub.ID, &sub.SeriesTitle, &sub.SeriesIdentifier, &sub.ProviderID, &folderPath, &createdAt, &lastCheckedAt); err != nil {
+			return nil, 0, err
+		}
+		sub.CreatedAt = createdAt
+		if lastCheckedAt.Valid {
+			sub.LastCheckedAt = &lastCheckedAt.Time
+		}
+		if folderPath.Valid {
+			sub.FolderPath = &folderPath.String
+		}
+		subs = append(subs, &sub)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+	return subs, total, nil
 }
 
 // GetSubscriptionByID retrieves a single subscription by its primary key.

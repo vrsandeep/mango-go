@@ -42,6 +42,10 @@
     <main class="container">
         <h1>Subscription Manager</h1>
         <div class="manager-controls">
+            <div class="search-bar">
+                <i class="ph-bold ph-magnifying-glass"></i>
+                <input type="search" id="sub-search-input" placeholder="Search subscriptions..." autocomplete="off">
+            </div>
             <select id="provider-select">
                 <option value="">All Providers</option>
             </select>
@@ -77,6 +81,7 @@
                 <tbody id="sub-table-body"></tbody>
             </table>
         </div>
+        <div class="pagination-container" id="pagination-container"></div>
     </main>
 
     <!-- Folder Path Edit Modal -->

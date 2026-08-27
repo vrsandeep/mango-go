@@ -184,4 +184,40 @@ func TestSubscriptionStore(t *testing.T) {
 			t.Errorf("Expected folder path %s, got %v", folderPath, foundSub.FolderPath)
 		}
 	})
+
+	t.Run("List subscriptions paginates and searches", func(t *testing.T) {
+		s.SubscribeToSeries("Alpha Series", "id-alpha", "p-search")
+		s.SubscribeToSeries("Beta Series", "id-beta", "p-search")
+		s.SubscribeToSeries("Gamma Series", "id-gamma", "p-search")
+
+		page1, total, err := s.ListSubscriptions("p-search", "", 1, 2, "series_title", "asc")
+		if err != nil {
+			t.Fatalf("ListSubscriptions failed: %v", err)
+		}
+		if total != 3 {
+			t.Errorf("Expected total 3, got %d", total)
+		}
+		if len(page1) != 2 {
+			t.Errorf("Expected 2 items on page 1, got %d", len(page1))
+		}
+
+		page2, _, err := s.ListSubscriptions("p-search", "", 2, 2, "series_title", "asc")
+		if err != nil {
+			t.Fatalf("ListSubscriptions page 2 failed: %v", err)
+		}
+		if len(page2) != 1 {
+			t.Errorf("Expected 1 item on page 2, got %d", len(page2))
+		}
+
+		matches, matchTotal, err := s.ListSubscriptions("p-search", "Beta", 1, 50, "series_title", "asc")
+		if err != nil {
+			t.Fatalf("ListSubscriptions search failed: %v", err)
+		}
+		if matchTotal != 1 {
+			t.Errorf("Expected 1 search match, got %d", matchTotal)
+		}
+		if len(matches) != 1 || matches[0].SeriesTitle != "Beta Series" {
+			t.Errorf("Expected Beta Series, got %+v", matches)
+		}
+	})
 }

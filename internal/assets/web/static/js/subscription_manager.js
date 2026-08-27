@@ -8,9 +8,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   const subTableBody = document.getElementById('sub-table-body');
   const recheckAllBtn = document.getElementById('recheck-all-btn');
   const tableHeaders = document.querySelectorAll('.sub-table th[data-sort]');
+  const searchInput = document.getElementById('sub-search-input');
+  const paginationContainer = document.getElementById('pagination-container');
   let availableFolders = [];
   let currentSubscriptions = []; // Store current subscriptions data
+  const PAGE_SIZE = 50;
   const sortState = { key: 'series_title', dir: 'asc' };
+  const pageState = { page: 1, total: 0 };
+  let searchDebounce = null;
 
   const timeAgo = date => {
     if (!date) return 'Never';
@@ -39,40 +44,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     return sub.folder_path;
   };
 
-  const getSortValue = (sub, key) => {
-    if (key === 'folder_path') {
-      return getFolderPathDisplay(sub).toLowerCase();
-    }
-    if (key === 'created_at' || key === 'last_checked_at') {
-      return sub[key] ? new Date(sub[key]).getTime() : 0;
-    }
-    return (sub[key] || '').toString().toLowerCase();
-  };
-
-  const sortSubscriptions = subs => {
-    const { key, dir } = sortState;
-    const dirMultiplier = dir === 'asc' ? 1 : -1;
-    return [...subs].sort((a, b) => {
-      const valA = getSortValue(a, key);
-      const valB = getSortValue(b, key);
-      if (valA < valB) return -1 * dirMultiplier;
-      if (valA > valB) return 1 * dirMultiplier;
-      return 0;
-    });
-  };
-
   const updateSortHeaders = () => {
     tableHeaders.forEach(th => {
       const icon = th.querySelector('.sort-icon');
       const isActive = th.dataset.sort === sortState.key;
       th.classList.toggle('sorted', isActive);
       if (!icon) return;
+      const invertCaret = th.dataset.sort === 'created_at' || th.dataset.sort === 'last_checked_at';
+      const ascIcon = invertCaret ? 'ph-caret-down' : 'ph-caret-up';
+      const descIcon = invertCaret ? 'ph-caret-up' : 'ph-caret-down';
       icon.className = `ph-bold sort-icon ${
-        !isActive
-          ? 'ph-arrows-down-up'
-          : sortState.dir === 'asc'
-            ? 'ph-sort-ascending'
-            : 'ph-sort-descending'
+        !isActive ? 'ph-arrows-down-up' : sortState.dir === 'asc' ? ascIcon : descIcon
       }`;
     });
   };
@@ -84,7 +66,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       subTableBody.innerHTML = '<tr><td colspan="6">No subscriptions found.</td></tr>';
       return;
     }
-    sortSubscriptions(subs).forEach(sub => {
+    subs.forEach(sub => {
       const row = document.createElement('tr');
       const folderPathDisplay = getFolderPathDisplay(sub);
 
@@ -106,14 +88,90 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   };
 
+  const renderPagination = () => {
+    paginationContainer.innerHTML = '';
+    const totalPages = Math.ceil(pageState.total / PAGE_SIZE);
+    if (totalPages <= 1) return;
+
+    const createButton = (text, page, isDisabled = false, isActive = false) => {
+      const btn = document.createElement('button');
+      btn.className = 'pagination-btn';
+      btn.innerHTML = text;
+      if (isDisabled) btn.classList.add('disabled');
+      if (isActive) btn.classList.add('active');
+      btn.addEventListener('click', () => {
+        if (isDisabled || pageState.page === page) return;
+        pageState.page = page;
+        loadSubscriptions();
+      });
+      return btn;
+    };
+
+    paginationContainer.appendChild(createButton('&laquo;', 1, pageState.page === 1));
+    paginationContainer.appendChild(
+      createButton('&lsaquo;', pageState.page - 1, pageState.page === 1)
+    );
+
+    const pageNumbers = [1];
+    if (pageState.page > 4) pageNumbers.push('...');
+    for (
+      let i = Math.max(2, pageState.page - 2);
+      i <= Math.min(totalPages - 1, pageState.page + 2);
+      i++
+    ) {
+      pageNumbers.push(i);
+    }
+    if (pageState.page < totalPages - 3) pageNumbers.push('...');
+    if (totalPages > 1) pageNumbers.push(totalPages);
+
+    [...new Set(pageNumbers)].forEach(num => {
+      if (num === '...') {
+        const ellipsis = document.createElement('span');
+        ellipsis.className = 'pagination-ellipsis';
+        ellipsis.textContent = '...';
+        paginationContainer.appendChild(ellipsis);
+      } else {
+        paginationContainer.appendChild(
+          createButton(num, num, false, pageState.page === num)
+        );
+      }
+    });
+
+    paginationContainer.appendChild(
+      createButton('&rsaquo;', pageState.page + 1, pageState.page === totalPages)
+    );
+    paginationContainer.appendChild(
+      createButton('&raquo;', totalPages, pageState.page === totalPages)
+    );
+  };
+
   const loadSubscriptions = async () => {
+    const params = new URLSearchParams({
+      page: String(pageState.page),
+      per_page: String(PAGE_SIZE),
+      sort_by: sortState.key,
+      sort_dir: sortState.dir,
+    });
     const providerID = providerSelect.value;
-    const url = `/api/subscriptions${providerID ? '?provider_id=' + providerID : ''}`;
+    if (providerID) params.set('provider_id', providerID);
+    const search = searchInput.value.trim();
+    if (search) params.set('search', search);
+
     try {
-      const response = await fetch(url);
-      const subs = await response.json();
-      currentSubscriptions = subs || [];
+      const response = await fetch(`/api/subscriptions?${params.toString()}`);
+      const data = await response.json();
+      currentSubscriptions = data.items || [];
+      pageState.total = data.total || 0;
+      pageState.page = data.page || pageState.page;
+
+      if (currentSubscriptions.length === 0 && pageState.page > 1 && pageState.total > 0) {
+        pageState.page = Math.max(1, Math.ceil(pageState.total / PAGE_SIZE));
+        await loadSubscriptions();
+        return;
+      }
+
       renderTable(currentSubscriptions);
+      renderPagination();
     } catch (e) {
       console.error('Failed to load subscriptions', e);
     }
@@ -366,13 +424,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         sortState.key = sortKey;
         sortState.dir = 'asc';
       }
-      renderTable(currentSubscriptions);
+      pageState.page = 1;
+      loadSubscriptions();
     });
   });
 
   providerSelect.addEventListener('change', () => {
     localStorage.setItem('sub_provider_filter', providerSelect.value);
+    pageState.page = 1;
     loadSubscriptions();
+  });
+
+  searchInput.addEventListener('input', () => {
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(() => {
+      pageState.page = 1;
+      loadSubscriptions();
+    }, 300);
   });
 
   recheckAllBtn.addEventListener('click', async () => {

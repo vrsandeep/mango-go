@@ -11,7 +11,41 @@
   margin-bottom: 2rem;
   flex-wrap: wrap;
   justify-content: flex-start;
+  align-items: center;
   animation: fadeIn 0.3s ease;
+}
+
+.manager-controls .search-bar {
+  flex: 1 1 220px;
+  min-width: 180px;
+  max-width: 360px;
+  position: relative;
+}
+
+.manager-controls .search-bar i {
+  position: absolute;
+  left: 0.85rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--subtle-text-color);
+  pointer-events: none;
+}
+
+.manager-controls .search-bar input {
+  width: 100%;
+  padding: 0.75rem 1rem 0.75rem 2.5rem;
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  background-color: var(--card-bg);
+  color: var(--text-color);
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.manager-controls .search-bar input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.1);
 }
 
 .manager-controls select {
@@ -95,6 +129,7 @@
   border: 2px solid var(--border-color);
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   animation: fadeIn 0.3s ease;
+  margin-bottom: 1.5rem;
 }
 
 .sub-table {
@@ -479,6 +514,11 @@
   .manager-controls {
     flex-direction: column;
     gap: 0.75rem;
+  }
+
+  .manager-controls .search-bar {
+    max-width: none;
+    width: 100%;
   }
 
   .manager-controls select {
