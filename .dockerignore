@@ -6,3 +6,5 @@ mango.db
 manga/
 .gitignore
 .git/
+node_modules/
+plugins/

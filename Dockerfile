@@ -1,4 +1,4 @@
-FROM golang:1.26.2-alpine AS builder
+FROM golang:1.27.0-alpine AS builder
 
 # Install build tools needed for CGo and SQLite.
 RUN apk add --no-cache build-base sqlite-dev nodejs npm
@@ -8,7 +8,19 @@ WORKDIR /app
 
 # Copy dependency management files first to leverage Docker layer caching.
 COPY go.mod go.sum ./
-RUN go mod download
+
+# go-fitz ships hundreds of MB of MuPDF archives, so the module proxy regularly
+# drops the connection mid-zip ("unexpected EOF"). Retry, and keep the module
+# cache on a mount so each attempt resumes instead of starting over.
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    attempt=1; \
+    until go mod download; do \
+      attempt=$((attempt + 1)); \
+      if [ "$attempt" -gt 5 ]; then echo "go mod download failed after 5 attempts" >&2; exit 1; fi; \
+      echo "go mod download failed, retrying (attempt $attempt/5)..." >&2; \
+      sleep 10; \
+    done
 
 # Copy the rest of the application's source code.
 COPY . .
@@ -22,7 +34,9 @@ RUN npm install -g esbuild
 # CGO_ENABLED=1: Required for the go-sqlite3 driver.
 # GIN_MODE=release: Sets Gin to production mode for better performance.
 # GO_BUILD_TAGS=musl: go-fitz must link musl MuPDF static libs on Alpine (not glibc .a).
-RUN GO_BUILD_TAGS=musl make build
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    GO_BUILD_TAGS=musl make build
 
 # Use alpine as the base image. It's lightweight but contains the necessary
 # runtime libraries (like musl libc) that our binary depends on.
