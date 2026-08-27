@@ -7,8 +7,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const providerSelect = document.getElementById('provider-select');
   const subTableBody = document.getElementById('sub-table-body');
   const recheckAllBtn = document.getElementById('recheck-all-btn');
+  const tableHeaders = document.querySelectorAll('.sub-table th[data-sort]');
   let availableFolders = [];
   let currentSubscriptions = []; // Store current subscriptions data
+  const sortState = { key: 'series_title', dir: 'asc' };
 
   const timeAgo = date => {
     if (!date) return 'Never';
@@ -30,25 +32,61 @@ document.addEventListener('DOMContentLoaded', async () => {
     return currentSubscriptions.find(sub => sub.id == subId);
   };
 
+  const getFolderPathDisplay = sub => {
+    if (!sub.folder_path) return 'Default (series name)';
+    const defaultPath = window.PathUtils.getDefaultFolderPath(sub.series_title);
+    if (sub.folder_path === defaultPath) return 'Default (series name)';
+    return sub.folder_path;
+  };
+
+  const getSortValue = (sub, key) => {
+    if (key === 'folder_path') {
+      return getFolderPathDisplay(sub).toLowerCase();
+    }
+    if (key === 'created_at' || key === 'last_checked_at') {
+      return sub[key] ? new Date(sub[key]).getTime() : 0;
+    }
+    return (sub[key] || '').toString().toLowerCase();
+  };
+
+  const sortSubscriptions = subs => {
+    const { key, dir } = sortState;
+    const dirMultiplier = dir === 'asc' ? 1 : -1;
+    return [...subs].sort((a, b) => {
+      const valA = getSortValue(a, key);
+      const valB = getSortValue(b, key);
+      if (valA < valB) return -1 * dirMultiplier;
+      if (valA > valB) return 1 * dirMultiplier;
+      return 0;
+    });
+  };
+
+  const updateSortHeaders = () => {
+    tableHeaders.forEach(th => {
+      const icon = th.querySelector('.sort-icon');
+      const isActive = th.dataset.sort === sortState.key;
+      th.classList.toggle('sorted', isActive);
+      if (!icon) return;
+      icon.className = `ph-bold sort-icon ${
+        !isActive
+          ? 'ph-arrows-down-up'
+          : sortState.dir === 'asc'
+            ? 'ph-sort-ascending'
+            : 'ph-sort-descending'
+      }`;
+    });
+  };
+
   const renderTable = subs => {
     subTableBody.innerHTML = '';
+    updateSortHeaders();
     if (!subs || subs.length === 0) {
       subTableBody.innerHTML = '<tr><td colspan="6">No subscriptions found.</td></tr>';
       return;
     }
-    subs.forEach(sub => {
+    sortSubscriptions(subs).forEach(sub => {
       const row = document.createElement('tr');
-
-      // Determine display text for folder path
-      let folderPathDisplay = 'Default (series name)';
-      if (sub.folder_path) {
-        const defaultPath = window.PathUtils.getDefaultFolderPath(sub.series_title);
-        if (sub.folder_path === defaultPath) {
-          folderPathDisplay = 'Default (series name)';
-        } else {
-          folderPathDisplay = sub.folder_path;
-        }
-      }
+      const folderPathDisplay = getFolderPathDisplay(sub);
 
       row.innerHTML = `
                         <td title="${sub.series_title}">${sub.series_title}</td>
@@ -74,8 +112,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const response = await fetch(url);
       const subs = await response.json();
-      currentSubscriptions = subs; // Store the data for later use
-      renderTable(subs);
+      currentSubscriptions = subs || [];
+      renderTable(currentSubscriptions);
     } catch (e) {
       console.error('Failed to load subscriptions', e);
     }
@@ -316,6 +354,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     } finally {
       button.disabled = false;
     }
+  });
+
+  tableHeaders.forEach(th => {
+    th.addEventListener('click', () => {
+      const sortKey = th.dataset.sort;
+      if (!sortKey) return;
+      if (sortState.key === sortKey) {
+        sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
+      } else {
+        sortState.key = sortKey;
+        sortState.dir = 'asc';
+      }
+      renderTable(currentSubscriptions);
+    });
   });
 
   providerSelect.addEventListener('change', () => {

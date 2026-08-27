@@ -124,6 +124,32 @@
   z-index: 10;
 }
 
+.sub-table th[data-sort] {
+  cursor: pointer;
+  user-select: none;
+}
+
+.sub-table th[data-sort]:hover {
+  background-color: var(--border-color);
+}
+
+.sub-table th[data-sort] span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.sub-table th .sort-icon {
+  font-size: 0.85rem;
+  color: var(--subtle-text-color);
+  opacity: 0.55;
+}
+
+.sub-table th.sorted .sort-icon {
+  color: var(--accent-color);
+  opacity: 1;
+}
+
 .sub-table td {
   color: var(--text-color);
   font-size: 0.9rem;
