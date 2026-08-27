@@ -493,9 +493,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Check if subscription already exists
     try {
       const existingSubsResponse = await fetch(
-        `/api/subscriptions?provider_id=${encodeURIComponent(state.selectedProvider)}`
+        `/api/subscriptions?provider_id=${encodeURIComponent(state.selectedProvider)}&search=${encodeURIComponent(state.selectedSeries.identifier)}&per_page=50`
       );
-      const existingSubs = await existingSubsResponse.json();
+      const existingSubsData = await existingSubsResponse.json();
+      const existingSubs = existingSubsData.items || [];
       const alreadyExists = existingSubs.some(
         sub =>
           sub.series_identifier === state.selectedSeries.identifier &&

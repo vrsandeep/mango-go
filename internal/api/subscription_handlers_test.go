@@ -158,10 +158,16 @@ func TestHandleListSubscriptions(t *testing.T) {
 			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
 		}
 
-		var subs []map[string]interface{}
-		json.Unmarshal(rr.Body.Bytes(), &subs)
-		if len(subs) == 0 {
+		var resp struct {
+			Items []map[string]interface{} `json:"items"`
+			Total int                      `json:"total"`
+		}
+		json.Unmarshal(rr.Body.Bytes(), &resp)
+		if len(resp.Items) == 0 {
 			t.Error("Expected at least one subscription")
+		}
+		if resp.Total < 1 {
+			t.Error("Expected total to be at least 1")
 		}
 	})
 
@@ -173,6 +179,55 @@ func TestHandleListSubscriptions(t *testing.T) {
 
 		if status := rr.Code; status != http.StatusOK {
 			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		}
+	})
+
+	t.Run("With search", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/api/subscriptions?search=List+Test", nil)
+		req.AddCookie(testutil.CookieForUser(t, server, "testuser-list-search", "password", "user"))
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusOK {
+			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		}
+
+		var resp struct {
+			Items []map[string]interface{} `json:"items"`
+			Total int                      `json:"total"`
+		}
+		json.Unmarshal(rr.Body.Bytes(), &resp)
+		if resp.Total < 1 {
+			t.Error("Expected search to find the List Test subscription")
+		}
+		for _, sub := range resp.Items {
+			title, _ := sub["series_title"].(string)
+			if title != "List Test" {
+				t.Errorf("Expected search results to match List Test, got %q", title)
+			}
+		}
+	})
+
+	t.Run("Pagination defaults", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/api/subscriptions?page=1", nil)
+		req.AddCookie(testutil.CookieForUser(t, server, "testuser-list-page", "password", "user"))
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusOK {
+			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		}
+
+		var resp struct {
+			Page    int `json:"page"`
+			PerPage int `json:"per_page"`
+		}
+		json.Unmarshal(rr.Body.Bytes(), &resp)
+		if resp.Page != 1 {
+			t.Errorf("Expected page 1, got %d", resp.Page)
+		}
+		if resp.PerPage != 50 {
+			t.Errorf("Expected default per_page 50, got %d", resp.PerPage)
 		}
 	})
 
@@ -239,11 +294,13 @@ func TestHandleDeleteSubscription(t *testing.T) {
 			t.Errorf("Failed to get subscriptions list: %v", status)
 		}
 
-		var subscriptions []map[string]interface{}
-		json.Unmarshal(rr.Body.Bytes(), &subscriptions)
+		var resp struct {
+			Items []map[string]interface{} `json:"items"`
+		}
+		json.Unmarshal(rr.Body.Bytes(), &resp)
 
 		// Check that our deleted subscription is not in the list
-		for _, sub := range subscriptions {
+		for _, sub := range resp.Items {
 			if sub["id"].(float64) == float64(subID) {
 				t.Errorf("Expected subscription %d to be deleted, but it's still in the list", subID)
 			}

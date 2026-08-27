@@ -55,7 +55,12 @@ func (s *Server) handleSubscribeToSeries(w http.ResponseWriter, r *http.Request)
 
 func (s *Server) handleListSubscriptions(w http.ResponseWriter, r *http.Request) {
 	providerID := r.URL.Query().Get("provider_id")
-	subs, err := s.store.GetAllSubscriptions(providerID)
+	page, perPage, search, sortBy, sortDir := getListParams(r)
+	if r.URL.Query().Get("per_page") == "" {
+		perPage = 50
+	}
+
+	subs, total, err := s.store.ListSubscriptions(providerID, search, page, perPage, sortBy, sortDir)
 	if err != nil {
 		RespondWithError(w, http.StatusInternalServerError, "Failed to retrieve subscriptions")
 		return
@@ -73,7 +78,12 @@ func (s *Server) handleListSubscriptions(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	RespondWithJSON(w, http.StatusOK, subs)
+	RespondWithJSON(w, http.StatusOK, map[string]interface{}{
+		"items":    subs,
+		"total":    total,
+		"page":     page,
+		"per_page": perPage,
+	})
 }
 
 func (s *Server) handleDeleteSubscription(w http.ResponseWriter, r *http.Request) {
