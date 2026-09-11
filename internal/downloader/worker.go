@@ -106,6 +106,9 @@ func worker(id int, app *core.App, st *store.Store) {
 				chapPtr = &ch.ID
 				folderPtr = &ch.FolderID
 			}
+			if _, err := st.CreateChapterDownloadedNotification(job.SeriesTitle, job.ChapterTitle, folderPtr, chapPtr); err != nil {
+				log.Printf("Failed to create download notification: %v", err)
+			}
 			sendDownloaderProgressUpdate(app, job.ID, "Download finished successfully.", "completed", 100, true, chapPtr, folderPtr)
 		}
 	}

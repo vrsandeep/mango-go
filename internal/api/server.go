@@ -169,6 +169,10 @@ func (s *Server) Router() http.Handler {
 			// Plugin Repository Routes
 			r.Get("/plugin-repositories", s.handleListRepositories)
 			r.Get("/plugin-repositories/{repositoryID}/plugins", s.handleGetRepositoryPlugins)
+
+			// Notifications
+			r.Get("/notifications", s.handleGetNotifications)
+			r.Post("/notifications/read", s.handleMarkNotificationsRead)
 		})
 	})
 
