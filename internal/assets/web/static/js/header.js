@@ -133,12 +133,12 @@ function initNotifications() {
     return '/downloads/manager';
   };
 
-  const renderList = items => {
+  const renderList = (items, hasMore) => {
     if (!items || items.length === 0) {
       listEl.innerHTML = '<p class="notifications-empty">No new chapters in the last few days.</p>';
       return;
     }
-    listEl.innerHTML = items
+    const rows = items
       .map(item => {
         const unreadClass = item.read ? '' : ' unread';
         return `<a class="notifications-item${unreadClass}" href="${itemHref(item)}">
@@ -148,6 +148,10 @@ function initNotifications() {
         </a>`;
       })
       .join('');
+    const viewMore = hasMore
+      ? `<a class="notifications-view-more" href="/downloads/manager">View more</a>`
+      : '';
+    listEl.innerHTML = rows + viewMore;
   };
 
   const setDot = hasUnread => {
@@ -175,7 +179,7 @@ function initNotifications() {
     const data = await fetchNotifications();
     if (!data) return;
     setDot(Boolean(data.has_unread));
-    if (open) renderList(data.notifications);
+    if (open) renderList(data.notifications, data.has_more);
   };
 
   const setOpen = async state => {
@@ -186,7 +190,7 @@ function initNotifications() {
 
     const data = await fetchNotifications();
     if (data) {
-      renderList(data.notifications);
+      renderList(data.notifications, data.has_more);
       setDot(Boolean(data.has_unread));
     }
 

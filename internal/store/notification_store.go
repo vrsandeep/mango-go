@@ -10,6 +10,9 @@ import (
 // NotificationRetention is how long download notifications remain visible.
 const NotificationRetention = 7 * 24 * time.Hour
 
+// NotificationListLimit is the maximum number of notifications returned for the header panel.
+const NotificationListLimit = 10
+
 func notificationCutoff() time.Time {
 	return time.Now().Add(-NotificationRetention)
 }
@@ -41,19 +44,21 @@ func (s *Store) CreateChapterDownloadedNotification(seriesTitle, chapterTitle st
 	}, nil
 }
 
-// ListNotifications returns non-expired notifications for a user, newest first.
-func (s *Store) ListNotifications(userID int64) ([]*models.Notification, error) {
+// ListNotifications returns up to NotificationListLimit non-expired notifications for a user, newest first.
+// hasMore is true when additional notifications exist beyond that limit.
+func (s *Store) ListNotifications(userID int64) ([]*models.Notification, bool, error) {
 	rows, err := s.db.Query(`
 		SELECT n.id, n.kind, n.series_title, n.chapter_title, n.local_folder_id, n.local_chapter_id, n.created_at,
 		       CASE WHEN r.notification_id IS NULL THEN 0 ELSE 1 END AS is_read
 		FROM notifications n
 		LEFT JOIN user_notification_reads r ON r.notification_id = n.id AND r.user_id = ?
 		WHERE n.created_at > ?
-		ORDER BY n.created_at DESC, n.id DESC`,
-		userID, notificationCutoff(),
+		ORDER BY n.created_at DESC, n.id DESC
+		LIMIT ?`,
+		userID, notificationCutoff(), NotificationListLimit+1,
 	)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	defer rows.Close()
 
@@ -61,14 +66,21 @@ func (s *Store) ListNotifications(userID int64) ([]*models.Notification, error) 
 	for rows.Next() {
 		n, err := scanNotification(rows)
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		items = append(items, n)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, false, err
+	}
+	hasMore := len(items) > NotificationListLimit
+	if hasMore {
+		items = items[:NotificationListLimit]
 	}
 	if items == nil {
 		items = []*models.Notification{}
 	}
-	return items, rows.Err()
+	return items, hasMore, nil
 }
 
 // HasUnreadNotifications reports whether the user has any unread, non-expired notifications.

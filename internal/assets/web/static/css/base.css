@@ -802,6 +802,25 @@ a:active:not([disabled]) {
   border-left: 3px solid var(--accent-color);
 }
 
+.notifications-view-more {
+  display: block;
+  text-align: center;
+  padding: 0.85rem 1rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--accent-color);
+  text-decoration: none;
+  border-top: 1px solid var(--border-color);
+  border-radius: 0;
+}
+
+.notifications-view-more:hover,
+.notifications-view-more:focus {
+  background-color: rgba(var(--accent-color-rgb), 0.1);
+  color: var(--accent-color);
+  transform: none;
+}
+
 .notifications-item-title {
   font-weight: 600;
   font-size: 0.95rem;

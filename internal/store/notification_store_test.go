@@ -37,12 +37,15 @@ func TestNotificationStore(t *testing.T) {
 		t.Errorf("expected folder id %d, got %+v", folderID, n.LocalFolderID)
 	}
 
-	items, err := s.ListNotifications(user.ID)
+	items, hasMore, err := s.ListNotifications(user.ID)
 	if err != nil {
 		t.Fatalf("ListNotifications failed: %v", err)
 	}
 	if len(items) != 1 {
 		t.Fatalf("expected 1 notification, got %d", len(items))
+	}
+	if hasMore {
+		t.Error("expected hasMore false for a single notification")
 	}
 	if items[0].Read {
 		t.Error("new notification should be unread")
@@ -60,7 +63,7 @@ func TestNotificationStore(t *testing.T) {
 		t.Fatalf("MarkAllNotificationsRead failed: %v", err)
 	}
 
-	items, err = s.ListNotifications(user.ID)
+	items, _, err = s.ListNotifications(user.ID)
 	if err != nil {
 		t.Fatalf("ListNotifications after read failed: %v", err)
 	}
@@ -112,9 +115,12 @@ func TestNotificationRetention(t *testing.T) {
 		t.Fatalf("CreateChapterDownloadedNotification failed: %v", err)
 	}
 
-	items, err := s.ListNotifications(user.ID)
+	items, hasMore, err := s.ListNotifications(user.ID)
 	if err != nil {
 		t.Fatalf("ListNotifications failed: %v", err)
+	}
+	if hasMore {
+		t.Error("expected hasMore false")
 	}
 	if len(items) != 1 || items[0].SeriesTitle != "New Series" {
 		t.Fatalf("expected only the fresh notification, got %+v", items)
@@ -141,11 +147,47 @@ func TestListNotificationsEmpty(t *testing.T) {
 	db := testutil.SetupTestDB(t)
 	s := store.New(db)
 
-	items, err := s.ListNotifications(1)
+	items, hasMore, err := s.ListNotifications(1)
 	if err != nil {
 		t.Fatalf("ListNotifications failed: %v", err)
 	}
+	if hasMore {
+		t.Error("expected hasMore false")
+	}
 	if items == nil || len(items) != 0 {
 		t.Errorf("expected empty slice, got %#v", items)
+	}
+}
+
+func TestListNotificationsLimit(t *testing.T) {
+	db := testutil.SetupTestDB(t)
+	s := store.New(db)
+
+	hash, _ := auth.HashPassword("password")
+	user, err := s.CreateUser("notify-limit", hash, "user")
+	if err != nil {
+		t.Fatalf("CreateUser failed: %v", err)
+	}
+
+	now := time.Now()
+	for i := 0; i < store.NotificationListLimit+2; i++ {
+		_, err := db.Exec(`
+			INSERT INTO notifications (kind, series_title, chapter_title, created_at)
+			VALUES (?, ?, ?, ?)`,
+			models.NotificationKindChapterDownloaded, "Series", "Ch", now.Add(time.Duration(i)*time.Second))
+		if err != nil {
+			t.Fatalf("insert notification %d: %v", i, err)
+		}
+	}
+
+	items, hasMore, err := s.ListNotifications(user.ID)
+	if err != nil {
+		t.Fatalf("ListNotifications failed: %v", err)
+	}
+	if !hasMore {
+		t.Error("expected hasMore true when notifications exceed the limit")
+	}
+	if len(items) != store.NotificationListLimit {
+		t.Fatalf("expected %d notifications, got %d", store.NotificationListLimit, len(items))
 	}
 }

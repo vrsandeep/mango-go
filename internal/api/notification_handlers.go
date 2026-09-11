@@ -13,7 +13,7 @@ func (s *Server) handleGetNotifications(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	items, err := s.store.ListNotifications(user.ID)
+	items, hasMore, err := s.store.ListNotifications(user.ID)
 	if err != nil {
 		RespondWithError(w, http.StatusInternalServerError, "Failed to retrieve notifications")
 		return
@@ -27,6 +27,7 @@ func (s *Server) handleGetNotifications(w http.ResponseWriter, r *http.Request) 
 
 	RespondWithJSON(w, http.StatusOK, models.NotificationList{
 		HasUnread:     hasUnread,
+		HasMore:       hasMore,
 		Notifications: items,
 	})
 }

@@ -50,6 +50,9 @@ func TestNotificationHandlers(t *testing.T) {
 		if payload.Notifications[0].Read {
 			t.Error("notification should be unread")
 		}
+		if payload.HasMore {
+			t.Error("expected has_more false")
+		}
 	})
 
 	t.Run("Unauthorized list", func(t *testing.T) {

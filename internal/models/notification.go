@@ -19,5 +19,6 @@ type Notification struct {
 // NotificationList is the payload for the notifications API.
 type NotificationList struct {
 	HasUnread     bool            `json:"has_unread"`
+	HasMore       bool            `json:"has_more"`
 	Notifications []*Notification `json:"notifications"`
 }
