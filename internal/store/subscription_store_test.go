@@ -81,6 +81,35 @@ func TestSubscriptionStore(t *testing.T) {
 		}
 	})
 
+	t.Run("Update Last Downloaded", func(t *testing.T) {
+		subs, _ := s.GetAllSubscriptions("p2")
+		subToUpdate := subs[0]
+		if subToUpdate.LastDownloadedAt != nil {
+			t.Fatal("Expected LastDownloadedAt to be nil initially")
+		}
+
+		err := s.UpdateSubscriptionLastDownloaded(subToUpdate.SeriesTitle, subToUpdate.ProviderID)
+		if err != nil {
+			t.Fatalf("UpdateSubscriptionLastDownloaded failed: %v", err)
+		}
+
+		updatedSub, _ := s.GetSubscriptionByID(subToUpdate.ID)
+		if updatedSub.LastDownloadedAt == nil {
+			t.Error("LastDownloadedAt was not updated")
+		}
+		if time.Since(*updatedSub.LastDownloadedAt) > 5*time.Second {
+			t.Error("LastDownloadedAt timestamp is not recent")
+		}
+
+		listed, _, err := s.ListSubscriptions("p2", "", 1, 50, "last_downloaded_at", "desc")
+		if err != nil {
+			t.Fatalf("ListSubscriptions by last_downloaded_at failed: %v", err)
+		}
+		if len(listed) == 0 || listed[0].LastDownloadedAt == nil {
+			t.Error("Expected listed subscription to include last_downloaded_at")
+		}
+	})
+
 	t.Run("Get Chapter Identifiers In Queue", func(t *testing.T) {
 		db.Exec("INSERT INTO download_queue (series_title, chapter_identifier, provider_id, chapter_title, created_at) VALUES ('Manga C', 'ch-id-1', 'p3', 'Ch 1', ?)", time.Now())
 		db.Exec("INSERT INTO download_queue (series_title, chapter_identifier, provider_id, chapter_title, created_at) VALUES ('Manga C', 'ch-id-2', 'p3', 'Ch 2', ?)", time.Now())

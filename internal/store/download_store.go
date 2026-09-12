@@ -296,7 +296,7 @@ func (s *Store) RetryQueueItem(id int64) error {
 
 // GetAllSubscriptions retrieves all subscriptions, optionally filtered by provider ID.
 func (s *Store) GetAllSubscriptions(providerIDFilter string) ([]*models.Subscription, error) {
-	query := `SELECT id, series_title, series_identifier, provider_id, folder_path, created_at, last_checked_at
+	query := `SELECT id, series_title, series_identifier, provider_id, folder_path, created_at, last_checked_at, last_downloaded_at
 		FROM subscriptions`
 	args := []interface{}{}
 	if providerIDFilter != "" {
@@ -315,14 +315,17 @@ func (s *Store) GetAllSubscriptions(providerIDFilter string) ([]*models.Subscrip
 	for rows.Next() {
 		var sub models.Subscription
 		var createdAt time.Time
-		var lastCheckedAt sql.NullTime
+		var lastCheckedAt, lastDownloadedAt sql.NullTime
 		var folderPath sql.NullString
-		if err := rows.Scan(&sub.ID, &sub.SeriesTitle, &sub.SeriesIdentifier, &sub.ProviderID, &folderPath, &createdAt, &lastCheckedAt); err != nil {
+		if err := rows.Scan(&sub.ID, &sub.SeriesTitle, &sub.SeriesIdentifier, &sub.ProviderID, &folderPath, &createdAt, &lastCheckedAt, &lastDownloadedAt); err != nil {
 			return nil, err
 		}
 		sub.CreatedAt = createdAt
 		if lastCheckedAt.Valid {
 			sub.LastCheckedAt = &lastCheckedAt.Time
+		}
+		if lastDownloadedAt.Valid {
+			sub.LastDownloadedAt = &lastDownloadedAt.Time
 		}
 		if folderPath.Valid {
 			sub.FolderPath = &folderPath.String
@@ -365,7 +368,7 @@ func (s *Store) ListSubscriptions(providerID, search string, page, perPage int, 
 
 	orderCol := "series_title"
 	switch sortBy {
-	case "series_title", "provider_id", "folder_path", "created_at", "last_checked_at":
+	case "series_title", "provider_id", "folder_path", "created_at", "last_checked_at", "last_downloaded_at":
 		orderCol = sortBy
 	}
 	dir := "ASC"
@@ -374,7 +377,7 @@ func (s *Store) ListSubscriptions(providerID, search string, page, perPage int, 
 	}
 
 	offset := (page - 1) * perPage
-	query := fmt.Sprintf(`SELECT id, series_title, series_identifier, provider_id, folder_path, created_at, last_checked_at
+	query := fmt.Sprintf(`SELECT id, series_title, series_identifier, provider_id, folder_path, created_at, last_checked_at, last_downloaded_at
 		FROM subscriptions WHERE %s ORDER BY %s %s, series_title ASC LIMIT ? OFFSET ?`, whereSQL, orderCol, dir)
 	queryArgs := append(append([]interface{}{}, args...), perPage, offset)
 
@@ -388,14 +391,17 @@ func (s *Store) ListSubscriptions(providerID, search string, page, perPage int, 
 	for rows.Next() {
 		var sub models.Subscription
 		var createdAt time.Time
-		var lastCheckedAt sql.NullTime
+		var lastCheckedAt, lastDownloadedAt sql.NullTime
 		var folderPath sql.NullString
-		if err := rows.Scan(&sub.ID, &sub.SeriesTitle, &sub.SeriesIdentifier, &sub.ProviderID, &folderPath, &createdAt, &lastCheckedAt); err != nil {
+		if err := rows.Scan(&sub.ID, &sub.SeriesTitle, &sub.SeriesIdentifier, &sub.ProviderID, &folderPath, &createdAt, &lastCheckedAt, &lastDownloadedAt); err != nil {
 			return nil, 0, err
 		}
 		sub.CreatedAt = createdAt
 		if lastCheckedAt.Valid {
 			sub.LastCheckedAt = &lastCheckedAt.Time
+		}
+		if lastDownloadedAt.Valid {
+			sub.LastDownloadedAt = &lastDownloadedAt.Time
 		}
 		if folderPath.Valid {
 			sub.FolderPath = &folderPath.String
@@ -412,16 +418,19 @@ func (s *Store) ListSubscriptions(providerID, search string, page, perPage int, 
 func (s *Store) GetSubscriptionByID(id int64) (*models.Subscription, error) {
 	var sub models.Subscription
 	var createdAt time.Time
-	var lastCheckedAt sql.NullTime
+	var lastCheckedAt, lastDownloadedAt sql.NullTime
 	var folderPath sql.NullString
-	query := "SELECT id, series_title, series_identifier, provider_id, folder_path, created_at, last_checked_at FROM subscriptions WHERE id = ?"
-	err := s.db.QueryRow(query, id).Scan(&sub.ID, &sub.SeriesTitle, &sub.SeriesIdentifier, &sub.ProviderID, &folderPath, &createdAt, &lastCheckedAt)
+	query := "SELECT id, series_title, series_identifier, provider_id, folder_path, created_at, last_checked_at, last_downloaded_at FROM subscriptions WHERE id = ?"
+	err := s.db.QueryRow(query, id).Scan(&sub.ID, &sub.SeriesTitle, &sub.SeriesIdentifier, &sub.ProviderID, &folderPath, &createdAt, &lastCheckedAt, &lastDownloadedAt)
 	if err != nil {
 		return nil, err
 	}
 	sub.CreatedAt = createdAt
 	if lastCheckedAt.Valid {
 		sub.LastCheckedAt = &lastCheckedAt.Time
+	}
+	if lastDownloadedAt.Valid {
+		sub.LastDownloadedAt = &lastDownloadedAt.Time
 	}
 	if folderPath.Valid {
 		sub.FolderPath = &folderPath.String
@@ -457,6 +466,15 @@ func (s *Store) DeleteSubscription(id int64) error {
 // UpdateSubscriptionLastChecked sets the last_checked_at timestamp to the current time.
 func (s *Store) UpdateSubscriptionLastChecked(id int64) error {
 	_, err := s.db.Exec("UPDATE subscriptions SET last_checked_at = ? WHERE id = ?", time.Now(), id)
+	return err
+}
+
+// UpdateSubscriptionLastDownloaded sets last_downloaded_at for the matching series and provider.
+func (s *Store) UpdateSubscriptionLastDownloaded(seriesTitle, providerID string) error {
+	_, err := s.db.Exec(
+		"UPDATE subscriptions SET last_downloaded_at = ? WHERE series_title = ? AND provider_id = ?",
+		time.Now(), seriesTitle, providerID,
+	)
 	return err
 }
 

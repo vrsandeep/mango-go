@@ -32,6 +32,25 @@
             </nav>
         </div>
         <div class="header-right">
+            <div class="notifications-wrap">
+                <button type="button" id="notifications-btn" class="notifications-btn" title="Notifications" aria-haspopup="true" aria-expanded="false">
+                    <i class="ph-bold ph-bell"></i>
+                    <span class="notifications-dot" hidden></span>
+                </button>
+                <div class="notifications-panel" id="notifications-panel" hidden>
+                    <div class="notifications-panel-header">New chapters</div>
+                    <div class="notifications-list" id="notifications-list"></div>
+                    <p class="notifications-empty" id="notifications-empty">No new chapters in the last few days.</p>
+                    <a class="notifications-view-more" id="notifications-view-more" href="/downloads/manager" hidden>View more</a>
+                </div>
+                <template id="notification-item-template">
+                    <a class="notifications-item">
+                        <span class="notifications-item-title"></span>
+                        <span class="notifications-item-series"></span>
+                        <span class="notifications-item-time"></span>
+                    </a>
+                </template>
+            </div>
             <button id="search-btn" class="search-btn" title="Search folders"><i class="ph-bold ph-magnifying-glass"></i></button>
             <button id="theme-toggle-btn"><i class="ph-bold ph-sun"></i></button>
             <button id="logout-btn" class="auth-only" style="display: none;">Logout</button>

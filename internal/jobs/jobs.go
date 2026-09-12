@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/go-co-op/gocron"
+	"github.com/vrsandeep/mango-go/internal/store"
 )
 
 // StartJobs starts the background job scheduler.
@@ -13,6 +14,7 @@ func StartJobs(app JobContext) {
 	s.SingletonModeAll()
 
 	startLibrarySyncJob(s, app)
+	startNotificationCleanupJob(s, app)
 
 	log.Println("Starting background job scheduler...")
 	s.StartAsync()
@@ -39,5 +41,29 @@ func startLibrarySyncJob(s *gocron.Scheduler, app JobContext) {
 	})
 	if err != nil {
 		log.Printf("Error scheduling '%s' job: %v", jobId, err)
+	}
+}
+
+func startNotificationCleanupJob(s *gocron.Scheduler, app JobContext) {
+	cleanup := func() {
+		if app.DB() == nil {
+			return
+		}
+		st := store.New(app.DB())
+		deleted, err := st.DeleteExpiredNotifications()
+		if err != nil {
+			log.Printf("Notification cleanup failed: %v", err)
+			return
+		}
+		if deleted > 0 {
+			log.Printf("Removed %d expired download notifications.", deleted)
+		}
+	}
+
+	cleanup()
+
+	_, err := s.Every(1).Day().Do(cleanup)
+	if err != nil {
+		log.Printf("Error scheduling notification cleanup: %v", err)
 	}
 }

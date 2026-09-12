@@ -106,6 +106,12 @@ func worker(id int, app *core.App, st *store.Store) {
 				chapPtr = &ch.ID
 				folderPtr = &ch.FolderID
 			}
+			if _, err := st.CreateChapterDownloadedNotification(job.SeriesTitle, job.ChapterTitle, folderPtr, chapPtr); err != nil {
+				log.Printf("Failed to create download notification: %v", err)
+			}
+			if err := st.UpdateSubscriptionLastDownloaded(job.SeriesTitle, job.ProviderID); err != nil {
+				log.Printf("Failed to update subscription last downloaded: %v", err)
+			}
 			sendDownloaderProgressUpdate(app, job.ID, "Download finished successfully.", "completed", 100, true, chapPtr, folderPtr)
 		}
 	}
