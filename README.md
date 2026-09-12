@@ -117,8 +117,8 @@ docker-compose logs
 ## Documentation
 
 - **Issues**: [GitHub Issues](https://github.com/vrsandeep/mango-go/issues)
-- **Contributing**: [CONTRIBUTING.md](CONTRIBUTING.md)
-- **Plugins**: [PLUGIN_SYSTEM_DESIGN.md](PLUGIN_SYSTEM_DESIGN.md)
+- **Contributing**: [CONTRIBUTING.md](docs/CONTRIBUTING.md)
+- **Plugins**: [PLUGIN_SYSTEM_DESIGN.md](docs/PLUGIN_SYSTEM_DESIGN.md)
 
 ## Acknowledgments
 

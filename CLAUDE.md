@@ -65,7 +65,7 @@ Supported formats: `cbz`, `cbr`, `cb7`, `zip`, `rar`, `7z`, `pdf` — each PDF f
 
 ## Plugin System
 
-Plugins live in the `plugins/` directory. Each plugin is a subdirectory containing `plugin.json` (manifest) and `index.js` (logic). Plugins run in isolated goja VMs and are lazy-loaded on first access, then unloaded after idle time. They implement `search`, `getChapters`, and `getPageURLs`. See `PLUGIN_SYSTEM_DESIGN.md` for the full contract.
+Plugins live in the `plugins/` directory. Each plugin is a subdirectory containing `plugin.json` (manifest) and `index.js` (logic). Plugins run in isolated goja VMs and are lazy-loaded on first access, then unloaded after idle time. They implement `search`, `getChapters`, and `getPageURLs`. See `docs/PLUGIN_SYSTEM_DESIGN.md` for the full contract.
 
 ## Testing Approach
 

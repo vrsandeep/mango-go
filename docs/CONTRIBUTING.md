@@ -291,7 +291,9 @@ mango-go/
 ├── go.sum             # Dependency checksums
 ├── config.yml         # Configuration file
 ├── Makefile           # Build and development commands
-├── PLUGIN_SYSTEM_DESIGN.md # Plugin system architecture notes
+├── docs/              # Project documentation
+│   ├── CONTRIBUTING.md
+│   └── PLUGIN_SYSTEM_DESIGN.md
 ├── Dockerfile         # Container configuration
 ├── docker-compose.yml # Docker Compose setup
 └── README.md          # User documentation
