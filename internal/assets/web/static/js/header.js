@@ -78,36 +78,17 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initNotifications() {
-  const headerRight = document.querySelector('.header-right');
-  if (!headerRight) return;
+  const wrap = document.querySelector('.notifications-wrap');
+  const btn = document.getElementById('notifications-btn');
+  const panel = document.getElementById('notifications-panel');
+  const listEl = document.getElementById('notifications-list');
+  const emptyEl = document.getElementById('notifications-empty');
+  const viewMoreEl = document.getElementById('notifications-view-more');
+  const itemTemplate = document.getElementById('notification-item-template');
+  const dot = wrap?.querySelector('.notifications-dot');
+  if (!wrap || !btn || !panel || !listEl || !emptyEl || !viewMoreEl || !itemTemplate || !dot) return;
 
-  const wrap = document.createElement('div');
-  wrap.className = 'notifications-wrap';
-  wrap.innerHTML = `
-    <button type="button" id="notifications-btn" class="notifications-btn" title="Notifications" aria-haspopup="true" aria-expanded="false">
-      <i class="ph-bold ph-bell"></i>
-      <span class="notifications-dot" hidden></span>
-    </button>
-    <div class="notifications-panel" id="notifications-panel" hidden>
-      <div class="notifications-panel-header">New chapters</div>
-      <div class="notifications-list" id="notifications-list"></div>
-    </div>
-  `;
-
-  const searchBtn = document.getElementById('search-btn');
-  headerRight.insertBefore(wrap, searchBtn || headerRight.firstChild);
-
-  const btn = wrap.querySelector('#notifications-btn');
-  const panel = wrap.querySelector('#notifications-panel');
-  const listEl = wrap.querySelector('#notifications-list');
-  const dot = wrap.querySelector('.notifications-dot');
   let open = false;
-
-  const escapeHtml = str =>
-    String(str ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/"/g, '&quot;');
 
   const formatRelative = iso => {
     const then = new Date(iso).getTime();
@@ -134,33 +115,29 @@ function initNotifications() {
   };
 
   const renderList = (items, hasMore) => {
-    if (!items || items.length === 0) {
-      listEl.innerHTML = '<p class="notifications-empty">No new chapters in the last few days.</p>';
-      return;
-    }
-    const rows = items
-      .map(item => {
-        const unreadClass = item.read ? '' : ' unread';
-        return `<a class="notifications-item${unreadClass}" href="${itemHref(item)}">
-          <span class="notifications-item-title">${escapeHtml(item.chapter_title)}</span>
-          <span class="notifications-item-series">${escapeHtml(item.series_title)}</span>
-          <span class="notifications-item-time">${escapeHtml(formatRelative(item.created_at))}</span>
-        </a>`;
-      })
-      .join('');
-    const viewMore = hasMore
-      ? `<a class="notifications-view-more" href="/downloads/manager">View more</a>`
-      : '';
-    listEl.innerHTML = rows + viewMore;
+    listEl.replaceChildren();
+    const hasItems = Boolean(items && items.length);
+    emptyEl.hidden = hasItems;
+    listEl.hidden = !hasItems;
+    viewMoreEl.hidden = !hasMore;
+    if (!hasItems) return;
+
+    items.forEach(item => {
+      const node = itemTemplate.content.firstElementChild.cloneNode(true);
+      node.href = itemHref(item);
+      node.classList.toggle('unread', !item.read);
+      node.querySelector('.notifications-item-title').textContent = item.chapter_title ?? '';
+      node.querySelector('.notifications-item-series').textContent = item.series_title ?? '';
+      node.querySelector('.notifications-item-time').textContent = formatRelative(item.created_at);
+      listEl.appendChild(node);
+    });
   };
 
   const setDot = hasUnread => {
     if (hasUnread) {
       dot.removeAttribute('hidden');
-      btn.classList.add('has-unread');
     } else {
       dot.setAttribute('hidden', '');
-      btn.classList.remove('has-unread');
     }
   };
 

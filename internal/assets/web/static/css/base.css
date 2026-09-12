@@ -784,7 +784,6 @@ a:active:not([disabled]) {
   color: var(--text-color);
   text-decoration: none;
   border-bottom: 1px solid var(--border-color);
-  border-radius: 0;
 }
 
 .notifications-item:last-child {
@@ -795,14 +794,13 @@ a:active:not([disabled]) {
 .notifications-item:focus {
   background-color: rgba(var(--accent-color-rgb), 0.1);
   color: var(--text-color);
-  transform: none;
 }
 
 .notifications-item.unread {
   border-left: 3px solid var(--accent-color);
 }
 
-.notifications-view-more {
+.notifications-view-more:not([hidden]) {
   display: block;
   text-align: center;
   padding: 0.85rem 1rem;
@@ -811,14 +809,12 @@ a:active:not([disabled]) {
   color: var(--accent-color);
   text-decoration: none;
   border-top: 1px solid var(--border-color);
-  border-radius: 0;
 }
 
 .notifications-view-more:hover,
 .notifications-view-more:focus {
   background-color: rgba(var(--accent-color-rgb), 0.1);
   color: var(--accent-color);
-  transform: none;
 }
 
 .notifications-item-title {
