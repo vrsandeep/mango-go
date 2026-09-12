@@ -20,3 +20,5 @@ CREATE TABLE user_notification_reads (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (notification_id) REFERENCES notifications(id) ON DELETE CASCADE
 );
+
+ALTER TABLE subscriptions ADD COLUMN last_downloaded_at TIMESTAMP;

@@ -50,7 +50,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       const isActive = th.dataset.sort === sortState.key;
       th.classList.toggle('sorted', isActive);
       if (!icon) return;
-      const invertCaret = th.dataset.sort === 'created_at' || th.dataset.sort === 'last_checked_at';
+      const invertCaret =
+        th.dataset.sort === 'created_at' ||
+        th.dataset.sort === 'last_checked_at' ||
+        th.dataset.sort === 'last_downloaded_at';
       const ascIcon = invertCaret ? 'ph-caret-down' : 'ph-caret-up';
       const descIcon = invertCaret ? 'ph-caret-up' : 'ph-caret-down';
       icon.className = `ph-bold sort-icon ${
@@ -63,7 +66,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     subTableBody.innerHTML = '';
     updateSortHeaders();
     if (!subs || subs.length === 0) {
-      subTableBody.innerHTML = '<tr><td colspan="6">No subscriptions found.</td></tr>';
+      subTableBody.innerHTML = '<tr><td colspan="7">No subscriptions found.</td></tr>';
       return;
     }
     subs.forEach(sub => {
@@ -78,6 +81,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         </td>
                         <td>${timeAgo(new Date(sub.created_at))}</td>
                         <td>${timeAgo(sub.last_checked_at ? new Date(sub.last_checked_at) : null)}</td>
+                        <td>${timeAgo(sub.last_downloaded_at ? new Date(sub.last_downloaded_at) : null)}</td>
                         <td class="actions-cell">
                             <button data-action="edit-folder" data-id="${sub.id}" title="Edit folder path"><i class="ph-bold ph-pencil-simple"></i></button>
                             <button data-action="recheck" data-id="${sub.id}" title="Re-check for new chapters"><i class="ph-bold ph-arrow-clockwise"></i></button>

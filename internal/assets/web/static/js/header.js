@@ -203,7 +203,7 @@ function initNotifications() {
   };
 
   markReadOnDownloadManager().then(refreshIndicator);
-  setInterval(refreshIndicator, 30000);
+  setInterval(refreshIndicator, 5 * 60 * 1000);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') refreshIndicator();
   });
