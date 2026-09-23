@@ -144,6 +144,25 @@ func (s *Server) handleCheckUpdates(w http.ResponseWriter, r *http.Request) {
 	RespondWithJSON(w, http.StatusOK, updates)
 }
 
+// handleAutoUpdatePlugins updates all installed plugins to their latest
+// compatible repository versions.
+func (s *Server) handleAutoUpdatePlugins(w http.ResponseWriter, r *http.Request) {
+	manager := plugins.GetGlobalManager()
+	if manager == nil {
+		RespondWithError(w, http.StatusInternalServerError, "Plugin manager not initialized")
+		return
+	}
+
+	repoService := plugins.NewRepositoryService(s.app, s.store, manager)
+	result, err := repoService.AutoUpdatePlugins()
+	if err != nil {
+		RespondWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to update plugins: %v", err))
+		return
+	}
+
+	RespondWithJSON(w, http.StatusOK, result)
+}
+
 // handleUpdatePlugin updates an installed plugin to the latest version from its repository
 func (s *Server) handleUpdatePlugin(w http.ResponseWriter, r *http.Request) {
 	var req models.PluginInstallRequest

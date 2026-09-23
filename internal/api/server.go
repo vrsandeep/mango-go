@@ -143,6 +143,7 @@ func (s *Server) Router() http.Handler {
 				r.Post("/plugin-repositories/install", s.handleInstallPlugin)
 				r.Post("/plugin-repositories/update", s.handleUpdatePlugin)
 				r.Post("/plugin-repositories/check-updates", s.handleCheckUpdates)
+				r.Post("/plugin-repositories/auto-update", s.handleAutoUpdatePlugins)
 			})
 
 			// Downloader Routes

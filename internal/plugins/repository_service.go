@@ -9,12 +9,15 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/vrsandeep/mango-go/internal/core"
 	"github.com/vrsandeep/mango-go/internal/models"
 	"github.com/vrsandeep/mango-go/internal/store"
 )
+
+var autoUpdateMu sync.Mutex
 
 // RepositoryService handles plugin repository operations
 type RepositoryService struct {
@@ -291,6 +294,38 @@ func (rs *RepositoryService) CheckForUpdates() ([]models.PluginUpdateInfo, error
 	}
 
 	return updates, nil
+}
+
+// AutoUpdatePlugins updates every installed plugin for which a newer compatible
+// version is available. A failure updating one plugin does not block the rest.
+func (rs *RepositoryService) AutoUpdatePlugins() (*models.PluginAutoUpdateResult, error) {
+	autoUpdateMu.Lock()
+	defer autoUpdateMu.Unlock()
+
+	updates, err := rs.CheckForUpdates()
+	if err != nil {
+		return nil, err
+	}
+
+	result := &models.PluginAutoUpdateResult{
+		Checked: len(updates),
+		Updated: make([]models.PluginUpdateInfo, 0, len(updates)),
+		Failed:  make([]models.PluginUpdateFailure, 0),
+	}
+
+	for _, update := range updates {
+		if err := rs.InstallPlugin(update.PluginID, update.RepositoryID); err != nil {
+			result.Failed = append(result.Failed, models.PluginUpdateFailure{
+				PluginID: update.PluginID,
+				Error:    err.Error(),
+			})
+			continue
+		}
+
+		result.Updated = append(result.Updated, update)
+	}
+
+	return result, nil
 }
 
 // downloadFile downloads a file from a URL

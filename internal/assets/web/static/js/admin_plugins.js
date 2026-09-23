@@ -9,7 +9,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     installedPlugins: [],
     repositories: [],
     availablePlugins: {},
-    updates: [],
   };
 
   // --- DOM Elements ---
@@ -17,10 +16,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const repositoriesList = document.getElementById('repositories-list');
   const addRepoBtn = document.getElementById('add-repo-btn');
   const browsePluginsBtn = document.getElementById('browse-plugins-btn');
-  const checkUpdatesBtn = document.getElementById('check-updates-btn');
+  const autoUpdateBtn = document.getElementById('auto-update-btn');
   const reloadAllBtn = document.getElementById('reload-all-btn');
-  const updatesSection = document.getElementById('updates-section');
-  const updatesList = document.getElementById('updates-list');
 
   // Tab elements
   const tabBtns = document.querySelectorAll('.tab-btn');
@@ -201,36 +198,43 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   };
 
-  const updatePlugin = async (pluginId, repositoryId) => {
+  const autoUpdatePlugins = async (showUpToDateToast = true) => {
+    autoUpdateBtn.disabled = true;
+    autoUpdateBtn.innerHTML = '<i class="ph-bold ph-spinner ph-spin"></i> Updating...';
+
     try {
-      const response = await fetch('/api/admin/plugin-repositories/update', {
+      const response = await fetch('/api/admin/plugin-repositories/auto-update', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plugin_id: pluginId, repository_id: repositoryId }),
       });
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || 'Failed to update plugin');
+        throw new Error(error.error || 'Failed to update plugins');
       }
 
-      if (window.toast) {
-        toast.success(`Plugin ${pluginId} updated successfully`);
+      const result = await response.json();
+      if (window.toast && result.updated.length > 0) {
+        toast.success(
+          `Updated ${result.updated.length} plugin${result.updated.length === 1 ? '' : 's'} to the latest version`
+        );
       }
-      await fetchInstalledPlugins();
-      await checkForUpdates();
-      // Refresh the plugins grid if modal is open
-      if (browsePluginsModal.style.display !== 'none') {
-        const currentRepoId = repositorySelect.value;
-        if (currentRepoId) {
-          await loadPluginsForRepository(parseInt(currentRepoId));
-        }
+      if (window.toast && result.failed.length > 0) {
+        const failedPluginIds = result.failed.map(failure => failure.plugin_id).join(', ');
+        toast.error(`Could not update: ${failedPluginIds}`);
+      } else if (window.toast && result.updated.length === 0 && showUpToDateToast) {
+        toast.success('All plugins are up to date');
       }
+
+      return result;
     } catch (error) {
-      console.error('Error updating plugin:', error);
+      console.error('Error automatically updating plugins:', error);
       if (window.toast) {
-        toast.error(error.message || 'Failed to update plugin');
+        toast.error(error.message || 'Failed to update plugins');
       }
+      return null;
+    } finally {
+      autoUpdateBtn.disabled = false;
+      autoUpdateBtn.innerHTML = '<i class="ph-bold ph-arrow-clockwise"></i> Update All Plugins';
     }
   };
 
@@ -317,40 +321,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   };
 
-  const checkForUpdates = async () => {
-    checkUpdatesBtn.disabled = true;
-    checkUpdatesBtn.innerHTML = '<i class="ph-bold ph-spinner ph-spin"></i> Checking...';
-
-    try {
-      const response = await fetch('/api/admin/plugin-repositories/check-updates', {
-        method: 'POST',
-      });
-
-      if (!response.ok) throw new Error('Failed to check for updates');
-
-      state.updates = await response.json();
-      renderUpdates();
-
-      if (state.updates.length > 0) {
-        if (window.toast) {
-          toast.info(`Found ${state.updates.length} plugin update(s) available`);
-        }
-      } else {
-        if (window.toast) {
-          toast.success('All plugins are up to date');
-        }
-      }
-    } catch (error) {
-      console.error('Error checking for updates:', error);
-      if (window.toast) {
-        toast.error('Failed to check for updates');
-      }
-    } finally {
-      checkUpdatesBtn.disabled = false;
-      checkUpdatesBtn.innerHTML = '<i class="ph-bold ph-arrow-clockwise"></i> Check for Updates';
-    }
-  };
-
   // --- Rendering Functions ---
   const renderInstalledPlugins = () => {
     if (state.installedPlugins.length === 0) {
@@ -366,11 +336,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     pluginsList.innerHTML = state.installedPlugins
       .map(plugin => {
-        const hasUpdate = state.updates.find(u => u.plugin_id === plugin.id);
-        const updateInfo = hasUpdate
-          ? `<span class="update-available">Update available: v${escapeHtml(hasUpdate.available_version)}</span>`
-          : '';
-
         return `
         <div class="plugin-card ${plugin.error ? 'plugin-error' : ''}">
           <div class="plugin-header">
@@ -392,17 +357,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             ${plugin.license ? `<span><i class="ph-bold ph-certificate"></i> ${escapeHtml(plugin.license)}</span>` : ''}
             <span><i class="ph-bold ph-code"></i> API ${escapeHtml(plugin.api_version || 'N/A')}</span>
           </div>
-          ${updateInfo ? `<div class="plugin-update-info">${updateInfo}</div>` : ''}
           ${plugin.error ? `<div class="plugin-error-msg"><i class="ph-bold ph-warning"></i> ${escapeHtml(plugin.error)}</div>` : ''}
           <div class="plugin-actions">
-            ${
-              hasUpdate
-                ? `<button class="btn btn-primary update-plugin-btn" data-plugin-id="${plugin.id}" data-repo-id="${hasUpdate.repository_id}">
-              <i class="ph-bold ph-arrow-clockwise"></i>
-              Update
-            </button>`
-                : ''
-            }
             ${
               plugin.loaded
                 ? `<button class="btn btn-secondary reload-plugin-btn" data-plugin-id="${plugin.id}">
@@ -437,17 +393,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       btn.addEventListener('click', e => {
         const pluginId = e.target.closest('.unload-plugin-btn').dataset.pluginId;
         unloadPlugin(pluginId);
-      });
-    });
-
-    document.querySelectorAll('.update-plugin-btn').forEach(btn => {
-      btn.addEventListener('click', async e => {
-        const pluginId = e.target.closest('.update-plugin-btn').dataset.pluginId;
-        const repoId = parseInt(e.target.closest('.update-plugin-btn').dataset.repoId);
-        btn.disabled = true;
-        btn.innerHTML = '<i class="ph-bold ph-spinner ph-spin"></i> Updating...';
-        await updatePlugin(pluginId, repoId);
-        btn.disabled = false;
       });
     });
   };
@@ -563,9 +508,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     pluginsGrid.innerHTML = plugins
       .map(plugin => {
         const installed = state.installedPlugins.find(p => p.id === plugin.id);
-        const hasUpdate = state.updates.find(u => u.plugin_id === plugin.id);
-        const canUpdate =
-          installed && (hasUpdate || (installed.version && installed.version !== plugin.version));
 
         return `
       <div class="plugin-card">
@@ -582,14 +524,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div class="plugin-actions">
           ${
             installed
-              ? canUpdate
-                ? `
-                <button class="btn btn-primary update-plugin-btn" data-plugin-id="${plugin.id}" data-repo-id="${repositoryId}">
-                  <i class="ph-bold ph-arrow-clockwise"></i>
-                  Update (${escapeHtml(installed.version || 'unknown')} → ${escapeHtml(plugin.version)})
-                </button>
-              `
-                : `
+              ? `
                 <span class="installed-badge">
                   <i class="ph-bold ph-check-circle"></i>
                   Installed ${installed.version ? `(v${escapeHtml(installed.version)})` : ''}
@@ -616,61 +551,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         btn.disabled = true;
         btn.innerHTML = '<i class="ph-bold ph-spinner ph-spin"></i> Installing...';
         await installPlugin(pluginId, repoId);
-        btn.disabled = false;
-      });
-    });
-
-    document.querySelectorAll('.update-plugin-btn').forEach(btn => {
-      btn.addEventListener('click', async e => {
-        const pluginId = e.target.closest('.update-plugin-btn').dataset.pluginId;
-        const repoId = parseInt(e.target.closest('.update-plugin-btn').dataset.repoId);
-        btn.disabled = true;
-        btn.innerHTML = '<i class="ph-bold ph-spinner ph-spin"></i> Updating...';
-        await updatePlugin(pluginId, repoId);
-        btn.disabled = false;
-      });
-    });
-  };
-
-  const renderUpdates = () => {
-    if (state.updates.length === 0) {
-      updatesSection.style.display = 'none';
-      return;
-    }
-
-    updatesSection.style.display = 'block';
-    updatesList.innerHTML = state.updates
-      .map(
-        update => `
-      <div class="update-item">
-        <div class="update-info">
-          <h4>${escapeHtml(update.name)}</h4>
-          <p class="update-versions">
-            <span class="version-old">v${escapeHtml(update.installed_version)}</span>
-            <i class="ph-bold ph-arrow-right"></i>
-            <span class="version-new">v${escapeHtml(update.available_version)}</span>
-          </p>
-          <p class="update-repo">From: ${escapeHtml(update.repository_name)}</p>
-        </div>
-        <div class="update-actions">
-          <button class="btn btn-primary update-plugin-btn" data-plugin-id="${update.plugin_id}" data-repo-id="${update.repository_id}">
-            <i class="ph-bold ph-arrow-clockwise"></i>
-            Update
-          </button>
-        </div>
-      </div>
-    `
-      )
-      .join('');
-
-    // Attach event listeners for update buttons
-    document.querySelectorAll('#updates-list .update-plugin-btn').forEach(btn => {
-      btn.addEventListener('click', async e => {
-        const pluginId = e.target.closest('.update-plugin-btn').dataset.pluginId;
-        const repoId = parseInt(e.target.closest('.update-plugin-btn').dataset.repoId);
-        btn.disabled = true;
-        btn.innerHTML = '<i class="ph-bold ph-spinner ph-spin"></i> Updating...';
-        await updatePlugin(pluginId, repoId);
         btn.disabled = false;
       });
     });
@@ -732,7 +612,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   browsePluginsBtn.addEventListener('click', openBrowsePluginsModal);
   browsePluginsModalClose.addEventListener('click', closeBrowsePluginsModal);
-  checkUpdatesBtn.addEventListener('click', checkForUpdates);
+  autoUpdateBtn.addEventListener('click', async () => {
+    await autoUpdatePlugins();
+    await fetchInstalledPlugins();
+  });
   reloadAllBtn.addEventListener('click', reloadAllPlugins);
 
   repositorySelect.addEventListener('change', async e => {
@@ -765,5 +648,4 @@ document.addEventListener('DOMContentLoaded', async () => {
   // --- Initialization ---
   await fetchInstalledPlugins();
   await fetchRepositories();
-  await checkForUpdates();
 });

@@ -693,3 +693,83 @@ func TestRepositoryService_CheckForUpdates(t *testing.T) {
 		}
 	})
 }
+
+func TestRepositoryService_AutoUpdatePlugins(t *testing.T) {
+	pluginDir := t.TempDir()
+	app := testutil.SetupTestApp(t)
+	app.SetConfig(&config.Config{
+		Plugins: struct {
+			Path          string `mapstructure:"path"`
+			UnloadTimeout int    `mapstructure:"unload_timeout"`
+		}{Path: pluginDir, UnloadTimeout: 30},
+	})
+	storeInstance := store.New(app.DB())
+
+	repositoryServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repository.json":
+			json.NewEncoder(w).Encode(models.RepositoryManifest{
+				Version:    "1.0",
+				Repository: models.RepositoryInfo{Name: "Test Repo"},
+				Plugins: []models.RepositoryPlugin{
+					{
+						ID:          "test-plugin",
+						Name:        "Test Plugin",
+						Version:     "2.0.0",
+						APIVersion:  "1.0",
+						PluginType:  "downloader",
+						DownloadURL: "http://" + r.Host + "/plugin/",
+						ManifestURL: "http://" + r.Host + "/plugin/plugin.json",
+					},
+				},
+			})
+		case "/plugin/plugin.json":
+			json.NewEncoder(w).Encode(map[string]string{
+				"entry_point": "index.js",
+			})
+		case "/plugin/index.js":
+			w.Write([]byte("exports.search = async () => [];"))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer repositoryServer.Close()
+
+	repo, err := storeInstance.CreateRepository(
+		repositoryServer.URL+"/repository.json",
+		"Test Repo",
+		"",
+	)
+	if err != nil {
+		t.Fatalf("Failed to create repository: %v", err)
+	}
+
+	repoID := sql.NullInt64{Int64: repo.ID, Valid: true}
+	if err := storeInstance.CreateOrUpdateInstalledPlugin("test-plugin", repoID, "1.0.0"); err != nil {
+		t.Fatalf("Failed to track installed plugin: %v", err)
+	}
+
+	mockManager := new(MockPluginManagerForRepo)
+	mockManager.On("GetPluginInfo", "test-plugin").Return(nil, false)
+	mockManager.On("DiscoverPlugin", filepath.Join(pluginDir, "test-plugin")).Return(nil)
+
+	repoService := plugins.NewRepositoryService(app, storeInstance, mockManager)
+	result, err := repoService.AutoUpdatePlugins()
+	if err != nil {
+		t.Fatalf("Failed to auto-update plugins: %v", err)
+	}
+
+	if result.Checked != 1 || len(result.Updated) != 1 || len(result.Failed) != 0 {
+		t.Fatalf("Unexpected auto-update result: %+v", result)
+	}
+
+	installed, err := storeInstance.GetInstalledPlugin("test-plugin")
+	if err != nil {
+		t.Fatalf("Failed to get installed plugin: %v", err)
+	}
+	if installed.InstalledVersion != "2.0.0" {
+		t.Errorf("Expected installed version 2.0.0, got %s", installed.InstalledVersion)
+	}
+
+	mockManager.AssertExpectations(t)
+}

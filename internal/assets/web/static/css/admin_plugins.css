@@ -262,6 +262,12 @@
   margin-top: 2rem;
 }
 
+.auto-update-note {
+  margin: 0.75rem 0 0;
+  color: var(--subtle-text-color);
+  font-size: 0.9rem;
+}
+
 /* Empty State */
 .plugins-list .empty-state {
   grid-column: 1 / -1;
