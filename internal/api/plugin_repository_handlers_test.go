@@ -304,6 +304,42 @@ func TestPluginRepositoryHandlers(t *testing.T) {
 		}
 	})
 
+	t.Run("Auto Update Status - Admin", func(t *testing.T) {
+		mockManager.ExpectedCalls = nil
+
+		req, _ := http.NewRequest("GET", "/api/admin/plugin-repositories/auto-update-status", nil)
+		req.AddCookie(adminCookie)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusOK {
+			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		}
+
+		var autoUpdateStatus models.PluginAutoUpdateStatus
+		if err := json.NewDecoder(rr.Body).Decode(&autoUpdateStatus); err != nil {
+			t.Fatalf("Failed to decode response: %v", err)
+		}
+
+		// The lists must always be present so the frontend can read them directly.
+		if autoUpdateStatus.Updated == nil || autoUpdateStatus.Failed == nil {
+			t.Errorf("Expected updated and failed to be arrays, got %+v", autoUpdateStatus)
+		}
+	})
+
+	t.Run("Auto Update Status - Non-Admin", func(t *testing.T) {
+		mockManager.ExpectedCalls = nil
+
+		req, _ := http.NewRequest("GET", "/api/admin/plugin-repositories/auto-update-status", nil)
+		req.AddCookie(userCookie)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusForbidden {
+			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusForbidden)
+		}
+	})
+
 	t.Run("Create Repository - Duplicate URL", func(t *testing.T) {
 		mockManager.ExpectedCalls = nil
 

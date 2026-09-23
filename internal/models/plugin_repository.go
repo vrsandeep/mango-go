@@ -66,6 +66,17 @@ type PluginAutoUpdateResult struct {
 	Failed  []PluginUpdateFailure `json:"failed"`
 }
 
+// PluginAutoUpdateStatus reports the outcome of the most recent automatic
+// update run, so admins can see failures that happened during server startup.
+type PluginAutoUpdateStatus struct {
+	Running   bool                  `json:"running"`
+	HasRun    bool                  `json:"has_run"`
+	LastRunAt time.Time             `json:"last_run_at"`
+	Updated   []PluginUpdateInfo    `json:"updated"`
+	Failed    []PluginUpdateFailure `json:"failed"`
+	Error     string                `json:"error,omitempty"`
+}
+
 // PluginRepository represents a plugin repository in the database
 type PluginRepository struct {
 	ID          int64     `json:"id"`

@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -156,11 +157,21 @@ func (s *Server) handleAutoUpdatePlugins(w http.ResponseWriter, r *http.Request)
 	repoService := plugins.NewRepositoryService(s.app, s.store, manager)
 	result, err := repoService.AutoUpdatePlugins()
 	if err != nil {
+		if errors.Is(err, plugins.ErrAutoUpdateInProgress) {
+			RespondWithError(w, http.StatusConflict, "An automatic plugin update is already in progress")
+			return
+		}
 		RespondWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to update plugins: %v", err))
 		return
 	}
 
 	RespondWithJSON(w, http.StatusOK, result)
+}
+
+// handleGetAutoUpdateStatus reports the outcome of the most recent automatic
+// update run, including the one performed at server startup.
+func (s *Server) handleGetAutoUpdateStatus(w http.ResponseWriter, r *http.Request) {
+	RespondWithJSON(w, http.StatusOK, plugins.AutoUpdateStatus())
 }
 
 // handleUpdatePlugin updates an installed plugin to the latest version from its repository

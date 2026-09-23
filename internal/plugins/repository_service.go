@@ -9,15 +9,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/vrsandeep/mango-go/internal/core"
 	"github.com/vrsandeep/mango-go/internal/models"
 	"github.com/vrsandeep/mango-go/internal/store"
 )
-
-var autoUpdateMu sync.Mutex
 
 // RepositoryService handles plugin repository operations
 type RepositoryService struct {
@@ -87,8 +84,13 @@ func (rs *RepositoryService) GetAvailablePlugins(repositoryID int64) ([]models.R
 	return compatiblePlugins, nil
 }
 
-// InstallPlugin installs a plugin from a repository
+// InstallPlugin installs a plugin from a repository. Installing the same plugin
+// twice at once would interleave writes to its directory, so callers are
+// serialized per plugin.
 func (rs *RepositoryService) InstallPlugin(pluginID string, repositoryID int64) error {
+	unlock := lockPluginInstall(pluginID)
+	defer unlock()
+
 	// Get repository
 	repo, err := rs.store.GetRepositoryByID(repositoryID)
 	if err != nil {
@@ -299,11 +301,18 @@ func (rs *RepositoryService) CheckForUpdates() ([]models.PluginUpdateInfo, error
 // AutoUpdatePlugins updates every installed plugin for which a newer compatible
 // version is available. A failure updating one plugin does not block the rest.
 func (rs *RepositoryService) AutoUpdatePlugins() (*models.PluginAutoUpdateResult, error) {
-	autoUpdateMu.Lock()
-	defer autoUpdateMu.Unlock()
+	// A second concurrent run would only re-fetch every repository to discover
+	// there is nothing left to do, so report it instead of queueing.
+	if !autoUpdateRunMu.TryLock() {
+		return nil, ErrAutoUpdateInProgress
+	}
+	defer autoUpdateRunMu.Unlock()
+
+	markAutoUpdateRunning()
 
 	updates, err := rs.CheckForUpdates()
 	if err != nil {
+		recordAutoUpdateResult(nil, err)
 		return nil, err
 	}
 
@@ -324,6 +333,8 @@ func (rs *RepositoryService) AutoUpdatePlugins() (*models.PluginAutoUpdateResult
 
 		result.Updated = append(result.Updated, update)
 	}
+
+	recordAutoUpdateResult(result, nil)
 
 	return result, nil
 }

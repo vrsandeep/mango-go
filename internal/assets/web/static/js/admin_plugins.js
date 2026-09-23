@@ -9,7 +9,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     installedPlugins: [],
     repositories: [],
     availablePlugins: {},
+    autoUpdateStatus: null,
   };
+
+  let autoUpdateStatusPollTimer = null;
 
   // --- DOM Elements ---
   const pluginsList = document.getElementById('plugins-list');
@@ -17,6 +20,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const addRepoBtn = document.getElementById('add-repo-btn');
   const browsePluginsBtn = document.getElementById('browse-plugins-btn');
   const autoUpdateBtn = document.getElementById('auto-update-btn');
+  const autoUpdateStatusEl = document.getElementById('auto-update-status');
   const reloadAllBtn = document.getElementById('reload-all-btn');
 
   // Tab elements
@@ -198,6 +202,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   };
 
+  const fetchAutoUpdateStatus = async () => {
+    try {
+      const response = await fetch('/api/admin/plugin-repositories/auto-update-status');
+      if (!response.ok) throw new Error('Failed to fetch plugin update status');
+      state.autoUpdateStatus = await response.json();
+      renderAutoUpdateStatus();
+
+      // The startup run may still be in progress when the page is opened.
+      if (state.autoUpdateStatus.running) {
+        clearTimeout(autoUpdateStatusPollTimer);
+        autoUpdateStatusPollTimer = setTimeout(async () => {
+          await fetchAutoUpdateStatus();
+          await fetchInstalledPlugins();
+        }, 3000);
+      }
+    } catch (error) {
+      console.error('Error fetching plugin update status:', error);
+    }
+  };
+
   const autoUpdatePlugins = async (showUpToDateToast = true) => {
     autoUpdateBtn.disabled = true;
     autoUpdateBtn.innerHTML = '<i class="ph-bold ph-spinner ph-spin"></i> Updating...';
@@ -206,6 +230,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       const response = await fetch('/api/admin/plugin-repositories/auto-update', {
         method: 'POST',
       });
+
+      // The startup run may still be holding the update lock.
+      if (response.status === 409) {
+        if (window.toast) {
+          toast.info('A plugin update is already in progress');
+        }
+        return null;
+      }
 
       if (!response.ok) {
         const error = await response.json();
@@ -322,6 +354,68 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   // --- Rendering Functions ---
+  const renderAutoUpdateStatus = () => {
+    const status = state.autoUpdateStatus;
+    if (!status) {
+      autoUpdateStatusEl.innerHTML = '';
+      return;
+    }
+
+    const rows = [];
+
+    if (status.running) {
+      rows.push(`
+        <div class="status-row status-row-info">
+          <i class="ph-bold ph-spinner ph-spin"></i>
+          Updating plugins to the latest version...
+        </div>
+      `);
+    }
+
+    if (status.error) {
+      rows.push(`
+        <div class="status-row status-row-error">
+          <i class="ph-bold ph-warning"></i>
+          Could not check for plugin updates: ${escapeHtml(status.error)}
+        </div>
+      `);
+    }
+
+    if (status.failed.length > 0) {
+      rows.push(`
+        <div class="status-row status-row-error">
+          <i class="ph-bold ph-warning"></i>
+          <div>
+            <strong>${status.failed.length} plugin${status.failed.length === 1 ? '' : 's'} could not be updated:</strong>
+            <ul class="status-failures">
+              ${status.failed
+                .map(
+                  failure =>
+                    `<li>${escapeHtml(failure.plugin_id)}: ${escapeHtml(failure.error)}</li>`
+                )
+                .join('')}
+            </ul>
+          </div>
+        </div>
+      `);
+    }
+
+    if (!status.running && !status.error && status.failed.length === 0) {
+      rows.push(`
+        <div class="status-row status-row-ok">
+          <i class="ph-bold ph-check-circle"></i>
+          ${
+            status.has_run
+              ? `All plugins are up to date (last checked ${escapeHtml(new Date(status.last_run_at).toLocaleString())})`
+              : 'Plugins are updated to the latest version automatically when the server starts.'
+          }
+        </div>
+      `);
+    }
+
+    autoUpdateStatusEl.innerHTML = rows.join('');
+  };
+
   const renderInstalledPlugins = () => {
     if (state.installedPlugins.length === 0) {
       pluginsList.innerHTML = `
@@ -614,6 +708,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   browsePluginsModalClose.addEventListener('click', closeBrowsePluginsModal);
   autoUpdateBtn.addEventListener('click', async () => {
     await autoUpdatePlugins();
+    await fetchAutoUpdateStatus();
     await fetchInstalledPlugins();
   });
   reloadAllBtn.addEventListener('click', reloadAllPlugins);
@@ -648,4 +743,5 @@ document.addEventListener('DOMContentLoaded', async () => {
   // --- Initialization ---
   await fetchInstalledPlugins();
   await fetchRepositories();
+  await fetchAutoUpdateStatus();
 });
