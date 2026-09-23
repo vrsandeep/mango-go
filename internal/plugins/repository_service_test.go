@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/mock"
@@ -692,4 +693,231 @@ func TestRepositoryService_CheckForUpdates(t *testing.T) {
 			t.Errorf("Expected 0 updates for incompatible plugin, got %d", len(updates))
 		}
 	})
+}
+
+func TestRepositoryService_AutoUpdatePlugins(t *testing.T) {
+	pluginDir := t.TempDir()
+	app := testutil.SetupTestApp(t)
+	app.SetConfig(&config.Config{
+		Plugins: struct {
+			Path          string `mapstructure:"path"`
+			UnloadTimeout int    `mapstructure:"unload_timeout"`
+		}{Path: pluginDir, UnloadTimeout: 30},
+	})
+	storeInstance := store.New(app.DB())
+
+	repositoryServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repository.json":
+			json.NewEncoder(w).Encode(models.RepositoryManifest{
+				Version:    "1.0",
+				Repository: models.RepositoryInfo{Name: "Test Repo"},
+				Plugins: []models.RepositoryPlugin{
+					{
+						ID:          "test-plugin",
+						Name:        "Test Plugin",
+						Version:     "2.0.0",
+						APIVersion:  "1.0",
+						PluginType:  "downloader",
+						DownloadURL: "http://" + r.Host + "/plugin/",
+						ManifestURL: "http://" + r.Host + "/plugin/plugin.json",
+					},
+				},
+			})
+		case "/plugin/plugin.json":
+			json.NewEncoder(w).Encode(map[string]string{
+				"entry_point": "index.js",
+			})
+		case "/plugin/index.js":
+			w.Write([]byte("exports.search = async () => [];"))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer repositoryServer.Close()
+
+	repo, err := storeInstance.CreateRepository(
+		repositoryServer.URL+"/repository.json",
+		"Test Repo",
+		"",
+	)
+	if err != nil {
+		t.Fatalf("Failed to create repository: %v", err)
+	}
+
+	repoID := sql.NullInt64{Int64: repo.ID, Valid: true}
+	if err := storeInstance.CreateOrUpdateInstalledPlugin("test-plugin", repoID, "1.0.0"); err != nil {
+		t.Fatalf("Failed to track installed plugin: %v", err)
+	}
+
+	mockManager := new(MockPluginManagerForRepo)
+	mockManager.On("GetPluginInfo", "test-plugin").Return(nil, false)
+	mockManager.On("DiscoverPlugin", filepath.Join(pluginDir, "test-plugin")).Return(nil)
+
+	repoService := plugins.NewRepositoryService(app, storeInstance, mockManager)
+	result, err := repoService.AutoUpdatePlugins()
+	if err != nil {
+		t.Fatalf("Failed to auto-update plugins: %v", err)
+	}
+
+	if result.Checked != 1 || len(result.Updated) != 1 || len(result.Failed) != 0 {
+		t.Fatalf("Unexpected auto-update result: %+v", result)
+	}
+
+	installed, err := storeInstance.GetInstalledPlugin("test-plugin")
+	if err != nil {
+		t.Fatalf("Failed to get installed plugin: %v", err)
+	}
+	if installed.InstalledVersion != "2.0.0" {
+		t.Errorf("Expected installed version 2.0.0, got %s", installed.InstalledVersion)
+	}
+
+	status := plugins.AutoUpdateStatus()
+	if status.Running {
+		t.Error("Expected status to not be running after the run finished")
+	}
+	if !status.HasRun {
+		t.Error("Expected status to be marked as having run")
+	}
+	if len(status.Updated) != 1 || status.Updated[0].PluginID != "test-plugin" {
+		t.Errorf("Expected status to report test-plugin as updated, got %+v", status.Updated)
+	}
+	if len(status.Failed) != 0 {
+		t.Errorf("Expected no failures in status, got %+v", status.Failed)
+	}
+
+	mockManager.AssertExpectations(t)
+}
+
+func TestRepositoryService_AutoUpdatePluginsRejectsConcurrentRuns(t *testing.T) {
+	app := testutil.SetupTestApp(t)
+	storeInstance := store.New(app.DB())
+
+	started := make(chan struct{})
+	release := make(chan struct{})
+	var once sync.Once
+
+	// The first run blocks inside the repository fetch while holding the run lock.
+	repositoryServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		once.Do(func() {
+			close(started)
+			<-release
+		})
+		json.NewEncoder(w).Encode(models.RepositoryManifest{
+			Version:    "1.0",
+			Repository: models.RepositoryInfo{Name: "Test Repo"},
+			Plugins:    []models.RepositoryPlugin{},
+		})
+	}))
+	defer repositoryServer.Close()
+
+	if _, err := storeInstance.CreateRepository(repositoryServer.URL, "Test Repo", ""); err != nil {
+		t.Fatalf("Failed to create repository: %v", err)
+	}
+
+	repoService := plugins.NewRepositoryService(app, storeInstance, new(MockPluginManagerForRepo))
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := repoService.AutoUpdatePlugins()
+		done <- err
+	}()
+
+	<-started
+
+	if _, err := repoService.AutoUpdatePlugins(); !errors.Is(err, plugins.ErrAutoUpdateInProgress) {
+		t.Errorf("Expected ErrAutoUpdateInProgress while a run is active, got %v", err)
+	}
+
+	close(release)
+	if err := <-done; err != nil {
+		t.Fatalf("First run failed: %v", err)
+	}
+
+	// The lock must be released once the run finishes.
+	if _, err := repoService.AutoUpdatePlugins(); err != nil {
+		t.Errorf("Expected a later run to succeed, got %v", err)
+	}
+}
+
+func TestRepositoryService_AutoUpdatePluginsRecordsFailures(t *testing.T) {
+	pluginDir := t.TempDir()
+	app := testutil.SetupTestApp(t)
+	app.SetConfig(&config.Config{
+		Plugins: struct {
+			Path          string `mapstructure:"path"`
+			UnloadTimeout int    `mapstructure:"unload_timeout"`
+		}{Path: pluginDir, UnloadTimeout: 30},
+	})
+	storeInstance := store.New(app.DB())
+
+	// The entry point download fails, so the update cannot be applied.
+	repositoryServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repository.json":
+			json.NewEncoder(w).Encode(models.RepositoryManifest{
+				Version:    "1.0",
+				Repository: models.RepositoryInfo{Name: "Test Repo"},
+				Plugins: []models.RepositoryPlugin{
+					{
+						ID:          "test-plugin",
+						Name:        "Test Plugin",
+						Version:     "2.0.0",
+						APIVersion:  "1.0",
+						PluginType:  "downloader",
+						DownloadURL: "http://" + r.Host + "/plugin/",
+						ManifestURL: "http://" + r.Host + "/plugin/plugin.json",
+					},
+				},
+			})
+		case "/plugin/plugin.json":
+			json.NewEncoder(w).Encode(map[string]string{
+				"entry_point": "index.js",
+			})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer repositoryServer.Close()
+
+	repo, err := storeInstance.CreateRepository(
+		repositoryServer.URL+"/repository.json",
+		"Test Repo",
+		"",
+	)
+	if err != nil {
+		t.Fatalf("Failed to create repository: %v", err)
+	}
+
+	repoID := sql.NullInt64{Int64: repo.ID, Valid: true}
+	if err := storeInstance.CreateOrUpdateInstalledPlugin("test-plugin", repoID, "1.0.0"); err != nil {
+		t.Fatalf("Failed to track installed plugin: %v", err)
+	}
+
+	repoService := plugins.NewRepositoryService(app, storeInstance, new(MockPluginManagerForRepo))
+	result, err := repoService.AutoUpdatePlugins()
+	if err != nil {
+		t.Fatalf("Expected per-plugin failures to be collected, got error: %v", err)
+	}
+
+	if len(result.Updated) != 0 || len(result.Failed) != 1 {
+		t.Fatalf("Expected one failure and no updates, got %+v", result)
+	}
+
+	status := plugins.AutoUpdateStatus()
+	if len(status.Failed) != 1 || status.Failed[0].PluginID != "test-plugin" {
+		t.Errorf("Expected status to report test-plugin failure, got %+v", status.Failed)
+	}
+	if status.Failed[0].Error == "" {
+		t.Error("Expected a failure reason to be recorded")
+	}
+
+	// The installed version must stay unchanged when an update fails.
+	installed, err := storeInstance.GetInstalledPlugin("test-plugin")
+	if err != nil {
+		t.Fatalf("Failed to get installed plugin: %v", err)
+	}
+	if installed.InstalledVersion != "1.0.0" {
+		t.Errorf("Expected installed version to stay 1.0.0, got %s", installed.InstalledVersion)
+	}
 }

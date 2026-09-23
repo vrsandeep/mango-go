@@ -81,6 +81,25 @@ func main() {
 		log.Printf("Warning: failed to discover plugins: %v", err)
 	}
 
+	// Update installed plugins in the background on every server startup.
+	go func() {
+		repoService := plugins.NewRepositoryService(app, st, pluginManager)
+		result, err := repoService.AutoUpdatePlugins()
+		if err != nil {
+			log.Printf("Warning: automatic plugin update failed: %v", err)
+			return
+		}
+
+		log.Printf(
+			"Automatic plugin update complete: %d updated, %d failed",
+			len(result.Updated),
+			len(result.Failed),
+		)
+		for _, failure := range result.Failed {
+			log.Printf("Warning: failed to update plugin %s: %s", failure.PluginID, failure.Error)
+		}
+	}()
+
 	// Start the download worker pool
 	downloader.StartWorkerPool(app)
 

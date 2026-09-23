@@ -65,9 +65,9 @@
                     <i class="ph-bold ph-plus"></i>
                     Add Repository
                 </button>
-                <button class="btn btn-secondary" id="check-updates-btn">
+                <button class="btn btn-secondary" id="auto-update-btn">
                     <i class="ph-bold ph-arrow-clockwise"></i>
-                    Check for Updates
+                    Update All Plugins
                 </button>
                 <button class="btn btn-secondary" id="reload-all-btn">
                     <i class="ph-bold ph-arrow-clockwise"></i>
@@ -89,6 +89,7 @@
                     <i class="ph-bold ph-magnifying-glass"></i>
                     Browse & Install Plugins
                 </button>
+                <div class="auto-update-status" id="auto-update-status"></div>
             </div>
             <div class="plugins-list" id="plugins-list">
                 <div class="loading-state">
@@ -102,12 +103,6 @@
             <div class="repositories-list" id="repositories-list">
                 <!-- Repositories will be loaded here -->
             </div>
-        </div>
-
-        <!-- Update Notifications -->
-        <div class="updates-section" id="updates-section" style="display: none;">
-            <h3>Available Updates</h3>
-            <div class="updates-list" id="updates-list"></div>
         </div>
     </main>
 

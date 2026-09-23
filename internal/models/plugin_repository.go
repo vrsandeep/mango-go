@@ -53,6 +53,30 @@ type PluginUpdateInfo struct {
 	HasUpdate        bool   `json:"has_update"`
 }
 
+// PluginUpdateFailure describes a plugin that could not be automatically updated.
+type PluginUpdateFailure struct {
+	PluginID string `json:"plugin_id"`
+	Error    string `json:"error"`
+}
+
+// PluginAutoUpdateResult summarizes an automatic plugin update run.
+type PluginAutoUpdateResult struct {
+	Checked int                   `json:"checked"`
+	Updated []PluginUpdateInfo    `json:"updated"`
+	Failed  []PluginUpdateFailure `json:"failed"`
+}
+
+// PluginAutoUpdateStatus reports the outcome of the most recent automatic
+// update run, so admins can see failures that happened during server startup.
+type PluginAutoUpdateStatus struct {
+	Running   bool                  `json:"running"`
+	HasRun    bool                  `json:"has_run"`
+	LastRunAt time.Time             `json:"last_run_at"`
+	Updated   []PluginUpdateInfo    `json:"updated"`
+	Failed    []PluginUpdateFailure `json:"failed"`
+	Error     string                `json:"error,omitempty"`
+}
+
 // PluginRepository represents a plugin repository in the database
 type PluginRepository struct {
 	ID          int64     `json:"id"`
