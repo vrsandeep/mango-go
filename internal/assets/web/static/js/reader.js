@@ -221,6 +221,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     singlePrevBtn.disabled = currentSpread === 0;
     singleNextBtn.disabled = currentSpread === getSpreadCount() - 1;
     window.scrollTo(0, 0);
+    if (state.zoomLevel !== 1) syncZoomLayout();
     updateProgressText();
     updateJumpToPageSelect();
     updatePageCounter();
@@ -244,6 +245,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       imageContainer.classList.remove('single-page', 'double-page');
       singlePageViewer.style.display = 'none';
       document.querySelectorAll('.page-image').forEach(img => (img.style.display = 'block'));
+      if (state.zoomLevel !== 1) syncZoomLayout();
       updatePageCounter(); // hides counter in continuous mode
     }
   };
@@ -255,6 +257,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     singlePrevBtn.disabled = state.currentPage === 1;
     singleNextBtn.disabled = state.currentPage === state.chapterData.page_count;
     window.scrollTo(0, 0);
+    if (state.zoomLevel !== 1) syncZoomLayout();
     updateProgressText();
     updateJumpToPageSelect();
     updatePageCounter();
@@ -321,6 +324,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           break;
       }
     });
+    if (state.zoomLevel !== 1) syncZoomLayout();
   };
 
   // --- Page Counter ---
@@ -366,14 +370,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   // --- Zoom & Pan ---
-  // Note: CSS transform does not expand layout, so in continuous mode the scrollable
-  // height reflects unzoomed content. Zoom works best in single/double-page modes.
-  const applyZoom = () => {
+  // scale() does not change layout. Without this, Exit Reader / Next Chapter stay
+  // at the unscaled position (a gap when zoomed out, covered pages when zoomed in)
+  // and scroll height, which continuous progress uses, ignores the zoom.
+  const syncZoomLayout = () => {
+    const extra = imageContainer.offsetHeight * (state.zoomLevel - 1);
+    imageContainer.style.marginBottom = Math.abs(extra) < 0.5 ? '' : `${extra}px`;
+  };
+
+  const applyZoom = ({ syncLayout = true } = {}) => {
     const active = state.zoomLevel !== 1.0 || state.panX !== 0 || state.panY !== 0;
     imageContainer.style.transform = active
       ? `translate(${state.panX}px, ${state.panY}px) scale(${state.zoomLevel})`
       : '';
     imageContainer.style.cursor = state.zoomLevel > 1 ? (isPanning ? 'grabbing' : 'grab') : '';
+    if (syncLayout) syncZoomLayout();
 
     const pct = `${Math.round(state.zoomLevel * 100)}%`;
     if (zoomIndicator) {
@@ -384,9 +395,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (zoomLevelBtn) zoomLevelBtn.textContent = pct;
   };
 
+  const scheduleProgressUpdate = () => {
+    requestAnimationFrame(() => {
+      if (state.chapterData) calculateAndUpdateProgress();
+    });
+  };
+
   const zoomIn = () => {
     state.zoomLevel = Math.min(4.0, +(state.zoomLevel + 0.25).toFixed(2));
     applyZoom();
+    scheduleProgressUpdate();
   };
 
   const zoomOut = () => {
@@ -396,6 +414,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       state.panY = 0;
     }
     applyZoom();
+    scheduleProgressUpdate();
   };
 
   const zoomReset = () => {
@@ -403,6 +422,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     state.panX = 0;
     state.panY = 0;
     applyZoom();
+    scheduleProgressUpdate();
   };
 
   // --- Modal ---
@@ -442,6 +462,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   // --- Progress Calculation ---
+  // Percent of a continuous chapter the reader has reached.
+  // Below 100% zoom, more of the chapter is on screen than scroll position
+  // implies, so measure the scaled pages actually visible.
+  const continuousProgressPercent = () => {
+    const viewport = window.innerHeight;
+    const scrollableHeight = document.documentElement.scrollHeight - viewport;
+    if (scrollableHeight <= 0) return 100;
+
+    if (state.zoomLevel < 1) {
+      const rect = imageContainer.getBoundingClientRect();
+      if (rect.height <= 0) return 100;
+      const viewed = Math.min(rect.height, Math.max(0, viewport - rect.top));
+      return Math.min(100, (viewed / rect.height) * 100);
+    }
+
+    return Math.min(100, (window.scrollY / scrollableHeight) * 100);
+  };
+
   const calculateAndUpdateProgress = () => {
     let progress = 0;
     if (state.readingMode === 'single_page') {
@@ -450,12 +488,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const pages = getPagesForSpread(currentSpread);
       progress = (pages[pages.length - 1] / state.chapterData.page_count) * 100;
     } else {
-      const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
-      if (scrollableHeight <= 0) {
-        progressBar.style.width = '100%';
-        return;
-      }
-      progress = Math.round((window.scrollY / scrollableHeight) * 100);
+      progress = Math.round(continuousProgressPercent());
     }
     progressBar.style.width = `${progress}%`;
 
@@ -517,13 +550,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   // --- Event Listeners ---
   window.addEventListener('scroll', calculateAndUpdateProgress);
 
-  // Click on image area opens settings modal, unless the user is panning while zoomed.
+  // Click on image area opens settings modal. A drag-to-pan (zoom above 100%)
+  // sets panMoved so the release does not also open the modal.
   imageContainer.addEventListener('click', () => {
     if (panMoved) {
       panMoved = false;
       return;
     }
-    if (state.zoomLevel > 1) return;
     modal.style.display = 'flex';
   });
 
@@ -613,7 +646,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (Math.abs(newX - state.panX) > 2 || Math.abs(newY - state.panY) > 2) panMoved = true;
     state.panX = newX;
     state.panY = newY;
-    applyZoom();
+    applyZoom({ syncLayout: false });
   });
 
   imageContainer.addEventListener('pointerup', () => {
@@ -678,8 +711,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Capture the current page before re-rendering so position can be restored.
     let targetPage = state.currentPage;
     if (prev === 'continuous') {
-      const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
-      const progress = scrollableHeight > 0 ? window.scrollY / scrollableHeight : 0;
+      const progress = continuousProgressPercent() / 100;
       targetPage = Math.max(1, Math.ceil(progress * state.chapterData.page_count));
     } else if (prev === 'double_page') {
       targetPage = getPagesForSpread(currentSpread)[0];
@@ -777,6 +809,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     calculateAndUpdateProgress();
     updateProgressText();
+
+    // Page images change the container height after zoom. Keep the footer and
+    // the zoomed scroll height aligned when that happens.
+    if (window.ResizeObserver) {
+      const zoomResizeObserver = new ResizeObserver(() => {
+        if (state.zoomLevel === 1) return;
+        syncZoomLayout();
+        calculateAndUpdateProgress();
+      });
+      zoomResizeObserver.observe(imageContainer);
+    }
   };
 
   init();

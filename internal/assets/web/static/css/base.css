@@ -624,6 +624,18 @@ a {
     color 0.2s ease,
     box-shadow 0.2s ease;
 }
+/* Native select arrows sit on the border. Use one inset chevron everywhere. */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 2.75rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' fill='none' stroke='%23888' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  background-size: 12px;
+  cursor: pointer;
+}
+
 /* Focus states for accessibility */
 button:focus-visible,
 a:focus-visible,

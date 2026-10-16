@@ -183,6 +183,10 @@
   box-sizing: border-box;
 }
 
+.modal-form-group select {
+  padding-right: 2.75rem;
+}
+
 .modal-form-group input:focus,
 .modal-form-group select:focus {
   outline: none;
