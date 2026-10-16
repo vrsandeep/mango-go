@@ -470,10 +470,10 @@
 
 .repositories-selector select {
   width: 100%;
-  padding: 0.75rem;
+  padding: 0.75rem 2.75rem 0.75rem 0.75rem;
   border: 2px solid var(--border-color);
   border-radius: 8px;
-  background: var(--card-bg);
+  background-color: var(--card-bg);
   color: var(--text-color);
   font-size: 1rem;
 }
