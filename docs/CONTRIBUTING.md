@@ -6,7 +6,7 @@ This document provides guidelines for setting up Mango-Go for development and co
 
 Before you begin, ensure you have the following installed:
 
-- **Go 1.27.0 or later**: [Install Go](https://go.dev/dl/)
+- **Go 1.27.3 or later**: [Install Go](https://go.dev/dl/)
 - **Git**: [Install Git](https://git-scm.com/downloads)
 - **Node.js** (optional): Only needed for `**make prettify`** and `**make format-check`**, which run [Prettier](https://prettier.io/) via `npx`. If you skip those targets, you can still format Go with `go fmt ./...` and build the app without Node.
 - **SQLite3**: Usually comes with Go, but you may need to install it separately on some systems
@@ -390,9 +390,10 @@ The project uses GitHub Actions for automated testing and building:
 **Test Pipeline** (`.github/workflows/test.yml`):
 
 - Runs on every push and pull request to `master`
-- Uses **Go 1.27.0** on Ubuntu (`actions/setup-go@v7`)
+- Uses **Go 1.27.3** on Ubuntu (`actions/setup-go@v7`), shared by every job through the `GO_VERSION` environment variable
 - Installs **esbuild** globally with npm (for `make assets` in CI), then system packages (`libsqlite3-dev`, `make`)
 - Runs `make assets download-go-deps` and the full test suite with `go test ./...`
+- Runs `govulncheck ./...` (`golang.org/x/vuln` v1.9.0) in a parallel job. The scan fails when code in this module can reach a known vulnerability, including the Go standard library for `GO_VERSION`. The `:dev` image publish waits for this job and the test job.
 
 **Release Pipeline** (`.github/workflows/release.yml`):
 
@@ -506,7 +507,7 @@ Then access profiling data at `http://localhost:8080/debug/pprof/`
 
 ### Build Issues
 
-- Ensure you're using Go 1.27.0+
+- Ensure you're using Go 1.27.3+
 - Run `go mod tidy` to clean dependencies
 - Check that all dependencies are properly installed
 - Confirm `esbuild` is on your `PATH` if `make run` / `make build` fails while bundling assets
