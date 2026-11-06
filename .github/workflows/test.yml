@@ -8,6 +8,9 @@ on:
 
 permissions: {}
 
+env:
+  GO_VERSION: '1.27.3'
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -23,7 +26,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.27.3'
+          go-version: ${{ env.GO_VERSION }}
 
       - name: Install esbuild
         run: npm install -g esbuild@0.28.1
@@ -38,11 +41,36 @@ jobs:
       - name: Run tests
         run: go test ./...
 
-  # Publishes the :dev edge image after tests pass on master.
+  # Symbol scan: fails when this module can reach a known vulnerability,
+  # including the standard library for GO_VERSION. The openpgp module
+  # advisory does not fail the job because nothing here imports it.
+  govulncheck:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
+
+      - name: Run govulncheck
+        run: govulncheck ./...
+
+  # Publishes the :dev edge image after tests and govulncheck pass on master.
   # Kept in this workflow (instead of workflow_run) to avoid the dangerous trigger.
   release-edge-image:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    needs: test
+    needs: [test, govulncheck]
     runs-on: ubuntu-latest
     permissions:
       contents: read

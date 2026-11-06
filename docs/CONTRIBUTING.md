@@ -390,9 +390,10 @@ The project uses GitHub Actions for automated testing and building:
 **Test Pipeline** (`.github/workflows/test.yml`):
 
 - Runs on every push and pull request to `master`
-- Uses **Go 1.27.3** on Ubuntu (`actions/setup-go@v7`)
+- Uses **Go 1.27.3** on Ubuntu (`actions/setup-go@v7`), shared by every job through the `GO_VERSION` environment variable
 - Installs **esbuild** globally with npm (for `make assets` in CI), then system packages (`libsqlite3-dev`, `make`)
 - Runs `make assets download-go-deps` and the full test suite with `go test ./...`
+- Runs `govulncheck ./...` (`golang.org/x/vuln` v1.9.0) in a parallel job. The scan fails when code in this module can reach a known vulnerability, including the Go standard library for `GO_VERSION`. The `:dev` image publish waits for this job and the test job.
 
 **Release Pipeline** (`.github/workflows/release.yml`):
 
