@@ -88,6 +88,9 @@ func (rs *RepositoryService) GetAvailablePlugins(repositoryID int64) ([]models.R
 // twice at once would interleave writes to its directory, so callers are
 // serialized per plugin.
 func (rs *RepositoryService) InstallPlugin(pluginID string, repositoryID int64) error {
+	if err := validatePluginID(pluginID); err != nil {
+		return err
+	}
 	unlock := lockPluginInstall(pluginID)
 	defer unlock()
 
@@ -123,10 +126,9 @@ func (rs *RepositoryService) InstallPlugin(pluginID string, repositoryID int64) 
 		return fmt.Errorf("plugin API version incompatible: %w", err)
 	}
 
-	// Create plugin directory
-	pluginDir := filepath.Join(rs.app.Config().Plugins.Path, pluginID)
-	if err := os.MkdirAll(pluginDir, 0755); err != nil {
-		return fmt.Errorf("failed to create plugin directory: %w", err)
+	pluginDir, err := joinWithin(rs.app.Config().Plugins.Path, pluginID)
+	if err != nil {
+		return err
 	}
 
 	// Download plugin.json
@@ -152,19 +154,33 @@ func (rs *RepositoryService) InstallPlugin(pluginID string, repositoryID int64) 
 	if entryPoint == "" {
 		entryPoint = "index.js"
 	}
+	if err := validateEntryPoint(entryPoint); err != nil {
+		return err
+	}
+	entryPointPath, err := joinWithin(pluginDir, entryPoint)
+	if err != nil {
+		return err
+	}
 
+	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+		return fmt.Errorf("failed to create plugin directory: %w", err)
+	}
 	manifestPath := filepath.Join(pluginDir, "plugin.json")
-	// We'll write the enriched manifest after downloading the entry point
 
 	// Download entry point file
 	entryPointURL := strings.TrimSuffix(plugin.DownloadURL, "/") + "/" + entryPoint
 	entryPointData, err := rs.downloadFile(entryPointURL)
 	if err != nil {
+		os.RemoveAll(pluginDir)
 		return fmt.Errorf("failed to download %s: %w", entryPoint, err)
 	}
 
-	entryPointPath := filepath.Join(pluginDir, entryPoint)
+	if err := os.MkdirAll(filepath.Dir(entryPointPath), 0755); err != nil {
+		os.RemoveAll(pluginDir)
+		return fmt.Errorf("failed to create plugin directory: %w", err)
+	}
 	if err := os.WriteFile(entryPointPath, entryPointData, 0644); err != nil {
+		os.RemoveAll(pluginDir)
 		return fmt.Errorf("failed to write %s: %w", entryPoint, err)
 	}
 

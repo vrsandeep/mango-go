@@ -12,6 +12,9 @@ let libraryPath = '';
 const loadLibraryPath = async () => {
   try {
     const response = await fetch('/api/config');
+    if (!response.ok) {
+      throw new Error('Failed to load library path');
+    }
     const config = await response.json();
     libraryPath = config.library_path || '';
 

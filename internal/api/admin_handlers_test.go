@@ -86,6 +86,14 @@ func TestAdminHandlers(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/api/config", nil)
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
+		if status := rr.Code; status != http.StatusUnauthorized {
+			t.Fatalf("unauthenticated config request returned %v, want %v", status, http.StatusUnauthorized)
+		}
+
+		req, _ = http.NewRequest("GET", "/api/config", nil)
+		req.AddCookie(userCookie)
+		rr = httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
 		if status := rr.Code; status != http.StatusOK {
 			t.Fatalf("handler returned wrong status code: got %v want %v %s", status, http.StatusOK, rr.Body.String())
 		}

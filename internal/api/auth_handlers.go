@@ -18,13 +18,25 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ip := clientIP(r)
+	if s.loginLimiter != nil && !s.loginLimiter.allow(ip) {
+		RespondWithError(w, http.StatusTooManyRequests, "Too many login attempts. Try again later.")
+		return
+	}
+
 	user, err := s.store.GetUserByUsername(payload.Username)
 	if err != nil {
+		if s.loginLimiter != nil {
+			s.loginLimiter.record(ip)
+		}
 		RespondWithError(w, http.StatusUnauthorized, "Invalid username or password")
 		return
 	}
 
 	if !auth.CheckPasswordHash(payload.Password, user.PasswordHash) {
+		if s.loginLimiter != nil {
+			s.loginLimiter.record(ip)
+		}
 		RespondWithError(w, http.StatusUnauthorized, "Invalid username or password")
 		return
 	}
@@ -35,15 +47,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.SetCookie(w, &http.Cookie{
-		Name:     "session_token",
-		Value:    token,
-		Expires:  time.Now().Add(7 * 24 * time.Hour),
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   r.TLS != nil, // Set secure flag if using HTTPS
-		SameSite: http.SameSiteLaxMode,
-	})
+	http.SetCookie(w, sessionCookie(r, token, time.Now().Add(7*24*time.Hour), 0))
 
 	w.WriteHeader(http.StatusOK)
 }
@@ -55,16 +59,7 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Expire the cookie on the client side
-	http.SetCookie(w, &http.Cookie{
-		Name:     "session_token",
-		Value:    "",
-		Expires:  time.Unix(0, 0),
-		MaxAge:   -1,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   r.TLS != nil, // Set secure flag if using HTTPS
-		SameSite: http.SameSiteLaxMode,
-	})
+	http.SetCookie(w, sessionCookie(r, "", time.Unix(0, 0), -1))
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -75,4 +70,22 @@ func (s *Server) handleGetMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	RespondWithJSON(w, http.StatusOK, user)
+}
+
+// sessionCookie builds the session cookie. Secure follows requestIsHTTPS.
+// maxAge is applied only when non-zero; logout passes -1 to expire the cookie.
+func sessionCookie(r *http.Request, value string, expires time.Time, maxAge int) *http.Cookie {
+	cookie := &http.Cookie{
+		Name:     "session_token",
+		Value:    value,
+		Expires:  expires,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   requestIsHTTPS(r),
+		SameSite: http.SameSiteLaxMode,
+	}
+	if maxAge != 0 {
+		cookie.MaxAge = maxAge
+	}
+	return cookie
 }

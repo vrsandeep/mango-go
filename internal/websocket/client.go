@@ -3,6 +3,8 @@ package websocket
 import (
 	"log"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -18,9 +20,21 @@ const (
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
-	CheckOrigin: func(r *http.Request) bool {
-		return true // Allow all origins
-	},
+	CheckOrigin:     originAllowed,
+}
+
+// originAllowed accepts non-browser clients (no Origin) and browsers whose
+// Origin host matches the request host. Session auth is enforced separately.
+func originAllowed(r *http.Request) bool {
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		return true
+	}
+	parsed, err := url.Parse(origin)
+	if err != nil || parsed.Host == "" {
+		return false
+	}
+	return strings.EqualFold(parsed.Host, r.Host)
 }
 
 type Client struct {

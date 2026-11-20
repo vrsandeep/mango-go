@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/dop251/goja"
@@ -42,8 +41,11 @@ func NewPluginRuntime(app *core.App, manifest *PluginManifest, pluginDir string)
 	}
 	api.SetConfig(vm, config)
 
-	// Load plugin script
-	scriptPath := filepath.Join(pluginDir, manifest.EntryPoint)
+	// Load plugin script from inside the plugin directory only.
+	scriptPath, err := joinWithin(pluginDir, manifest.EntryPoint)
+	if err != nil {
+		return nil, err
+	}
 	scriptData, err := os.ReadFile(scriptPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read plugin script: %w", err)
