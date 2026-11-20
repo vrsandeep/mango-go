@@ -153,6 +153,10 @@ func (m *MangoAPI) httpGet(call goja.FunctionCall) goja.Value {
 	if req.Header.Get("Referer") == "" {
 		req.Header.Set("Referer", url)
 	}
+	// MangaDex rejects or stalls clients that send no User-Agent.
+	if req.Header.Get("User-Agent") == "" {
+		req.Header.Set("User-Agent", "Mango-Go")
+	}
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -253,6 +257,10 @@ func (m *MangoAPI) httpPost(call goja.FunctionCall) goja.Value {
 				req.Header.Set(k, fmt.Sprint(v))
 			}
 		}
+	}
+
+	if req.Header.Get("User-Agent") == "" {
+		req.Header.Set("User-Agent", "Mango-Go")
 	}
 
 	resp, err := client.Do(req)

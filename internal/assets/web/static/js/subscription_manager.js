@@ -17,6 +17,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   const pageState = { page: 1, total: 0 };
   let searchDebounce = null;
 
+  const escapeHtml = text =>
+    String(text ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+
   const timeAgo = date => {
     if (!date) return 'Never';
     const seconds = Math.floor((new Date() - date) / 1000);
@@ -73,11 +81,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       const row = document.createElement('tr');
       const folderPathDisplay = getFolderPathDisplay(sub);
 
+      const seriesTitle = escapeHtml(sub.series_title);
       row.innerHTML = `
-                        <td title="${sub.series_title}">${sub.series_title}</td>
-                        <td>${sub.provider_id}</td>
+                        <td title="${seriesTitle}">${seriesTitle}</td>
+                        <td>${escapeHtml(sub.provider_id)}</td>
                         <td class="folder-path-cell">
-                            <span class="folder-path-display">${folderPathDisplay}</span>
+                            <span class="folder-path-display">${escapeHtml(folderPathDisplay)}</span>
                         </td>
                         <td>${timeAgo(new Date(sub.created_at))}</td>
                         <td>${timeAgo(sub.last_checked_at ? new Date(sub.last_checked_at) : null)}</td>
@@ -135,9 +144,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         ellipsis.textContent = '...';
         paginationContainer.appendChild(ellipsis);
       } else {
-        paginationContainer.appendChild(
-          createButton(num, num, false, pageState.page === num)
-        );
+        paginationContainer.appendChild(createButton(num, num, false, pageState.page === num));
       }
     });
 
@@ -241,7 +248,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       ${availableFolders
         .map(
           folder =>
-            `<option value="${folder.path}" ${folder.path === subData.folder_path ? 'selected' : ''}>${folder.name}</option>`
+            `<option value="${escapeHtml(folder.path)}" ${folder.path === subData.folder_path ? 'selected' : ''}>${escapeHtml(folder.name)}</option>`
         )
         .join('')}
     `;

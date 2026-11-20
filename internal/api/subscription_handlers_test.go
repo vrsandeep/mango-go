@@ -132,6 +132,8 @@ func TestHandleListSubscriptions(t *testing.T) {
 	server, _ := SetupTestServerWithProviders(t)
 	router := server.Router()
 
+	listCookie := testutil.CookieForUser(t, server, "testuser-list", "password", "user")
+
 	// Create a subscription first
 	payload := map[string]string{
 		"series_title":      "List Test",
@@ -140,7 +142,7 @@ func TestHandleListSubscriptions(t *testing.T) {
 	}
 	body, _ := json.Marshal(payload)
 	req, _ := http.NewRequest("POST", "/api/subscriptions", bytes.NewBuffer(body))
-	req.AddCookie(testutil.CookieForUser(t, server, "testuser-list", "password", "user"))
+	req.AddCookie(listCookie)
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
@@ -150,7 +152,7 @@ func TestHandleListSubscriptions(t *testing.T) {
 
 	t.Run("Success", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/api/subscriptions", nil)
-		req.AddCookie(testutil.CookieForUser(t, server, "testuser-list2", "password", "user"))
+		req.AddCookie(listCookie)
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 
@@ -171,9 +173,26 @@ func TestHandleListSubscriptions(t *testing.T) {
 		}
 	})
 
+	t.Run("Other user sees nothing", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/api/subscriptions", nil)
+		req.AddCookie(testutil.CookieForUser(t, server, "testuser-list-other", "password", "user"))
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+		if rr.Code != http.StatusOK {
+			t.Fatalf("status %d", rr.Code)
+		}
+		var resp struct {
+			Total int `json:"total"`
+		}
+		json.Unmarshal(rr.Body.Bytes(), &resp)
+		if resp.Total != 0 {
+			t.Fatalf("other user total = %d", resp.Total)
+		}
+	})
+
 	t.Run("With provider filter", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/api/subscriptions?provider_id=mockadex", nil)
-		req.AddCookie(testutil.CookieForUser(t, server, "testuser-list3", "password", "user"))
+		req.AddCookie(listCookie)
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 
@@ -184,7 +203,7 @@ func TestHandleListSubscriptions(t *testing.T) {
 
 	t.Run("With search", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/api/subscriptions?search=List+Test", nil)
-		req.AddCookie(testutil.CookieForUser(t, server, "testuser-list-search", "password", "user"))
+		req.AddCookie(listCookie)
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 
@@ -210,7 +229,7 @@ func TestHandleListSubscriptions(t *testing.T) {
 
 	t.Run("Pagination defaults", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/api/subscriptions?page=1", nil)
-		req.AddCookie(testutil.CookieForUser(t, server, "testuser-list-page", "password", "user"))
+		req.AddCookie(listCookie)
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 
@@ -326,6 +345,49 @@ func TestHandleDeleteSubscription(t *testing.T) {
 
 		if status := rr.Code; status != http.StatusUnauthorized {
 			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusUnauthorized)
+		}
+	})
+
+	t.Run("Other user cannot delete", func(t *testing.T) {
+		owner := testutil.CookieForUser(t, server, "testuser-delete-owner", "password", "user")
+		payload := map[string]string{
+			"series_title":      "Owned",
+			"series_identifier": "owned-sub",
+			"provider_id":       "mockadex",
+		}
+		body, _ := json.Marshal(payload)
+		req, _ := http.NewRequest("POST", "/api/subscriptions", bytes.NewBuffer(body))
+		req.AddCookie(owner)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+		if rr.Code != http.StatusCreated {
+			t.Fatalf("create status %d", rr.Code)
+		}
+		var created map[string]interface{}
+		json.Unmarshal(rr.Body.Bytes(), &created)
+		subID := int64(created["id"].(float64))
+
+		req, _ = http.NewRequest("DELETE", fmt.Sprintf("/api/subscriptions/%d", subID), nil)
+		req.AddCookie(testutil.CookieForUser(t, server, "testuser-delete-other", "password", "user"))
+		rr = httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		req, _ = http.NewRequest("GET", "/api/subscriptions", nil)
+		req.AddCookie(owner)
+		rr = httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+		var resp struct {
+			Items []map[string]interface{} `json:"items"`
+		}
+		json.Unmarshal(rr.Body.Bytes(), &resp)
+		found := false
+		for _, sub := range resp.Items {
+			if int64(sub["id"].(float64)) == subID {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatal("another user deleted the subscription")
 		}
 	})
 }
@@ -526,8 +588,8 @@ func TestHandleRecheckSubscription(t *testing.T) {
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 
-		if status := rr.Code; status != http.StatusAccepted {
-			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusAccepted)
+		if status := rr.Code; status != http.StatusNotFound {
+			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusNotFound)
 		}
 	})
 

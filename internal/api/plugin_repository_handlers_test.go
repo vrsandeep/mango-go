@@ -14,6 +14,9 @@ import (
 )
 
 func TestPluginRepositoryHandlers(t *testing.T) {
+	plugins.SetAllowLoopbackHTTPForTests(true)
+	t.Cleanup(func() { plugins.SetAllowLoopbackHTTPForTests(false) })
+
 	server, _, _ := testutil.SetupTestServer(t)
 	router := server.Router()
 	adminCookie := testutil.CookieForUser(t, server, "admin", "password", "admin")

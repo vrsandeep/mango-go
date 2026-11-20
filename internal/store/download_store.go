@@ -50,32 +50,73 @@ func (s *Store) AddChaptersToQueue(seriesTitle, providerID string, chapters []mo
 	return tx.Commit()
 }
 
+// AddChaptersToQueueForUser records the user who queued the chapters.
+func (s *Store) AddChaptersToQueueForUser(userID int64, seriesTitle, providerID string, chapters []models.ChapterResult) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	stmt, err := tx.Prepare(`
+        INSERT OR IGNORE INTO download_queue
+        (series_title, chapter_title, chapter_identifier, provider_id, created_at, user_id)
+        VALUES (?, ?, ?, ?, ?, ?)
+    `)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for _, ch := range chapters {
+		if _, err := stmt.Exec(seriesTitle, ch.Title, ch.Identifier, providerID, time.Now(), userID); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
 // SubscribeToSeries adds a series to the subscriptions table.
 func (s *Store) SubscribeToSeries(seriesTitle, seriesIdentifier, providerID string) (*models.Subscription, error) {
 	return s.SubscribeToSeriesWithFolder(seriesTitle, seriesIdentifier, providerID, nil)
 }
 
+// SubscribeToSeriesWithFolderForUser stores the user who subscribed.
+// A series already subscribed by someone else is returned so the caller can refuse it.
+func (s *Store) SubscribeToSeriesWithFolderForUser(userID int64, seriesTitle, seriesIdentifier, providerID string, folderPath *string) (*models.Subscription, error) {
+	return s.subscribe(seriesTitle, seriesIdentifier, providerID, folderPath, &userID)
+}
+
 // SubscribeToSeriesWithFolder adds a series to the subscriptions table with a custom folder path.
 func (s *Store) SubscribeToSeriesWithFolder(seriesTitle, seriesIdentifier, providerID string, folderPath *string) (*models.Subscription, error) {
+	return s.subscribe(seriesTitle, seriesIdentifier, providerID, folderPath, nil)
+}
+
+func (s *Store) subscribe(seriesTitle, seriesIdentifier, providerID string, folderPath *string, userID *int64) (*models.Subscription, error) {
 	var sub models.Subscription
 	query := `
-        INSERT INTO subscriptions (series_title, series_identifier, provider_id, folder_path, created_at, last_checked_at)
-        VALUES (?, ?, ?, ?, ?, NULL)
+        INSERT INTO subscriptions (series_title, series_identifier, provider_id, folder_path, created_at, last_checked_at, user_id)
+        VALUES (?, ?, ?, ?, ?, NULL, ?)
         ON CONFLICT(series_identifier, provider_id) DO NOTHING
-        RETURNING id, series_title, series_identifier, provider_id, folder_path, created_at;
+        RETURNING id, series_title, series_identifier, provider_id, folder_path, created_at, user_id;
     `
-	err := s.db.QueryRow(query, seriesTitle, seriesIdentifier, providerID, folderPath, time.Now()).Scan(
-		&sub.ID, &sub.SeriesTitle, &sub.SeriesIdentifier, &sub.ProviderID, &sub.FolderPath, &sub.CreatedAt,
+	var owner sql.NullInt64
+	err := s.db.QueryRow(query, seriesTitle, seriesIdentifier, providerID, folderPath, time.Now(), userID).Scan(
+		&sub.ID, &sub.SeriesTitle, &sub.SeriesIdentifier, &sub.ProviderID, &sub.FolderPath, &sub.CreatedAt, &owner,
 	)
 	if err == sql.ErrNoRows {
 		// This means the subscription already existed, which is not an error.
 		// We can fetch the existing one to return it.
 		err = s.db.QueryRow(`
-			SELECT id, series_title, series_identifier, provider_id, folder_path, created_at
+			SELECT id, series_title, series_identifier, provider_id, folder_path, created_at, user_id
 			FROM subscriptions
         	WHERE series_identifier = ? AND provider_id = ?`, seriesIdentifier, providerID).Scan(
-			&sub.ID, &sub.SeriesTitle, &sub.SeriesIdentifier, &sub.ProviderID, &sub.FolderPath, &sub.CreatedAt,
+			&sub.ID, &sub.SeriesTitle, &sub.SeriesIdentifier, &sub.ProviderID, &sub.FolderPath, &sub.CreatedAt, &owner,
 		)
+	}
+	if owner.Valid {
+		id := owner.Int64
+		sub.UserID = &id
 	}
 	if err != nil {
 		return nil, err
@@ -84,12 +125,18 @@ func (s *Store) SubscribeToSeriesWithFolder(seriesTitle, seriesIdentifier, provi
 }
 
 func (s *Store) GetDownloadQueue() ([]*models.DownloadQueueItem, error) {
+	return s.GetDownloadQueueFor(Actor{Admin: true})
+}
+
+// GetDownloadQueueFor returns queue rows visible to actor.
+func (s *Store) GetDownloadQueueFor(actor Actor) ([]*models.DownloadQueueItem, error) {
+	clause, args := actor.owns("user_id")
 	query := `
         SELECT id, series_title, chapter_title, chapter_identifier, provider_id, status, progress, message, created_at,
                local_chapter_id, local_folder_id
-        FROM download_queue ORDER BY created_at DESC
+        FROM download_queue WHERE 1=1` + clause + ` ORDER BY created_at DESC
     `
-	rows, err := s.db.Query(query)
+	rows, err := s.db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -207,36 +254,75 @@ func (s *Store) ResetInProgressQueueItems() error {
 
 // PauseAllQueueItems sets all items in 'in_progress' or 'queued' to 'paused'.
 func (s *Store) PauseAllQueueItems() error {
-	query := "UPDATE download_queue SET status = 'paused', message = 'Paused by user' where status = 'in_progress' OR status = 'queued'"
-	_, err := s.db.Exec(query)
+	return s.PauseAllQueueItemsFor(Actor{Admin: true})
+}
+
+// PauseAllQueueItemsFor pauses queued and in-progress rows visible to actor.
+func (s *Store) PauseAllQueueItemsFor(actor Actor) error {
+	clause, args := actor.owns("user_id")
+	query := "UPDATE download_queue SET status = 'paused', message = 'Paused by user' WHERE (status = 'in_progress' OR status = 'queued')" + clause
+	_, err := s.db.Exec(query, args...)
 	return err
 }
 
 // ResumeAllQueueItems sets all items in 'paused' back to 'queued'.
 func (s *Store) ResumeAllQueueItems() error {
-	query := "UPDATE download_queue SET status = 'queued', message = 'Resumed by user' WHERE status = 'paused'"
-	_, err := s.db.Exec(query)
+	return s.ResumeAllQueueItemsFor(Actor{Admin: true})
+}
+
+// ResumeAllQueueItemsFor queues paused rows visible to actor.
+func (s *Store) ResumeAllQueueItemsFor(actor Actor) error {
+	clause, args := actor.owns("user_id")
+	query := "UPDATE download_queue SET status = 'queued', message = 'Resumed by user' WHERE status = 'paused'" + clause
+	_, err := s.db.Exec(query, args...)
 	return err
 }
 
 // ResetFailedQueueItems sets items from 'failed' back to 'queued' to be retried.
 func (s *Store) ResetFailedQueueItems() error {
-	query := "UPDATE download_queue SET status = 'queued', progress = 0, message = 'Re-queued by user' WHERE status = 'failed'"
-	_, err := s.db.Exec(query)
+	return s.ResetFailedQueueItemsFor(Actor{Admin: true})
+}
+
+// ResetFailedQueueItemsFor re-queues failed rows visible to actor.
+func (s *Store) ResetFailedQueueItemsFor(actor Actor) error {
+	clause, args := actor.owns("user_id")
+	query := "UPDATE download_queue SET status = 'queued', progress = 0, message = 'Re-queued by user' WHERE status = 'failed'" + clause
+	_, err := s.db.Exec(query, args...)
 	return err
 }
 
 // DeleteCompletedQueueItems removes successfully completed items from the queue.
 func (s *Store) DeleteCompletedQueueItems() error {
-	query := "DELETE FROM download_queue WHERE status = 'completed'"
-	_, err := s.db.Exec(query)
+	return s.DeleteCompletedQueueItemsFor(Actor{Admin: true})
+}
+
+// DeleteCompletedQueueItemsFor removes completed rows visible to actor.
+func (s *Store) DeleteCompletedQueueItemsFor(actor Actor) error {
+	clause, args := actor.owns("user_id")
+	query := "DELETE FROM download_queue WHERE status = 'completed'" + clause
+	_, err := s.db.Exec(query, args...)
 	return err
 }
 
 // EmptyQueue removes all items from the queue that are not completed or in progress.
 func (s *Store) EmptyQueue() error {
-	query := "DELETE FROM download_queue WHERE status = 'queued' OR status = 'failed' OR status = 'paused'"
-	_, err := s.db.Exec(query)
+	return s.EmptyQueueFor(Actor{Admin: true})
+}
+
+// EmptyQueueFor removes queued, failed, and paused rows visible to actor.
+func (s *Store) EmptyQueueFor(actor Actor) error {
+	clause, args := actor.owns("user_id")
+	query := "DELETE FROM download_queue WHERE (status = 'queued' OR status = 'failed' OR status = 'paused')" + clause
+	_, err := s.db.Exec(query, args...)
+	return err
+}
+
+// QueueItemVisible reports whether actor may change this queue row.
+func (s *Store) QueueItemVisible(actor Actor, id int64) error {
+	clause, args := actor.owns("user_id")
+	args = append([]any{id}, args...)
+	var found int64
+	err := s.db.QueryRow("SELECT id FROM download_queue WHERE id = ?"+clause, args...).Scan(&found)
 	return err
 }
 
@@ -337,6 +423,11 @@ func (s *Store) GetAllSubscriptions(providerIDFilter string) ([]*models.Subscrip
 
 // ListSubscriptions returns a page of subscriptions filtered by provider and search.
 func (s *Store) ListSubscriptions(providerID, search string, page, perPage int, sortBy, sortDir string) ([]*models.Subscription, int, error) {
+	return s.ListSubscriptionsFor(Actor{Admin: true}, providerID, search, page, perPage, sortBy, sortDir)
+}
+
+// ListSubscriptionsFor returns subscriptions visible to actor.
+func (s *Store) ListSubscriptionsFor(actor Actor, providerID, search string, page, perPage int, sortBy, sortDir string) ([]*models.Subscription, int, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -349,6 +440,10 @@ func (s *Store) ListSubscriptions(providerID, search string, page, perPage int, 
 
 	where := []string{"1=1"}
 	args := []interface{}{}
+	if !actor.Admin {
+		where = append(where, "user_id = ?")
+		args = append(args, actor.UserID)
+	}
 	if providerID != "" {
 		where = append(where, "provider_id = ?")
 		args = append(args, providerID)
@@ -440,7 +535,14 @@ func (s *Store) GetSubscriptionByID(id int64) (*models.Subscription, error) {
 
 // UpdateSubscriptionFolderPath updates the folder path for a subscription.
 func (s *Store) UpdateSubscriptionFolderPath(id int64, folderPath *string) error {
-	result, err := s.db.Exec("UPDATE subscriptions SET folder_path = ? WHERE id = ?", folderPath, id)
+	return s.UpdateSubscriptionFolderPathFor(Actor{Admin: true}, id, folderPath)
+}
+
+// UpdateSubscriptionFolderPathFor updates a subscription the actor is allowed to change.
+func (s *Store) UpdateSubscriptionFolderPathFor(actor Actor, id int64, folderPath *string) error {
+	clause, args := actor.owns("user_id")
+	queryArgs := append([]any{folderPath, id}, args...)
+	result, err := s.db.Exec("UPDATE subscriptions SET folder_path = ? WHERE id = ?"+clause, queryArgs...)
 	if err != nil {
 		return err
 	}
@@ -459,8 +561,34 @@ func (s *Store) UpdateSubscriptionFolderPath(id int64, folderPath *string) error
 
 // DeleteSubscription removes a subscription from the database.
 func (s *Store) DeleteSubscription(id int64) error {
-	_, err := s.db.Exec("DELETE FROM subscriptions WHERE id = ?", id)
-	return err
+	return s.DeleteSubscriptionFor(Actor{Admin: true}, id)
+}
+
+// DeleteSubscriptionFor removes a subscription the actor is allowed to change.
+// A missing or hidden row returns sql.ErrNoRows.
+func (s *Store) DeleteSubscriptionFor(actor Actor, id int64) error {
+	clause, args := actor.owns("user_id")
+	queryArgs := append([]any{id}, args...)
+	result, err := s.db.Exec("DELETE FROM subscriptions WHERE id = ?"+clause, queryArgs...)
+	if err != nil {
+		return err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
+// SubscriptionVisible reports whether actor may recheck this subscription.
+func (s *Store) SubscriptionVisible(actor Actor, id int64) error {
+	clause, args := actor.owns("user_id")
+	queryArgs := append([]any{id}, args...)
+	var found int64
+	return s.db.QueryRow("SELECT id FROM subscriptions WHERE id = ?"+clause, queryArgs...).Scan(&found)
 }
 
 // UpdateSubscriptionLastChecked sets the last_checked_at timestamp to the current time.

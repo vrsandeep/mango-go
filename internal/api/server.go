@@ -52,23 +52,24 @@ func (s *Server) Router() http.Handler {
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Logger)    // Logs requests to the console
 	r.Use(middleware.Recoverer) // Recovers from panics
-	r.Use(middleware.Timeout(60 * time.Second))
+	r.Use(middleware.Timeout(90 * time.Second))
 
 	// API routes
 	r.Post("/api/users/login", s.handleLogin)
 	r.Get("/api/version", s.handleGetVersion)
 
-	// Resource Proxy (for resources that require special headers, e.g., Referer for webtoons)
-	r.Get("/api/proxy/resource", s.handleProxyResource)
 	r.Group(func(r chi.Router) {
 		r.Use(s.AuthMiddleware)
+
+		// Image proxy. Requires a session so a remote page cannot run here.
+		r.Get("/api/proxy/resource", s.handleProxyResource)
 
 		r.Post("/api/users/logout", s.handleLogout)
 		r.Get("/api/users/me", s.handleGetMe)
 		r.Get("/banners/{name}", s.handleGetBanner)
 
 		r.Route("/api", func(r chi.Router) {
-			r.Get("/config", s.handleGetConfig)
+			r.With(s.AdminOnlyMiddleware).Get("/config", s.handleGetConfig)
 			r.Get("/home", s.handleGetHomePageData)
 
 			// Browse Routes
@@ -168,7 +169,8 @@ func (s *Server) Router() http.Handler {
 	})
 
 	// WebSocket route. Browsers send the session cookie on this same-origin request.
-	r.With(s.AuthMiddleware).Get("/ws/admin/progress", func(w http.ResponseWriter, r *http.Request) {
+	// Admin only: scan messages include library file names.
+	r.With(s.AuthMiddleware, s.AdminOnlyMiddleware).Get("/ws/admin/progress", func(w http.ResponseWriter, r *http.Request) {
 		s.app.WsHub().ServeWs(w, r)
 	})
 

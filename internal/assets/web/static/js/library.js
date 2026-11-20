@@ -4,6 +4,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   const currentUser = await checkAuth();
   if (!currentUser) return;
 
+  const escapeHtml = text =>
+    String(text ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+
+  // Thumbnails are same-origin paths, http(s) URLs, or the JPEG data URIs the scanner stores.
+  const safeMediaURL = value => {
+    const url = String(value || '');
+    if (url.startsWith('/') && !url.startsWith('//')) return escapeHtml(url);
+    if (url.startsWith('http://') || url.startsWith('https://')) return escapeHtml(url);
+    if (url.startsWith('data:image/jpeg;base64,')) return escapeHtml(url);
+    return '';
+  };
+
   const cardsGrid = document.getElementById('cards-grid');
   const foldersGrid = document.getElementById('folders-grid');
   const pageTitleEl = document.getElementById('page-title');
@@ -315,7 +332,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     let html = '<a href="/library">Library</a>';
     path.forEach(folder => {
-      html += ` / <a href="/library/folder/${folder.id}">${folder.name}</a>`;
+      html += ` / <a href="/library/folder/${folder.id}">${escapeHtml(folder.name)}</a>`;
     });
     breadcrumbEl.innerHTML = html;
   };
@@ -353,13 +370,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Calculate progress for the folder
     const progressPercent =
       folder.total_chapters > 0 ? (folder.read_chapters / folder.total_chapters) * 100 : 0;
-    const ratingBadge = folder.rating ? `<div class="rating-badge">★ ${folder.rating}</div>` : '';
+    const ratingBadge = folder.rating
+      ? `<div class="rating-badge">★ ${escapeHtml(folder.rating)}</div>`
+      : '';
+    const thumb = safeMediaURL(folder.thumbnail) || '/static/images/logo.svg';
+    const name = escapeHtml(folder.name);
     card.innerHTML = `
             <div class="thumbnail-container">
-                <img class="thumbnail" src="${folder.thumbnail || '/static/images/logo.svg'}" loading="lazy" alt="Thumbnail for ${folder.name}">
+                <img class="thumbnail" src="${thumb}" loading="lazy" alt="Thumbnail for ${name}">
                 ${ratingBadge}
             </div>
-            <div class="item-title" title="${folder.name}">${folder.name}</div>
+            <div class="item-title" title="${name}">${name}</div>
             <div class="progress-bar-container">
               <div class="progress-bar" style="width: ${progressPercent}%;"></div>
             </div>
@@ -373,10 +394,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const progressPercent = chapter.progress_percent || 0;
     card.href = `/reader/series/${chapter.folder_id}/chapters/${chapter.id}`; // Note: Reader URL might need adjustment
     card.className = 'item-card';
-    const title = chapter.path.split(/[\\\\/]/).pop();
+    const title = escapeHtml(chapter.path.split(/[\\\\/]/).pop());
+    const thumb = safeMediaURL(chapter.thumbnail);
     card.innerHTML = `
             <div class="thumbnail-container">
-                <img class="thumbnail" src="${chapter.thumbnail || ''}" loading="lazy" alt="Thumbnail for ${title}">
+                <img class="thumbnail" src="${thumb}" loading="lazy" alt="Thumbnail for ${title}">
             </div>
             <div class="item-title" title="${title}">${title}</div>
             <div class="progress-bar-container">

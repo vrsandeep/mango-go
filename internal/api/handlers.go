@@ -22,6 +22,10 @@ func getListParams(r *http.Request) (page, perPage int, search, sortBy, sortDir 
 	if perPage <= 0 {
 		perPage = 100
 	}
+	// Match the subscription list cap so a client cannot request an unbounded page.
+	if perPage > 200 {
+		perPage = 200
+	}
 	search = r.URL.Query().Get("search")
 	sortBy = r.URL.Query().Get("sort_by")
 	sortDir = r.URL.Query().Get("sort_dir")
@@ -113,6 +117,7 @@ func (s *Server) handleGetChapterDetails(w http.ResponseWriter, r *http.Request)
 		RespondWithError(w, http.StatusNotFound, "Chapter not found")
 		return
 	}
+	s.redactChapter(chapter)
 
 	RespondWithJSON(w, http.StatusOK, chapter)
 }

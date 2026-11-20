@@ -94,6 +94,14 @@ func TestAdminHandlers(t *testing.T) {
 		req.AddCookie(userCookie)
 		rr = httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
+		if status := rr.Code; status != http.StatusForbidden {
+			t.Fatalf("user config request returned %v, want %v", status, http.StatusForbidden)
+		}
+
+		req, _ = http.NewRequest("GET", "/api/config", nil)
+		req.AddCookie(adminCookie)
+		rr = httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
 		if status := rr.Code; status != http.StatusOK {
 			t.Fatalf("handler returned wrong status code: got %v want %v %s", status, http.StatusOK, rr.Body.String())
 		}

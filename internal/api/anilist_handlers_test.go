@@ -11,6 +11,7 @@ import (
 
 	"github.com/vrsandeep/mango-go/internal/anilist"
 	"github.com/vrsandeep/mango-go/internal/api"
+	"github.com/vrsandeep/mango-go/internal/banners"
 	"github.com/vrsandeep/mango-go/internal/testutil"
 )
 
@@ -297,6 +298,9 @@ func TestHandlePostFolderAnilist_Unauthorized(t *testing.T) {
 }
 
 func TestHandlePostFolderAnilist_StoresBannerImage(t *testing.T) {
+	banners.SetAllowLoopbackForTests(true)
+	t.Cleanup(func() { banners.SetAllowLoopbackForTests(false) })
+
 	server, router, cookie := setupAnilistTestData(t)
 	folder, _ := server.Store().CreateFolder("/library/Bannered", "Bannered", nil)
 	server.SetAppDataPath(t.TempDir())
@@ -338,6 +342,9 @@ func TestHandlePostFolderAnilist_StoresBannerImage(t *testing.T) {
 }
 
 func TestHandleGetFolderAnilist_RefreshesNullBanner(t *testing.T) {
+	banners.SetAllowLoopbackForTests(true)
+	t.Cleanup(func() { banners.SetAllowLoopbackForTests(false) })
+
 	server, db, _ := testutil.SetupTestServer(t)
 	router := server.Router()
 	cookie := testutil.GetAuthCookie(t, server, "user", "pw", "user")
@@ -391,6 +398,9 @@ func TestHandleGetFolderAnilist_RefreshesNullBanner(t *testing.T) {
 }
 
 func TestHandlePostFolderAnilist_DownloadsBanner(t *testing.T) {
+	banners.SetAllowLoopbackForTests(true)
+	t.Cleanup(func() { banners.SetAllowLoopbackForTests(false) })
+
 	server, router, cookie := setupAnilistTestData(t)
 	server.SetAppDataPath(t.TempDir())
 	folder, _ := server.Store().CreateFolder("/library/Downloaded", "Downloaded", nil)
@@ -422,6 +432,9 @@ func TestHandlePostFolderAnilist_DownloadsBanner(t *testing.T) {
 }
 
 func TestHandleGetFolderAnilist_RefreshDownloadFailureLeavesNull(t *testing.T) {
+	banners.SetAllowLoopbackForTests(true)
+	t.Cleanup(func() { banners.SetAllowLoopbackForTests(false) })
+
 	server, db, _ := testutil.SetupTestServer(t)
 	router := server.Router()
 	cookie := testutil.GetAuthCookie(t, server, "user", "pw", "user")

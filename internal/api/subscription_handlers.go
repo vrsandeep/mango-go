@@ -1,6 +1,7 @@
 package api
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -44,9 +45,18 @@ func (s *Server) handleSubscribeToSeries(w http.ResponseWriter, r *http.Request)
 		payload.FolderPath = &sanitizedPath
 	}
 
-	sub, err := s.store.SubscribeToSeriesWithFolder(payload.SeriesTitle, payload.SeriesIdentifier, payload.ProviderID, payload.FolderPath)
+	user := getUserFromContext(r)
+	if user == nil {
+		RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+	sub, err := s.store.SubscribeToSeriesWithFolderForUser(user.ID, payload.SeriesTitle, payload.SeriesIdentifier, payload.ProviderID, payload.FolderPath)
 	if err != nil {
 		RespondWithError(w, http.StatusInternalServerError, "Failed to create subscription")
+		return
+	}
+	if sub.UserID != nil && *sub.UserID != user.ID && user.Role != "admin" {
+		RespondWithError(w, http.StatusConflict, "Series is already subscribed")
 		return
 	}
 
@@ -60,21 +70,17 @@ func (s *Server) handleListSubscriptions(w http.ResponseWriter, r *http.Request)
 		perPage = 50
 	}
 
-	subs, total, err := s.store.ListSubscriptions(providerID, search, page, perPage, sortBy, sortDir)
+	subs, total, err := s.store.ListSubscriptionsFor(actorFromRequest(r), providerID, search, page, perPage, sortBy, sortDir)
 	if err != nil {
 		RespondWithError(w, http.StatusInternalServerError, "Failed to retrieve subscriptions")
 		return
 	}
 
 	// Convert any full paths to relative paths for consistency
-	libraryPath := s.app.Config().Library.Path
 	for _, sub := range subs {
 		if sub.FolderPath != nil && *sub.FolderPath != "" {
-			if strings.HasPrefix(*sub.FolderPath, libraryPath) {
-				relativePath := strings.TrimPrefix(*sub.FolderPath, libraryPath)
-				relativePath = strings.TrimPrefix(relativePath, "/")
-				sub.FolderPath = &relativePath
-			}
+			relativePath := s.libraryRelative(*sub.FolderPath)
+			sub.FolderPath = &relativePath
 		}
 	}
 
@@ -88,7 +94,8 @@ func (s *Server) handleListSubscriptions(w http.ResponseWriter, r *http.Request)
 
 func (s *Server) handleDeleteSubscription(w http.ResponseWriter, r *http.Request) {
 	subID, _ := strconv.ParseInt(chi.URLParam(r, "subID"), 10, 64)
-	if err := s.store.DeleteSubscription(subID); err != nil {
+	err := s.store.DeleteSubscriptionFor(actorFromRequest(r), subID)
+	if err != nil && err != sql.ErrNoRows {
 		RespondWithError(w, http.StatusInternalServerError, "Failed to delete subscription")
 		return
 	}
@@ -126,7 +133,7 @@ func (s *Server) handleUpdateSubscriptionFolderPath(w http.ResponseWriter, r *ht
 		payload.FolderPath = &sanitizedPath
 	}
 
-	err := s.store.UpdateSubscriptionFolderPath(subID, payload.FolderPath)
+	err := s.store.UpdateSubscriptionFolderPathFor(actorFromRequest(r), subID, payload.FolderPath)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			RespondWithError(w, http.StatusNotFound, "Subscription not found")
@@ -141,6 +148,10 @@ func (s *Server) handleUpdateSubscriptionFolderPath(w http.ResponseWriter, r *ht
 
 func (s *Server) handleRecheckSubscription(w http.ResponseWriter, r *http.Request) {
 	subID, _ := strconv.ParseInt(chi.URLParam(r, "subID"), 10, 64)
+	if err := s.store.SubscriptionVisible(actorFromRequest(r), subID); err != nil {
+		RespondWithError(w, http.StatusNotFound, "Subscription not found")
+		return
+	}
 
 	// Run the check in a background goroutine so the API call returns immediately.
 	go func() {
@@ -152,10 +163,28 @@ func (s *Server) handleRecheckSubscription(w http.ResponseWriter, r *http.Reques
 }
 
 func (s *Server) handleRecheckAllSubscriptions(w http.ResponseWriter, r *http.Request) {
+	actor := actorFromRequest(r)
 	// Run the check in a background goroutine so the API call returns immediately.
 	go func() {
 		subService := subscription.NewService(s.app)
-		subService.CheckAllSubscriptions()
+		if actor.Admin {
+			subService.CheckAllSubscriptions()
+			return
+		}
+		page := 1
+		for {
+			subs, total, err := s.store.ListSubscriptionsFor(actor, "", "", page, 200, "created_at", "asc")
+			if err != nil {
+				return
+			}
+			for _, sub := range subs {
+				subService.CheckSingleSubscription(sub.ID)
+			}
+			if len(subs) == 0 || page*200 >= total {
+				return
+			}
+			page++
+		}
 	}()
 
 	RespondWithJSON(w, http.StatusAccepted, map[string]string{"message": "Re-check for all subscriptions has been initiated."})

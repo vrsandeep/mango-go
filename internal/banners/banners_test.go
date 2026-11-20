@@ -66,6 +66,9 @@ func TestSaveBytes_WritesAcceptedBanner(t *testing.T) {
 }
 
 func TestSave_DownloadsIntoBannersFolder(t *testing.T) {
+	banners.SetAllowLoopbackForTests(true)
+	t.Cleanup(func() { banners.SetAllowLoopbackForTests(false) })
+
 	body := []byte("not-a-real-jpeg")
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "image/jpeg")
@@ -138,22 +141,33 @@ func TestSave_RejectsNonURL(t *testing.T) {
 }
 
 func TestSave_DownloadErrors(t *testing.T) {
-	_, err := banners.Save(t.TempDir(), "Series", "http://127.0.0.1:1/banner.jpg")
-	if err == nil {
-		t.Fatal("expected network error")
+	for _, raw := range []string{
+		"http://127.0.0.1:1/banner.jpg",
+		"http://10.1.2.3/banner.jpg",
+		"http://169.254.169.254/latest",
+		"file:///etc/passwd",
+	} {
+		if _, err := banners.Save(t.TempDir(), "Series", raw); err == nil {
+			t.Fatalf("%s was downloaded", raw)
+		}
 	}
 
+	banners.SetAllowLoopbackForTests(true)
+	t.Cleanup(func() { banners.SetAllowLoopbackForTests(false) })
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "nope", http.StatusBadGateway)
 	}))
 	defer srv.Close()
-	_, err = banners.Save(t.TempDir(), "Series", srv.URL+"/banner.jpg")
+	_, err := banners.Save(t.TempDir(), "Series", srv.URL+"/banner.jpg")
 	if err == nil || !strings.Contains(err.Error(), "502") {
 		t.Fatalf("got %v", err)
 	}
 }
 
 func TestSave_ContentTypeAndSuffix(t *testing.T) {
+	banners.SetAllowLoopbackForTests(true)
+	t.Cleanup(func() { banners.SetAllowLoopbackForTests(false) })
+
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case strings.HasSuffix(r.URL.Path, ".png"):

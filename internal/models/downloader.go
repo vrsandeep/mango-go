@@ -12,6 +12,7 @@ type Subscription struct {
 	LastCheckedAt    *time.Time `json:"last_checked_at,omitempty"`    // Nullable, when the series was last checked for updates
 	LastDownloadedAt *time.Time `json:"last_downloaded_at,omitempty"` // Nullable, when a chapter was last downloaded for this subscription
 	CreatedAt        time.Time  `json:"created_at"`
+	UserID           *int64     `json:"-"`
 }
 
 type DownloadQueueItem struct {

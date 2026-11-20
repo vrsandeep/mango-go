@@ -69,6 +69,9 @@ func (s *Server) handleListFoldersByTag(w http.ResponseWriter, r *http.Request) 
 		RespondWithError(w, http.StatusInternalServerError, "Failed to retrieve folders for this tag")
 		return
 	}
+	for _, folder := range folders {
+		s.redactFolder(folder)
+	}
 
 	w.Header().Set("X-Total-Count", strconv.Itoa(total))
 	RespondWithJSON(w, http.StatusOK, folders)
