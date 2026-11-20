@@ -129,7 +129,7 @@ func TestBrowseFolderWithMixedContent(t *testing.T) {
 	if len(resp.Subfolders) != 1 || resp.Subfolders[0].Name != "Subfolder B" {
 		t.Errorf("Expected to find 'Subfolder B', but got %+v", resp.Subfolders)
 	}
-	if len(resp.Chapters) != 1 || resp.Chapters[0].Path != "/Folder A/chapter-a1.cbz" {
+	if len(resp.Chapters) != 1 || resp.Chapters[0].Path != "chapter-a1.cbz" {
 		t.Errorf("Expected to find 'chapter-a1.cbz', but got %+v", resp.Chapters)
 	}
 }
@@ -154,7 +154,7 @@ func TestBrowseFolderA(t *testing.T) {
 	if len(resp.Subfolders) != 1 || resp.Subfolders[0].Name != "Subfolder B" {
 		t.Errorf("Expected to find 'Subfolder B', but got %+v", resp.Subfolders)
 	}
-	if len(resp.Chapters) != 1 || resp.Chapters[0].Path != "/Folder A/chapter-a1.cbz" {
+	if len(resp.Chapters) != 1 || resp.Chapters[0].Path != "chapter-a1.cbz" {
 		t.Errorf("Expected to find 'chapter-a1.cbz', but got %+v", resp.Chapters)
 	}
 	if resp.CurrentFolder.ID != folderA.ID {

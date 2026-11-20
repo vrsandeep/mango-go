@@ -152,6 +152,12 @@ func (s *Server) handleQueueItemAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	switch payload.Action {
+	case "delete", "pause", "resume", "retry":
+	default:
+		RespondWithError(w, http.StatusBadRequest, "Invalid action")
+		return
+	}
 	if err := s.store.QueueItemVisible(actorFromRequest(r), itemID); err != nil {
 		RespondWithError(w, http.StatusNotFound, "Queue item not found")
 		return
@@ -166,9 +172,6 @@ func (s *Server) handleQueueItemAction(w http.ResponseWriter, r *http.Request) {
 		err = downloader.ResumeQueueItem(s.app, s.store, itemID)
 	case "retry":
 		err = downloader.RetryQueueItem(s.app, s.store, itemID)
-	default:
-		RespondWithError(w, http.StatusBadRequest, "Invalid action")
-		return
 	}
 
 	if err != nil {

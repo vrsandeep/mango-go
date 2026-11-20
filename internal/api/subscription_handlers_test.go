@@ -132,6 +132,8 @@ func TestHandleListSubscriptions(t *testing.T) {
 	server, _ := SetupTestServerWithProviders(t)
 	router := server.Router()
 
+	listCookie := testutil.CookieForUser(t, server, "testuser-list", "password", "user")
+
 	// Create a subscription first
 	payload := map[string]string{
 		"series_title":      "List Test",
@@ -140,7 +142,7 @@ func TestHandleListSubscriptions(t *testing.T) {
 	}
 	body, _ := json.Marshal(payload)
 	req, _ := http.NewRequest("POST", "/api/subscriptions", bytes.NewBuffer(body))
-	req.AddCookie(testutil.CookieForUser(t, server, "testuser-list", "password", "user"))
+	req.AddCookie(listCookie)
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
@@ -150,7 +152,7 @@ func TestHandleListSubscriptions(t *testing.T) {
 
 	t.Run("Success", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/api/subscriptions", nil)
-		req.AddCookie(testutil.CookieForUser(t, server, "testuser-list", "password", "user"))
+		req.AddCookie(listCookie)
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 
@@ -190,7 +192,7 @@ func TestHandleListSubscriptions(t *testing.T) {
 
 	t.Run("With provider filter", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/api/subscriptions?provider_id=mockadex", nil)
-		req.AddCookie(testutil.CookieForUser(t, server, "testuser-list", "password", "user"))
+		req.AddCookie(listCookie)
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 
@@ -201,7 +203,7 @@ func TestHandleListSubscriptions(t *testing.T) {
 
 	t.Run("With search", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/api/subscriptions?search=List+Test", nil)
-		req.AddCookie(testutil.CookieForUser(t, server, "testuser-list", "password", "user"))
+		req.AddCookie(listCookie)
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 
@@ -227,7 +229,7 @@ func TestHandleListSubscriptions(t *testing.T) {
 
 	t.Run("Pagination defaults", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/api/subscriptions?page=1", nil)
-		req.AddCookie(testutil.CookieForUser(t, server, "testuser-list", "password", "user"))
+		req.AddCookie(listCookie)
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 
