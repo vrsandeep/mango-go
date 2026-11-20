@@ -69,7 +69,7 @@ make format-check     # Verify Go (gofmt) and CSS/JS (Prettier) formatting
 
 ### 4. Create Configuration
 
-Add a `config.yml` in the project root. Use the checked-in [config.yml](config.yml) as the template: copy it or adjust paths (library, database, plugins, and other options) for your environment.
+Add a `config.yml` in the project root. Use the checked-in [config.yml](../config.yml) as the template: copy it or adjust paths (library, database, `app_data`, plugins, and other options) for your environment. `app_data.path` defaults to `./data`. Series banner images are stored in `./data/banners`.
 
 ### 5. Set Up Test Data
 
@@ -265,7 +265,7 @@ mango-go/
 │   ├── workflows/     # CI/CD pipelines
 │   └── ISSUE_TEMPLATE/ # Issue and PR templates
 ├── build/             # Build artifacts (generated)
-├── data/              # Runtime data directory
+├── data/              # App data (default app_data.path). Banners live in data/banners/
 ├── internal/          # Internal application code
 │   ├── api/           # HTTP handlers and routing
 │   ├── assets/        # Web assets and migrations

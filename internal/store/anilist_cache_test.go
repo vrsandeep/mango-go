@@ -31,7 +31,7 @@ func TestSetFolderAnilist_GetFolderAnilist_RoundTrip(t *testing.T) {
 		t.Fatalf("CreateFolder: %v", err)
 	}
 
-	err = s.SetFolderAnilist(folder.ID, 30013, "https://anilist.co/manga/30013", "https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/bx30013-5Qz2hOuR9WFb.jpg", "One Piece", "One Piece")
+	err = s.SetFolderAnilist(folder.ID, 30013, "https://anilist.co/manga/30013", "https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/bx30013-5Qz2hOuR9WFb.jpg", "One Piece", "One Piece", "banners/one-piece-banner-ab12c.jpg", true)
 	if err != nil {
 		t.Fatalf("SetFolderAnilist: %v", err)
 	}
@@ -58,6 +58,12 @@ func TestSetFolderAnilist_GetFolderAnilist_RoundTrip(t *testing.T) {
 	if cached.CoverImageURL == "" {
 		t.Error("CoverImageURL: expected non-empty")
 	}
+	if !cached.BannerFetched {
+		t.Error("BannerFetched: expected true")
+	}
+	if cached.BannerPath != "banners/one-piece-banner-ab12c.jpg" {
+		t.Errorf("BannerPath: got %q", cached.BannerPath)
+	}
 }
 
 func TestSetFolderAnilist_Upsert(t *testing.T) {
@@ -69,13 +75,13 @@ func TestSetFolderAnilist_Upsert(t *testing.T) {
 		t.Fatalf("CreateFolder: %v", err)
 	}
 
-	err = s.SetFolderAnilist(folder.ID, 1, "https://anilist.co/manga/1", "", "Romaji", "English")
+	err = s.SetFolderAnilist(folder.ID, 1, "https://anilist.co/manga/1", "", "Romaji", "English", "", true)
 	if err != nil {
 		t.Fatalf("SetFolderAnilist (first): %v", err)
 	}
 
 	// Upsert with new data
-	err = s.SetFolderAnilist(folder.ID, 2, "https://anilist.co/manga/2", "https://cover.example/2.jpg", "New Romaji", "New English")
+	err = s.SetFolderAnilist(folder.ID, 2, "https://anilist.co/manga/2", "https://cover.example/2.jpg", "New Romaji", "New English", "banners/manga-banner-ab12c.jpg", true)
 	if err != nil {
 		t.Fatalf("SetFolderAnilist (second): %v", err)
 	}
@@ -96,6 +102,9 @@ func TestSetFolderAnilist_Upsert(t *testing.T) {
 	if cached.CoverImageURL != "https://cover.example/2.jpg" {
 		t.Errorf("CoverImageURL: got %q", cached.CoverImageURL)
 	}
+	if cached.BannerPath != "banners/manga-banner-ab12c.jpg" {
+		t.Errorf("BannerPath: got %q", cached.BannerPath)
+	}
 }
 
 func TestSetFolderAnilist_OptionalFieldsEmpty(t *testing.T) {
@@ -107,7 +116,7 @@ func TestSetFolderAnilist_OptionalFieldsEmpty(t *testing.T) {
 		t.Fatalf("CreateFolder: %v", err)
 	}
 
-	err = s.SetFolderAnilist(folder.ID, 99, "https://anilist.co/manga/99", "", "", "")
+	err = s.SetFolderAnilist(folder.ID, 99, "https://anilist.co/manga/99", "", "", "", "", true)
 	if err != nil {
 		t.Fatalf("SetFolderAnilist: %v", err)
 	}
@@ -121,5 +130,37 @@ func TestSetFolderAnilist_OptionalFieldsEmpty(t *testing.T) {
 	}
 	if cached.TitleRomaji != "" || cached.TitleEnglish != "" || cached.CoverImageURL != "" {
 		t.Errorf("optional fields should be empty: romaji=%q english=%q cover=%q", cached.TitleRomaji, cached.TitleEnglish, cached.CoverImageURL)
+	}
+	if !cached.BannerFetched {
+		t.Error("BannerFetched: empty banner should still be stored")
+	}
+	if cached.BannerPath != "" {
+		t.Errorf("BannerPath: got %q, want empty", cached.BannerPath)
+	}
+}
+
+func TestGetFolderAnilist_LegacyNullBanner(t *testing.T) {
+	db := testutil.SetupTestDB(t)
+	s := store.New(db)
+
+	folder, err := s.CreateFolder("/library/Legacy", "Legacy", nil)
+	if err != nil {
+		t.Fatalf("CreateFolder: %v", err)
+	}
+	_, err = db.Exec(`INSERT INTO folder_anilist_cache (folder_id, anilist_id, site_url, created_at)
+		VALUES (?, ?, ?, datetime('now'))`, folder.ID, 7, "https://anilist.co/manga/7")
+	if err != nil {
+		t.Fatalf("insert legacy cache: %v", err)
+	}
+
+	cached, err := s.GetFolderAnilist(folder.ID)
+	if err != nil {
+		t.Fatalf("GetFolderAnilist: %v", err)
+	}
+	if cached.BannerFetched {
+		t.Error("BannerFetched: legacy NULL banner should be unfetched")
+	}
+	if cached.BannerPath != "" {
+		t.Errorf("BannerPath: got %q", cached.BannerPath)
 	}
 }

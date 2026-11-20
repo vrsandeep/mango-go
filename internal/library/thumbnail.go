@@ -11,6 +11,7 @@ import (
 
 	"github.com/nfnt/resize"
 	"github.com/vrsandeep/mango-go/internal/library/chapterfiles"
+	_ "golang.org/x/image/webp" // Register WebP decoder
 )
 
 const thumbnailWidth uint = 200

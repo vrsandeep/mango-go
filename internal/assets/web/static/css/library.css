@@ -180,6 +180,93 @@ body.light-theme .anilist-button:hover {
   box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.1);
 }
 
+/* Folder banner stops before the Folders or Chapters grid.
+   AniList art is shown sharp; a folder thumbnail is blurred. */
+.folder-banner {
+  position: relative;
+}
+
+#folders-grid:empty {
+  display: none;
+}
+
+.folder-banner.is-active {
+  margin: -2rem -1.5rem 0;
+  padding: 2rem 1.5rem 0.5rem;
+  overflow: hidden;
+}
+
+.folder-banner.is-active > * {
+  position: relative;
+  z-index: 2;
+}
+
+.folder-banner.is-active > .folder-tags-section {
+  z-index: 3;
+}
+
+.folder-banner.is-active::before {
+  content: "";
+  position: absolute;
+  inset: -28px;
+  background-image: var(--folder-banner-image);
+  background-size: cover;
+  background-position: center top;
+  filter: blur(22px);
+  transform: scale(1.08);
+  z-index: 0;
+}
+
+.folder-banner.is-active.has-anilist-banner::before {
+  inset: 0;
+  filter: none;
+  transform: none;
+}
+
+.folder-banner.is-active::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(to top, var(--bg-color) 0, transparent 88px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.62) 0%, rgba(0, 0, 0, 0.4) 46%, rgba(0, 0, 0, 0.22) 100%);
+  pointer-events: none;
+}
+
+.folder-banner.is-active #page-title,
+.folder-banner.is-active .breadcrumb,
+.folder-banner.is-active .breadcrumb a,
+.folder-banner.is-active .inline-tag-input,
+.folder-banner.is-active .inline-tag-input::placeholder,
+.folder-banner.is-active .inline-tag-input-wrap::after,
+.folder-banner.is-active .rating-label,
+.folder-banner.is-active .rating-clear-btn,
+.folder-banner.is-active .total-count,
+.folder-banner.is-active .total-count::before,
+.folder-banner.is-active .sort-controls span {
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+}
+
+.folder-banner.is-active .rating-star {
+  color: rgba(255, 255, 255, 0.75);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+}
+
+.folder-banner.is-active .rating-star.filled {
+  color: #f5a623;
+}
+
+.folder-banner.is-active .breadcrumb a:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+
+.folder-banner.is-active .inline-tag-input {
+  border-bottom-color: rgba(255, 255, 255, 0.8);
+}
+
 /* Page Header */
 .page-header {
   display: flex;
@@ -216,6 +303,18 @@ body.light-theme .anilist-button:hover {
 
 .breadcrumb a:hover {
   color: var(--accent-color);
+}
+
+.banner-size-hint {
+  margin: 0 0 1rem;
+  color: var(--subtle-text-color);
+  font-size: 0.9rem;
+}
+
+.banner-size-error {
+  margin: 0.75rem 0 0;
+  color: var(--danger-color);
+  font-size: 0.9rem;
 }
 
 .edit-btn {
@@ -438,6 +537,25 @@ body.light-theme .anilist-button:hover {
   font-size: 1.2rem;
 }
 
+.upload-preview:not([hidden]) {
+  display: block;
+  margin-top: 0.75rem;
+  max-width: 100%;
+  border-radius: 8px;
+  background: var(--card-bg);
+}
+
+.upload-preview-cover {
+  max-height: 280px;
+  object-fit: contain;
+}
+
+.upload-preview-banner {
+  width: 100%;
+  max-height: 160px;
+  object-fit: cover;
+}
+
 .file-name {
   flex: 1;
   color: var(--text-color);
@@ -496,6 +614,7 @@ body.light-theme .anilist-button:hover {
   border-top: 1px solid var(--border-color);
   display: flex;
   justify-content: flex-end;
+  gap: 0.75rem;
 }
 
 .cancel-btn {
@@ -567,6 +686,11 @@ body.light-theme .anilist-button:hover {
     align-items: stretch;
   }
 
+  .folder-banner.is-active {
+    margin: -1rem -1rem 0;
+    padding: 1rem 1rem 0.5rem;
+  }
+
   .breadcrumb {
     font-size: 0.9rem;
   }
@@ -595,6 +719,20 @@ body.light-theme .anilist-button:hover {
 
   .inline-tag-input {
     width: 100%;
+  }
+}
+
+@media (max-width: 600px) {
+  .folder-banner.is-active {
+    margin: -0.75rem -0.75rem 0;
+    padding: 0.75rem 0.75rem 0.5rem;
+  }
+}
+
+@media (max-width: 400px) {
+  .folder-banner.is-active {
+    margin: -0.5rem -0.5rem 0;
+    padding: 0.5rem 0.5rem 0.5rem;
   }
 }
 
@@ -774,7 +912,9 @@ body.light-theme .anilist-button:hover {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  margin-bottom: 1rem;
+  margin-bottom: 1.6rem;
+  position: relative;
+  z-index: 3;
 }
 
 .inline-tags {

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/vrsandeep/mango-go/internal/banners"
 	"github.com/vrsandeep/mango-go/internal/library"
 	"github.com/vrsandeep/mango-go/internal/models"
 	"github.com/vrsandeep/mango-go/internal/store"
@@ -52,6 +53,9 @@ func (s *Server) handleBrowseFolder(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		RespondWithError(w, http.StatusInternalServerError, "Failed to retrieve library contents")
 		return
+	}
+	if folder != nil && folder.Banner != "" {
+		folder.Banner = banners.PublicURL(folder.Banner)
 	}
 
 	// Combine results into a single response payload
@@ -226,6 +230,25 @@ func (s *Server) handleUploadFolderCover(w http.ResponseWriter, r *http.Request)
 	}
 
 	RespondWithJSON(w, http.StatusOK, map[string]string{"message": "Cover updated successfully."})
+}
+
+// handleRestoreFolderCover puts the folder thumbnail back to the first chapter's generated image.
+func (s *Server) handleRestoreFolderCover(w http.ResponseWriter, r *http.Request) {
+	folderID, err := strconv.ParseInt(chi.URLParam(r, "folderID"), 10, 64)
+	if err != nil || folderID <= 0 {
+		RespondWithError(w, http.StatusBadRequest, "Invalid folder ID")
+		return
+	}
+	thumb, err := s.store.RestoreFolderThumbnail(folderID)
+	if err != nil {
+		if err == store.ErrFolderNotFound {
+			RespondWithError(w, http.StatusNotFound, "Folder not found")
+			return
+		}
+		RespondWithError(w, http.StatusInternalServerError, "Failed to restore cover")
+		return
+	}
+	RespondWithJSON(w, http.StatusOK, map[string]string{"thumbnail": thumb})
 }
 
 // handleUpdateFolderRating sets or clears the rating for a folder (body: {"rating": 8} or {"rating": 0} to clear).

@@ -16,6 +16,9 @@ type Config struct {
 	Database     struct {
 		Path string `mapstructure:"path"`
 	} `mapstructure:"database"`
+	AppData struct {
+		Path string `mapstructure:"path"`
+	} `mapstructure:"app_data"`
 	Library struct {
 		Path string `mapstructure:"path"`
 	} `mapstructure:"library"`
@@ -43,6 +46,7 @@ func Load() (*Config, error) {
 	viper.SetDefault("port", 8080)
 	viper.SetDefault("scan_interval", 0)
 	viper.SetDefault("database.path", "./mango.db")
+	viper.SetDefault("app_data.path", "./data")
 	viper.SetDefault("library.path", "./manga")
 	viper.SetDefault("plugins.path", "../mango-go-plugins")
 	viper.SetDefault("plugins.unload_timeout", 30)
