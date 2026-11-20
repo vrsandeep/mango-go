@@ -534,6 +534,8 @@ exports.getPageURLs = async () => [];
 	})
 
 	t.Run("HTTP Client", func(t *testing.T) {
+		plugins.SetAllowLoopbackHTTPForTests(true)
+		t.Cleanup(func() { plugins.SetAllowLoopbackHTTPForTests(false) })
 		// Setup mock HTTP server
 		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
@@ -566,7 +568,45 @@ exports.getPageURLs = async () => [];
 		}
 	})
 
+	t.Run("HTTP Client - empty JSON array", func(t *testing.T) {
+		plugins.SetAllowLoopbackHTTPForTests(true)
+		t.Cleanup(func() { plugins.SetAllowLoopbackHTTPForTests(false) })
+		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`[]`))
+		}))
+		defer mockServer.Close()
+
+		pluginDir := t.TempDir()
+		pluginJS := `
+exports.search = async (query, mango) => {
+	const response = await mango.http.get("` + mockServer.URL + `/test");
+	const data = response.data;
+	const first = data.length === 0 ? "none" : String(data[0]);
+	return [{ title: data.length + ":" + first, identifier: "1", cover_url: "" }];
+};
+exports.getChapters = async () => [];
+exports.getPageURLs = async () => [];
+`
+		runtime, err := createTestPlugin(t, pluginDir, pluginJS)
+		if err != nil {
+			t.Fatalf("Failed to create runtime: %v", err)
+		}
+
+		adapter := plugins.NewPluginProviderAdapter(runtime)
+		results, err := adapter.Search("test")
+		if err != nil {
+			t.Fatalf("Search() failed: %v", err)
+		}
+
+		if results[0].Title != "0:none" {
+			t.Errorf("Expected title '0:none', got '%s'", results[0].Title)
+		}
+	})
+
 	t.Run("HTTP Client with Timeout", func(t *testing.T) {
+		plugins.SetAllowLoopbackHTTPForTests(true)
+		t.Cleanup(func() { plugins.SetAllowLoopbackHTTPForTests(false) })
 		// Setup mock HTTP server with delay
 		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			time.Sleep(100 * time.Millisecond) // Simulate slow response
@@ -652,6 +692,38 @@ exports.getPageURLs = async () => [];
 
 		if results[0].Title != "2 items" {
 			t.Errorf("Expected title '2 items', got '%s'", results[0].Title)
+		}
+	})
+
+	t.Run("HTML Parsing - querySelectorAll empty", func(t *testing.T) {
+		pluginDir := t.TempDir()
+		pluginJS := `
+exports.search = async (query, mango) => {
+	const html = '<section id="quick-search-result"><div class="btn">No results found</div></section>';
+	const doc = mango.utils.parseHTML(html);
+	const links = doc.querySelectorAll('#quick-search-result > div > a');
+	if (links.length !== 0) {
+		return [{ title: "bad length " + links.length + " value " + links[0], identifier: "1", cover_url: "" }];
+	}
+	const chapters = mango.utils.xpath(doc, '//a');
+	return [{ title: links.length + " links " + chapters.length + " xpath", identifier: "1", cover_url: "" }];
+};
+exports.getChapters = async () => [];
+exports.getPageURLs = async () => [];
+`
+		runtime, err := createTestPlugin(t, pluginDir, pluginJS)
+		if err != nil {
+			t.Fatalf("Failed to create runtime: %v", err)
+		}
+
+		adapter := plugins.NewPluginProviderAdapter(runtime)
+		results, err := adapter.Search("test")
+		if err != nil {
+			t.Fatalf("Search() failed: %v", err)
+		}
+
+		if results[0].Title != "0 links 0 xpath" {
+			t.Errorf("Expected title '0 links 0 xpath', got '%s'", results[0].Title)
 		}
 	})
 

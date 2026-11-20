@@ -39,10 +39,35 @@ func TestAuthHandlers(t *testing.T) {
 				if !cookie.HttpOnly {
 					t.Error("session cookie is not HttpOnly")
 				}
+				if cookie.Secure {
+					t.Error("session cookie should not be Secure on plain HTTP")
+				}
 			}
 		}
 		if !foundCookie {
 			t.Error("session_token cookie not found in response")
+		}
+	})
+
+	t.Run("Secure Cookie Behind TLS Proxy", func(t *testing.T) {
+		payload := `{"username":"testuser", "password":"password123"}`
+		req, _ := http.NewRequest("POST", "/api/users/login", bytes.NewBufferString(payload))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Forwarded-Proto", "https")
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if status := rr.Code; status != http.StatusOK {
+			t.Fatalf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		}
+		foundSecure := false
+		for _, cookie := range rr.Result().Cookies() {
+			if cookie.Name == "session_token" && cookie.Secure {
+				foundSecure = true
+			}
+		}
+		if !foundSecure {
+			t.Error("session cookie was not marked Secure when X-Forwarded-Proto is https")
 		}
 	})
 

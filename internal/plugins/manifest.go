@@ -55,6 +55,9 @@ func LoadManifest(pluginDir string) (*PluginManifest, error) {
 	if manifest.EntryPoint == "" {
 		manifest.EntryPoint = "index.js"
 	}
+	if err := validateEntryPoint(manifest.EntryPoint); err != nil {
+		return nil, err
+	}
 	if manifest.Capabilities == nil {
 		manifest.Capabilities = make(map[string]bool)
 	}

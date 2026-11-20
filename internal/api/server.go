@@ -25,6 +25,7 @@ type Server struct {
 	store           *store.Store
 	homeStore       HomeStore
 	anilistSearcher AnilistSearcher
+	loginLimiter    *loginLimiter
 }
 
 // Store returns the store instance.
@@ -36,10 +37,11 @@ func (s *Server) Store() *store.Store {
 func NewServer(app *core.App) *Server {
 	storeInstance := store.New(app.DB())
 	return &Server{
-		app:       app,
-		db:        app.DB(),
-		store:     storeInstance,
-		homeStore: storeInstance, // Use the concrete store by default
+		app:          app,
+		db:           app.DB(),
+		store:        storeInstance,
+		homeStore:    storeInstance, // Use the concrete store by default
+		loginLimiter: newLoginLimiter(loginFailureLimit, loginFailureWindow),
 	}
 }
 
@@ -55,7 +57,6 @@ func (s *Server) Router() http.Handler {
 	// API routes
 	r.Post("/api/users/login", s.handleLogin)
 	r.Get("/api/version", s.handleGetVersion)
-	r.Get("/api/config", s.handleGetConfig)
 
 	// Resource Proxy (for resources that require special headers, e.g., Referer for webtoons)
 	r.Get("/api/proxy/resource", s.handleProxyResource)
@@ -67,6 +68,7 @@ func (s *Server) Router() http.Handler {
 		r.Get("/banners/{name}", s.handleGetBanner)
 
 		r.Route("/api", func(r chi.Router) {
+			r.Get("/config", s.handleGetConfig)
 			r.Get("/home", s.handleGetHomePageData)
 
 			// Browse Routes
@@ -165,8 +167,8 @@ func (s *Server) Router() http.Handler {
 		})
 	})
 
-	// WebSocket route
-	r.Get("/ws/admin/progress", func(w http.ResponseWriter, r *http.Request) {
+	// WebSocket route. Browsers send the session cookie on this same-origin request.
+	r.With(s.AuthMiddleware).Get("/ws/admin/progress", func(w http.ResponseWriter, r *http.Request) {
 		s.app.WsHub().ServeWs(w, r)
 	})
 

@@ -110,6 +110,10 @@ func (m *MangoAPI) httpGet(call goja.FunctionCall) goja.Value {
 		vm.Interrupt("HTTP GET error: URL is required")
 		return goja.Undefined()
 	}
+	if err := validatePluginRequestURL(url); err != nil {
+		vm.Interrupt(fmt.Sprintf("HTTP GET error: %v", err))
+		return goja.Undefined()
+	}
 
 	var options map[string]interface{}
 	if len(call.Arguments) > 1 && !goja.IsUndefined(call.Argument(1)) {
@@ -128,9 +132,7 @@ func (m *MangoAPI) httpGet(call goja.FunctionCall) goja.Value {
 		}
 	}
 
-	client := &http.Client{
-		Timeout: timeout,
-	}
+	client := newPluginHTTPClient(timeout)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -159,7 +161,7 @@ func (m *MangoAPI) httpGet(call goja.FunctionCall) goja.Value {
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readPluginHTTPBody(resp.Body)
 	if err != nil {
 		vm.Interrupt(fmt.Sprintf("HTTP GET error: failed to read response body from '%s': %v", url, err))
 		return goja.Undefined()
@@ -191,6 +193,10 @@ func (m *MangoAPI) httpPost(call goja.FunctionCall) goja.Value {
 		vm.Interrupt("HTTP POST error: URL is required")
 		return goja.Undefined()
 	}
+	if err := validatePluginRequestURL(url); err != nil {
+		vm.Interrupt(fmt.Sprintf("HTTP POST error: %v", err))
+		return goja.Undefined()
+	}
 
 	var bodyData interface{}
 	var options map[string]interface{}
@@ -214,9 +220,7 @@ func (m *MangoAPI) httpPost(call goja.FunctionCall) goja.Value {
 		}
 	}
 
-	client := &http.Client{
-		Timeout: timeout,
-	}
+	client := newPluginHTTPClient(timeout)
 
 	var body io.Reader
 	contentType := "application/json"
@@ -258,7 +262,7 @@ func (m *MangoAPI) httpPost(call goja.FunctionCall) goja.Value {
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
+	respBody, err := readPluginHTTPBody(resp.Body)
 	if err != nil {
 		vm.Interrupt(fmt.Sprintf("HTTP POST error: failed to read response body from '%s': %v", url, err))
 		return goja.Undefined()
@@ -404,11 +408,11 @@ func (m *MangoAPI) goToJS(vm *goja.Runtime, v interface{}) goja.Value {
 	case bool:
 		return vm.ToValue(val)
 	case []interface{}:
-		arr := vm.NewArray(len(val))
+		items := make([]goja.Value, len(val))
 		for i, item := range val {
-			arr.Set(fmt.Sprintf("%d", i), m.goToJS(vm, item))
+			items[i] = m.goToJS(vm, item)
 		}
-		return arr
+		return jsArray(vm, items)
 	case map[string]interface{}:
 		obj := vm.NewObject()
 		for k, v := range val {
@@ -615,11 +619,7 @@ func (m *MangoAPI) xpathQuery(call goja.FunctionCall) goja.Value {
 		elements = append(elements, m.elementToJS(vm, selection))
 	}
 
-	arr := vm.NewArray(len(elements))
-	for i, elem := range elements {
-		arr.Set(fmt.Sprintf("%d", i), elem)
-	}
-	return arr
+	return jsArray(vm, elements)
 }
 
 // elementToJS converts a goquery selection to a JavaScript element object
@@ -667,7 +667,15 @@ func (m *MangoAPI) selectionToJS(vm *goja.Runtime, selection *goquery.Selection)
 		elements = append(elements, m.elementToJS(vm, s))
 	})
 
-	arr := vm.NewArray(len(elements))
+	return jsArray(vm, elements)
+}
+
+// jsArray builds a JavaScript array from values.
+// goja's NewArray(n) creates an array whose single element is n, so
+// NewArray(0) is [0] rather than []. Plugins then call methods on that
+// number (for example getAttribute) when a selector matches nothing.
+func jsArray(vm *goja.Runtime, elements []goja.Value) goja.Value {
+	arr := vm.NewArray()
 	for i, elem := range elements {
 		arr.Set(fmt.Sprintf("%d", i), elem)
 	}
