@@ -10,14 +10,15 @@ import (
 	"strings"
 )
 
-const graphqlURL = "https://graphql.anilist.co"
+var graphqlURL = "https://graphql.anilist.co"
 
 // Media represents the AniList Media fields we use (manga search result).
 type Media struct {
-	ID         int64       `json:"id"`
-	SiteURL    string      `json:"siteUrl"`
-	Title      *Title      `json:"title"`
-	CoverImage *CoverImage `json:"coverImage"`
+	ID          int64       `json:"id"`
+	SiteURL     string      `json:"siteUrl"`
+	Title       *Title      `json:"title"`
+	CoverImage  *CoverImage `json:"coverImage"`
+	BannerImage string      `json:"bannerImage"`
 }
 
 type Title struct {
@@ -36,6 +37,7 @@ type graphqlResponse struct {
 	} `json:"data"`
 	Errors []struct {
 		Message string `json:"message"`
+		Status  int    `json:"status"`
 	} `json:"errors"`
 }
 
@@ -51,6 +53,7 @@ func SearchManga(title string) (*Media, error) {
     id
     title { romaji english }
     coverImage { large }
+    bannerImage
     siteUrl
   }
 }`
@@ -78,6 +81,10 @@ func SearchManga(title string) (*Media, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		var out graphqlResponse
+		if err := json.NewDecoder(resp.Body).Decode(&out); err == nil && anilistNotFound(out) {
+			return nil, nil
+		}
 		log.Printf("AniList API error: %s", resp.Status)
 		return nil, fmt.Errorf("anilist API returned %s", resp.Status)
 	}
@@ -94,6 +101,15 @@ func SearchManga(title string) (*Media, error) {
 		return nil, nil
 	}
 	return out.Data.Media, nil
+}
+
+func anilistNotFound(out graphqlResponse) bool {
+	for _, e := range out.Errors {
+		if e.Status == http.StatusNotFound || strings.EqualFold(strings.Trim(e.Message, ". "), "not found") {
+			return true
+		}
+	}
+	return false
 }
 
 var nonWordRegexp = regexp.MustCompile(`[^\w\s-]`)

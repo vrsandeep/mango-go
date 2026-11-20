@@ -56,8 +56,9 @@ func (s *Store) GetFolder(id int64) (*models.Folder, error) {
 	if id == 0 {
 		return nil, fmt.Errorf("folder ID cannot be 0")
 	}
-	query := "SELECT id, path, name, parent_id, thumbnail, rating, created_at, updated_at FROM folders WHERE id = ?"
-	err := s.db.QueryRow(query, id).Scan(&folder.ID, &folder.Path, &folder.Name, &parentID, &thumbnail, &rating, &folder.CreatedAt, &folder.UpdatedAt)
+	var banner sql.NullString
+	query := "SELECT id, path, name, parent_id, thumbnail, banner_path, rating, created_at, updated_at FROM folders WHERE id = ?"
+	err := s.db.QueryRow(query, id).Scan(&folder.ID, &folder.Path, &folder.Name, &parentID, &thumbnail, &banner, &rating, &folder.CreatedAt, &folder.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrFolderNotFound
@@ -68,6 +69,9 @@ func (s *Store) GetFolder(id int64) (*models.Folder, error) {
 		folder.ParentID = &parentID.Int64
 	}
 	folder.Thumbnail = thumbnail.String
+	if banner.Valid {
+		folder.Banner = banner.String
+	}
 	if rating.Valid {
 		r := int(rating.Int64)
 		folder.Rating = &r
@@ -178,7 +182,21 @@ func (s *Store) UpdateAllFolderThumbnails() error {
 
 // updateSingleFolderThumbnail is a helper for the above function.
 func (s *Store) updateSingleFolderThumbnail(folderID int64) {
-	// This query recursively finds all chapters within a folder and its subfolders.
+	thumb, err := s.firstChapterThumbnail(folderID)
+	if err != nil {
+		log.Printf("Error finding chapters for folder thumbnail %d: %v", folderID, err)
+		return
+	}
+	if thumb == "" {
+		return
+	}
+	if err := s.UpdateFolderThumbnail(folderID, thumb); err != nil {
+		log.Printf("Error updating folder thumbnail %d: %v", folderID, err)
+	}
+}
+
+// firstChapterThumbnail is the generated thumbnail of the first chapter in the folder tree.
+func (s *Store) firstChapterThumbnail(folderID int64) (string, error) {
 	query := `
 		WITH RECURSIVE folder_tree(id) AS (
 			SELECT ?
@@ -189,8 +207,7 @@ func (s *Store) updateSingleFolderThumbnail(folderID int64) {
 	`
 	rows, err := s.db.Query(query, folderID)
 	if err != nil {
-		log.Printf("Error finding chapters for folder thumbnail %d: %v", folderID, err)
-		return
+		return "", err
 	}
 	defer rows.Close()
 
@@ -208,20 +225,47 @@ func (s *Store) updateSingleFolderThumbnail(folderID int64) {
 		}
 		chapters = append(chapters, c)
 	}
-
-	if len(chapters) > 0 {
-		// Sort naturally to find the true first chapter
-		sort.Slice(chapters, func(i, j int) bool {
-			return util.NaturalSortLess(chapters[i].Path, chapters[j].Path)
-		})
-		firstChapter := chapters[0]
-		if firstChapter.Thumbnail.Valid {
-			_, err := s.db.Exec("UPDATE folders SET thumbnail = ? WHERE id = ?", firstChapter.Thumbnail.String, folderID)
-			if err != nil {
-				log.Printf("Error updating folder thumbnail %d: %v", folderID, err)
-			}
-		}
+	if err := rows.Err(); err != nil {
+		return "", err
 	}
+	if len(chapters) == 0 {
+		return "", nil
+	}
+	sort.Slice(chapters, func(i, j int) bool {
+		return util.NaturalSortLess(chapters[i].Path, chapters[j].Path)
+	})
+	if !chapters[0].Thumbnail.Valid {
+		return "", nil
+	}
+	return chapters[0].Thumbnail.String, nil
+}
+
+// RestoreFolderThumbnail replaces a folder thumbnail with the first chapter's generated thumbnail.
+// An empty result means the folder has no chapter thumbnail to restore.
+func (s *Store) RestoreFolderThumbnail(folderID int64) (string, error) {
+	if _, err := s.GetFolder(folderID); err != nil {
+		return "", err
+	}
+	thumb, err := s.firstChapterThumbnail(folderID)
+	if err != nil {
+		return "", err
+	}
+	var value any
+	if thumb != "" {
+		value = thumb
+	}
+	result, err := s.db.Exec("UPDATE folders SET thumbnail = ? WHERE id = ?", value, folderID)
+	if err != nil {
+		return "", err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return "", err
+	}
+	if rows == 0 {
+		return "", ErrFolderNotFound
+	}
+	return thumb, nil
 }
 
 // ListItemsOptions provides flexible filtering for listing folders and chapters.
@@ -646,6 +690,26 @@ func (s *Store) UpdateFolderRating(folderID int64, rating *int) error {
 	}
 	rows, _ := result.RowsAffected()
 	if rows == 0 {
+		return ErrFolderNotFound
+	}
+	return nil
+}
+
+// UpdateFolderBanner sets the folder's uploaded banner path. An empty path clears it.
+func (s *Store) UpdateFolderBanner(folderID int64, bannerPath string) error {
+	var value interface{}
+	if bannerPath != "" {
+		value = bannerPath
+	}
+	result, err := s.db.Exec("UPDATE folders SET banner_path = ? WHERE id = ?", value, folderID)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
 		return ErrFolderNotFound
 	}
 	return nil

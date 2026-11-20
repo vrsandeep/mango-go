@@ -4,6 +4,9 @@ scan_interval: 0 # Minutes between full library scans; 0 disables periodic scans
 database:
   # The path to the SQLite database file.
   path: "./mango.db"
+app_data:
+  # Directory for generated app files. Series banners are stored in banners/ under this path.
+  path: "./data"
 library:
   # The root directory of your manga library.
   path: "./manga"

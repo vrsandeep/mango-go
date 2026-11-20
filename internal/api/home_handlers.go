@@ -8,6 +8,11 @@ import (
 	"github.com/vrsandeep/mango-go/internal/models"
 )
 
+// SetHomeStore replaces the home-page queries. Tests use this.
+func (s *Server) SetHomeStore(homeStore HomeStore) {
+	s.homeStore = homeStore
+}
+
 func (s *Server) handleGetHomePageData(w http.ResponseWriter, r *http.Request) {
 	user := getUserFromContext(r)
 	if user == nil {

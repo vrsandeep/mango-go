@@ -58,78 +58,85 @@
         </div>
     </header>
     <main class="container">
-        <nav class="breadcrumb" id="breadcrumb-container"></nav>
-        <div class="page-header">
-            <img id="folder-thumb" class="header-thumb" style="display: none;">
-            <h1 id="page-title">Library</h1>
-            <div class="header-actions">
-                <div class="rating-widget" id="rating-widget" style="display: none;" title="Rate this series">
-                    <span class="rating-label">Rating:</span>
-                    <div class="rating-stars" id="rating-stars"></div>
-                    <button class="rating-clear-btn" id="rating-clear-btn" title="Clear rating">×</button>
-                </div>
-                <div class="progress-actions" id="progress-actions" style="display: none;">
-                    <button id="mark-all-read-btn" class="action-btn" title="Mark all chapters as read">
-                        <i class="ph-bold ph-check-circle"></i> All Read
+        <div class="folder-banner" id="folder-banner">
+            <nav class="breadcrumb" id="breadcrumb-container"></nav>
+            <div class="page-header">
+                <img id="folder-thumb" class="header-thumb" style="display: none;">
+                <h1 id="page-title">Library</h1>
+                <div class="header-actions">
+                    <div class="rating-widget" id="rating-widget" style="display: none;" title="Rate this series">
+                        <span class="rating-label">Rating:</span>
+                        <div class="rating-stars" id="rating-stars"></div>
+                        <button class="rating-clear-btn" id="rating-clear-btn" title="Clear rating">×</button>
+                    </div>
+                    <div class="progress-actions" id="progress-actions" style="display: none;">
+                        <button id="mark-all-read-btn" class="action-btn" title="Mark all chapters as read">
+                            <i class="ph-bold ph-check-circle"></i> All Read
+                        </button>
+                        <button id="mark-all-unread-btn" class="action-btn" title="Mark all chapters as unread">
+                            <i class="ph-bold ph-circle"></i> All Unread
+                        </button>
+                    </div>
+                    <button class="edit-btn" id="edit-folder-btn" style="display: none;" title="Edit Thumbnail">
+                        <i class="ph-bold ph-image"></i>
                     </button>
-                    <button id="mark-all-unread-btn" class="action-btn" title="Mark all chapters as unread">
-                        <i class="ph-bold ph-circle"></i> All Unread
+                    <button class="edit-btn" id="upload-banner-btn" style="display: none;" title="Upload banner">
+                        <i class="ph-bold ph-image-square"></i>
                     </button>
                 </div>
-                <button class="edit-btn" id="edit-folder-btn" style="display: none;" title="Edit Cover">
-                    <i class="ph-bold ph-image"></i>
-                </button>
             </div>
-        </div>
 
-        <!-- Inline tags — shown only when viewing a specific folder -->
-        <div class="folder-tags-section" id="folder-tags-section" style="display: none;">
-            <div class="inline-tags" id="tags-container"></div>
-            <div class="inline-tag-input-wrap" id="inline-tag-input-wrap">
-                <input type="text" id="tag-input" class="inline-tag-input" placeholder="+ Add tag…" autocomplete="off" title="Type a tag name and press Enter to save">
-                <div class="autocomplete-suggestions" id="autocomplete-suggestions"></div>
+            <!-- Inline tags — shown only when viewing a specific folder -->
+            <div class="folder-tags-section" id="folder-tags-section" style="display: none;">
+                <div class="inline-tags" id="tags-container"></div>
+                <div class="inline-tag-input-wrap" id="inline-tag-input-wrap">
+                    <input type="text" id="tag-input" class="inline-tag-input" placeholder="+ Add tag…" autocomplete="off" title="Type a tag name and press Enter to save">
+                    <div class="autocomplete-suggestions" id="autocomplete-suggestions"></div>
+                </div>
             </div>
-        </div>
 
-        <span id="total-count" class="total-count"></span>
-        <div class="library-controls">
-            <div class="search-bar">
-                <input type="search" id="search-input" placeholder="Search this folder...">
+            <span id="total-count" class="total-count"></span>
+            <div class="library-controls">
+                <div class="search-bar">
+                    <input type="search" id="search-input" placeholder="Search this folder...">
+                </div>
+                <div class="sort-controls">
+                    <span>Sort by:</span>
+                    <select id="sort-by">
+                        <option value="auto">Auto</option>
+                        <option value="name">Name</option>
+                        <option value="created_at">Date Added</option>
+                        <option value="updated_at">Date Modified</option>
+                        <option value="progress">Progress</option>
+                    </select>
+                    <button id="sort-dir-btn">▲</button>
+                    <button id="unread-filter-btn" class="filter-btn" title="Show only unread">Unread</button>
+                </div>
             </div>
-            <div class="sort-controls">
-                <span>Sort by:</span>
-                <select id="sort-by">
-                    <option value="auto">Auto</option>
-                    <option value="name">Name</option>
-                    <option value="created_at">Date Added</option>
-                    <option value="updated_at">Date Modified</option>
-                    <option value="progress">Progress</option>
-                </select>
-                <button id="sort-dir-btn">▲</button>
-                <button id="unread-filter-btn" class="filter-btn" title="Show only unread">Unread</button>
+            <div class="tag-filter-bar" id="tag-filter-bar" style="display: none;">
+                <span class="tag-filter-label">Filter by tag:</span>
+                <div class="tag-filter-chips" id="tag-filter-chips"></div>
             </div>
         </div>
-        <div class="tag-filter-bar" id="tag-filter-bar" style="display: none;">
-            <span class="tag-filter-label">Filter by tag:</span>
-            <div class="tag-filter-chips" id="tag-filter-chips"></div>
-        </div>
+        <div class="grid" id="folders-grid"></div>
         <div class="grid" id="cards-grid"></div>
         <div class="pagination-container" id="pagination-container"></div>
     </main>
 
-    <!-- Cover Upload Modal (cover only) -->
+    <!-- Thumbnail Upload Modal -->
     <div class="modal-overlay" id="edit-folder-modal">
         <div class="modal-content modal-narrow">
             <div class="modal-header">
-                <h2>Edit Cover</h2>
+                <h2>Edit Thumbnail</h2>
                 <button class="modal-close-btn" id="modal-close-btn">&times;</button>
             </div>
             <div class="modal-body">
+                <p class="banner-size-hint">JPEG, PNG, or WebP. A portrait image is resized to 200 pixels wide, and a landscape image to 300 pixels tall.</p>
                 <div class="file-upload-area">
-                    <input type="file" id="cover-file-input" accept="image/png, image/jpeg, image/webp">
-                    <label for="cover-file-input" class="file-upload-label">
+                    <input type="file" id="thumbnail-file-input" accept="image/png, image/jpeg, image/webp">
+                    <label for="thumbnail-file-input" class="file-upload-label">
                         <i class="ph-bold ph-upload"></i>
-                        <span>Choose Cover Image</span>
+                        <span>Choose Thumbnail Image</span>
                     </label>
                     <div class="selected-file-info" id="selected-file-info" style="display: none;">
                         <i class="ph-bold ph-file-image"></i>
@@ -138,14 +145,54 @@
                             <i class="ph-bold ph-x"></i>
                         </button>
                     </div>
+                    <img id="thumbnail-preview" class="upload-preview upload-preview-thumbnail" alt="Selected thumbnail preview" hidden>
                 </div>
+                <p class="banner-size-error" id="thumbnail-upload-error" hidden></p>
                 <button id="modal-save-btn" class="upload-btn">
                     <i class="ph-bold ph-upload"></i>
-                    Upload Cover
+                    Upload Thumbnail
                 </button>
             </div>
             <div class="modal-footer">
+                <button type="button" id="thumbnail-reset-btn" class="cancel-btn">Reset to original</button>
                 <button id="modal-cancel-btn" class="cancel-btn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Banner Upload Modal -->
+    <div class="modal-overlay" id="banner-upload-modal">
+        <div class="modal-content modal-narrow">
+            <div class="modal-header">
+                <h2>Upload Banner</h2>
+                <button class="modal-close-btn" id="banner-modal-close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="banner-size-hint">At least 800×300 pixels, and wider than it is tall. JPEG, PNG, or WebP.</p>
+                <div class="file-upload-area">
+                    <input type="file" id="banner-file-input" accept="image/png, image/jpeg, image/webp">
+                    <label for="banner-file-input" class="file-upload-label">
+                        <i class="ph-bold ph-upload"></i>
+                        <span>Choose Banner Image</span>
+                    </label>
+                    <div class="selected-file-info" id="banner-selected-file-info" style="display: none;">
+                        <i class="ph-bold ph-file-image"></i>
+                        <span class="file-name" id="banner-file-name"></span>
+                        <button type="button" class="remove-file-btn" id="banner-remove-file-btn">
+                            <i class="ph-bold ph-x"></i>
+                        </button>
+                    </div>
+                    <img id="banner-preview" class="upload-preview upload-preview-banner" alt="Selected banner preview" hidden>
+                </div>
+                <p class="banner-size-error" id="banner-size-error" hidden></p>
+                <button id="banner-save-btn" class="upload-btn">
+                    <i class="ph-bold ph-upload"></i>
+                    Upload Banner
+                </button>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="banner-reset-btn" class="cancel-btn">Reset to original</button>
+                <button id="banner-cancel-btn" class="cancel-btn">Cancel</button>
             </div>
         </div>
     </div>

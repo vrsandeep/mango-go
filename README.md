@@ -22,6 +22,7 @@
 - **Multi-User Support** - User management with permission levels
 - **Subscriptions** - Track and download new chapters automatically
 - **Progress Tracking** - Keep track of your reading progress
+- **Series Banners** - Folder pages use an AniList banner, or a banner you upload
 
 ## Quick Start
 
@@ -38,6 +39,7 @@
          - "8080:8080"
        environment:
          - MANGO_DATABASE_PATH=/app/data/mango.db
+         - MANGO_APP_DATA_PATH=/app/data
          - MANGO_LIBRARY_PATH=/manga
          - MANGO_PLUGINS_PATH=/app/plugins
        volumes:
@@ -89,9 +91,12 @@ manga/
 |----------|-------------|---------|
 | `MANGO_LIBRARY_PATH` | Path to manga library | `./manga` |
 | `MANGO_DATABASE_PATH` | SQLite database path | `./mango.db` |
+| `MANGO_APP_DATA_PATH` | Directory for generated app files. Series banners are stored in `banners/` inside this directory | `./data` |
 | `MANGO_PLUGINS_PATH` | Path to plugins directory | `../mango-go-plugins` |
 | `MANGO_PORT` | Web server port | `8080` |
-| `MANGO_SCAN_INTERVAL` | Library scan interval (minutes) | `30` |
+| `MANGO_SCAN_INTERVAL` | Library scan interval in minutes. `0` disables the periodic scan | `0` |
+
+`app_data.path` in [config.yml](./config.yml) is the same directory as `MANGO_APP_DATA_PATH`. Banner images are files in `banners/` under that directory. The Docker example mounts `./data` and points both the database and app data there. Set `MANGO_APP_DATA_PATH` (or `app_data.path`) to any directory you mount if you want generated files somewhere else.
 
 ## Screenshots
 

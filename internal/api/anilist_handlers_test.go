@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/vrsandeep/mango-go/internal/anilist"
@@ -24,6 +25,16 @@ func (m *mockAnilistSearcher) SearchManga(title string) (*anilist.Media, error) 
 		return nil, m.err
 	}
 	return m.media, nil
+}
+
+type searchCounter struct {
+	calls *int
+	inner *mockAnilistSearcher
+}
+
+func (s searchCounter) SearchManga(title string) (*anilist.Media, error) {
+	*s.calls++
+	return s.inner.SearchManga(title)
 }
 
 func setupAnilistTestData(t *testing.T) (*api.Server, http.Handler, *http.Cookie) {
@@ -85,7 +96,7 @@ func TestHandleGetFolderAnilist_CacheMiss(t *testing.T) {
 func TestHandleGetFolderAnilist_CacheHit(t *testing.T) {
 	server, router, cookie := setupAnilistTestData(t)
 	folder, _ := server.Store().CreateFolder("/library/Cached", "Cached", nil)
-	_ = server.Store().SetFolderAnilist(folder.ID, 12345, "https://anilist.co/manga/12345", "https://cover.example/large.jpg", "Romaji Title", "English Title")
+	_ = server.Store().SetFolderAnilist(folder.ID, 12345, "https://example.com/manga/12345", "https://example.com/large.jpg", "Romaji Title", "English Title", "banners/cached-banner-ab12c.jpg", true)
 
 	req, _ := http.NewRequest("GET", fmt.Sprintf("/api/folders/%d/anilist", folder.ID), nil)
 	req.AddCookie(cookie)
@@ -105,6 +116,7 @@ func TestHandleGetFolderAnilist_CacheHit(t *testing.T) {
 		CoverImage *struct {
 			Large string `json:"large"`
 		} `json:"coverImage"`
+		BannerImage string `json:"bannerImage"`
 	}
 	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("unmarshal: %v", err)
@@ -112,14 +124,17 @@ func TestHandleGetFolderAnilist_CacheHit(t *testing.T) {
 	if resp.ID != 12345 {
 		t.Errorf("id: got %d, want 12345", resp.ID)
 	}
-	if resp.SiteURL != "https://anilist.co/manga/12345" {
+	if resp.SiteURL != "https://example.com/manga/12345" {
 		t.Errorf("siteUrl: got %q", resp.SiteURL)
 	}
 	if resp.Title == nil || resp.Title.Romaji != "Romaji Title" || resp.Title.English != "English Title" {
 		t.Errorf("title: got %+v", resp.Title)
 	}
-	if resp.CoverImage == nil || resp.CoverImage.Large != "https://cover.example/large.jpg" {
+	if resp.CoverImage == nil || resp.CoverImage.Large != "https://example.com/large.jpg" {
 		t.Errorf("coverImage: got %+v", resp.CoverImage)
+	}
+	if resp.BannerImage != "/banners/cached-banner-ab12c.jpg" {
+		t.Errorf("bannerImage: got %q", resp.BannerImage)
 	}
 }
 
@@ -152,7 +167,8 @@ func TestHandlePostFolderAnilist_FolderNotFound(t *testing.T) {
 func TestHandlePostFolderAnilist_MockReturnsNil_NotFound(t *testing.T) {
 	server, router, cookie := setupAnilistTestData(t)
 	folder, _ := server.Store().CreateFolder("/library/No Match", "No Match", nil)
-	server.SetAnilistSearcher(&mockAnilistSearcher{media: nil, err: nil})
+	calls := 0
+	server.SetAnilistSearcher(searchCounter{calls: &calls, inner: &mockAnilistSearcher{media: nil}})
 
 	req, _ := http.NewRequest("POST", fmt.Sprintf("/api/folders/%d/anilist", folder.ID), nil)
 	req.AddCookie(cookie)
@@ -161,6 +177,24 @@ func TestHandlePostFolderAnilist_MockReturnsNil_NotFound(t *testing.T) {
 
 	if rr.Code != http.StatusNotFound {
 		t.Errorf("expected status 404 (no manga found), got %d", rr.Code)
+	}
+	cached, err := server.Store().GetFolderAnilist(folder.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cached.BannerFetched || cached.SiteURL != "" {
+		t.Fatalf("miss was not stored: %+v", cached)
+	}
+
+	req, _ = http.NewRequest("GET", fmt.Sprintf("/api/folders/%d/anilist", folder.ID), nil)
+	req.AddCookie(cookie)
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("cached miss status %d", rr.Code)
+	}
+	if calls != 1 {
+		t.Fatalf("AniList calls = %d, want 1", calls)
 	}
 }
 
@@ -183,10 +217,11 @@ func TestHandlePostFolderAnilist_MockReturnsMedia_Success(t *testing.T) {
 	server, router, cookie := setupAnilistTestData(t)
 	folder, _ := server.Store().CreateFolder("/library/My Manga", "My Manga", nil)
 	mockMedia := &anilist.Media{
-		ID:         99999,
-		SiteURL:    "https://anilist.co/manga/99999",
-		Title:      &anilist.Title{Romaji: "Mock Romaji", English: "Mock English"},
-		CoverImage: &anilist.CoverImage{Large: "https://cover.example/mock.jpg"},
+		ID:          99999,
+		SiteURL:     "https://example.com/manga/99999",
+		Title:       &anilist.Title{Romaji: "Mock Romaji", English: "Mock English"},
+		CoverImage:  &anilist.CoverImage{Large: "https://example.com/mock.jpg"},
+		BannerImage: "",
 	}
 	server.SetAnilistSearcher(&mockAnilistSearcher{media: mockMedia})
 
@@ -208,6 +243,7 @@ func TestHandlePostFolderAnilist_MockReturnsMedia_Success(t *testing.T) {
 		CoverImage *struct {
 			Large string `json:"large"`
 		} `json:"coverImage"`
+		BannerImage string `json:"bannerImage"`
 	}
 	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("unmarshal: %v", err)
@@ -215,14 +251,17 @@ func TestHandlePostFolderAnilist_MockReturnsMedia_Success(t *testing.T) {
 	if resp.ID != 99999 {
 		t.Errorf("id: got %d, want 99999", resp.ID)
 	}
-	if resp.SiteURL != "https://anilist.co/manga/99999" {
+	if resp.SiteURL != "https://example.com/manga/99999" {
 		t.Errorf("siteUrl: got %q", resp.SiteURL)
 	}
 	if resp.Title == nil || resp.Title.Romaji != "Mock Romaji" {
 		t.Errorf("title: got %+v", resp.Title)
 	}
-	if resp.CoverImage == nil || resp.CoverImage.Large != "https://cover.example/mock.jpg" {
+	if resp.CoverImage == nil || resp.CoverImage.Large != "https://example.com/mock.jpg" {
 		t.Errorf("coverImage: got %+v", resp.CoverImage)
+	}
+	if resp.BannerImage != "" {
+		t.Errorf("bannerImage: got %q, want empty", resp.BannerImage)
 	}
 
 	// Verify cache was written: GET should now return the same data
@@ -237,12 +276,15 @@ func TestHandlePostFolderAnilist_MockReturnsMedia_Success(t *testing.T) {
 	if cached == nil || cached.AnilistID != 99999 {
 		t.Errorf("cache not populated: got %+v", cached)
 	}
+	if cached != nil && (!cached.BannerFetched || cached.BannerPath != "") {
+		t.Errorf("empty banner should be stored as fetched: %+v", cached)
+	}
 }
 
 func TestHandlePostFolderAnilist_Unauthorized(t *testing.T) {
 	server, router, _ := setupAnilistTestData(t)
 	folder, _ := server.Store().CreateFolder("/library/NoAuth", "NoAuth", nil)
-	server.SetAnilistSearcher(&mockAnilistSearcher{media: &anilist.Media{ID: 1, SiteURL: "https://anilist.co/manga/1"}})
+	server.SetAnilistSearcher(&mockAnilistSearcher{media: &anilist.Media{ID: 1, SiteURL: "https://example.com/manga/1"}})
 
 	req, _ := http.NewRequest("POST", fmt.Sprintf("/api/folders/%d/anilist", folder.ID), nil)
 	// no cookie
@@ -251,5 +293,195 @@ func TestHandlePostFolderAnilist_Unauthorized(t *testing.T) {
 
 	if rr.Code != http.StatusUnauthorized {
 		t.Errorf("expected status 401 without auth, got %d", rr.Code)
+	}
+}
+
+func TestHandlePostFolderAnilist_StoresBannerImage(t *testing.T) {
+	server, router, cookie := setupAnilistTestData(t)
+	folder, _ := server.Store().CreateFolder("/library/Bannered", "Bannered", nil)
+	server.SetAppDataPath(t.TempDir())
+	bannerSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/jpeg")
+		w.Write([]byte("banner-bytes"))
+	}))
+	defer bannerSrv.Close()
+	server.SetAnilistSearcher(&mockAnilistSearcher{media: &anilist.Media{
+		ID:          55,
+		SiteURL:     "https://example.com/manga/55",
+		BannerImage: bannerSrv.URL + "/banner.jpg",
+	}})
+
+	req, _ := http.NewRequest("POST", fmt.Sprintf("/api/folders/%d/anilist", folder.ID), nil)
+	req.AddCookie(cookie)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d body=%s", rr.Code, rr.Body.String())
+	}
+	var resp struct {
+		BannerImage string `json:"bannerImage"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if !strings.HasPrefix(resp.BannerImage, "/banners/") {
+		t.Errorf("bannerImage: got %q", resp.BannerImage)
+	}
+	cached, err := server.Store().GetFolderAnilist(folder.ID)
+	if err != nil {
+		t.Fatalf("GetFolderAnilist: %v", err)
+	}
+	if !cached.BannerFetched || !strings.HasPrefix(cached.BannerPath, "banners/") {
+		t.Errorf("cache banner: fetched=%v path=%q", cached.BannerFetched, cached.BannerPath)
+	}
+}
+
+func TestHandleGetFolderAnilist_RefreshesNullBanner(t *testing.T) {
+	server, db, _ := testutil.SetupTestServer(t)
+	router := server.Router()
+	cookie := testutil.GetAuthCookie(t, server, "user", "pw", "user")
+	folder, _ := server.Store().CreateFolder("/library/Legacy Banner", "Legacy Banner", nil)
+	_, err := db.Exec(`INSERT INTO folder_anilist_cache (folder_id, anilist_id, site_url, created_at)
+		VALUES (?, ?, ?, datetime('now'))`, folder.ID, 42, "https://example.com/manga/42")
+	if err != nil {
+		t.Fatalf("insert legacy cache: %v", err)
+	}
+	server.SetAppDataPath(t.TempDir())
+	bannerSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/jpeg")
+		w.Write([]byte("banner-bytes"))
+	}))
+	defer bannerSrv.Close()
+	server.SetAnilistSearcher(&mockAnilistSearcher{media: &anilist.Media{
+		ID:          42,
+		SiteURL:     "https://example.com/manga/42",
+		Title:       &anilist.Title{Romaji: "Legacy Romaji", English: "Legacy English"},
+		CoverImage:  &anilist.CoverImage{Large: "https://example.com/legacy.jpg"},
+		BannerImage: bannerSrv.URL + "/banner.jpg",
+	}})
+
+	req, _ := http.NewRequest("GET", fmt.Sprintf("/api/folders/%d/anilist", folder.ID), nil)
+	req.AddCookie(cookie)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d body=%s", rr.Code, rr.Body.String())
+	}
+	var resp struct {
+		BannerImage string `json:"bannerImage"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if !strings.HasPrefix(resp.BannerImage, "/banners/") {
+		t.Errorf("bannerImage: got %q", resp.BannerImage)
+	}
+	cached, err := server.Store().GetFolderAnilist(folder.ID)
+	if err != nil {
+		t.Fatalf("GetFolderAnilist: %v", err)
+	}
+	if !cached.BannerFetched || !strings.HasPrefix(cached.BannerPath, "banners/") {
+		t.Errorf("cache after refresh: fetched=%v path=%q", cached.BannerFetched, cached.BannerPath)
+	}
+	if cached.TitleRomaji != "Legacy Romaji" || cached.CoverImageURL != "https://example.com/legacy.jpg" {
+		t.Errorf("refresh did not keep title and cover: %+v", cached)
+	}
+}
+
+func TestHandlePostFolderAnilist_DownloadsBanner(t *testing.T) {
+	server, router, cookie := setupAnilistTestData(t)
+	server.SetAppDataPath(t.TempDir())
+	folder, _ := server.Store().CreateFolder("/library/Downloaded", "Downloaded", nil)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/jpeg")
+		w.Write([]byte("banner-bytes"))
+	}))
+	defer srv.Close()
+	server.SetAnilistSearcher(&mockAnilistSearcher{media: &anilist.Media{
+		ID:          77,
+		SiteURL:     "https://example.com/manga/77",
+		BannerImage: srv.URL + "/banner.jpg",
+	}})
+
+	req, _ := http.NewRequest("POST", fmt.Sprintf("/api/folders/%d/anilist", folder.ID), nil)
+	req.AddCookie(cookie)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status %d body %s", rr.Code, rr.Body.String())
+	}
+	cached, err := server.Store().GetFolderAnilist(folder.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(cached.BannerPath, "banners/") {
+		t.Fatalf("banner path %q", cached.BannerPath)
+	}
+}
+
+func TestHandleGetFolderAnilist_RefreshDownloadFailureLeavesNull(t *testing.T) {
+	server, db, _ := testutil.SetupTestServer(t)
+	router := server.Router()
+	cookie := testutil.GetAuthCookie(t, server, "user", "pw", "user")
+	folder, _ := server.Store().CreateFolder("/library/Download Fail", "Download Fail", nil)
+	_, err := db.Exec(`INSERT INTO folder_anilist_cache (folder_id, anilist_id, site_url, created_at)
+		VALUES (?, ?, ?, datetime('now'))`, folder.ID, 9, "https://example.com/manga/9")
+	if err != nil {
+		t.Fatalf("insert legacy cache: %v", err)
+	}
+	bannerSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "unavailable", http.StatusBadGateway)
+	}))
+	defer bannerSrv.Close()
+	server.SetAnilistSearcher(&mockAnilistSearcher{media: &anilist.Media{
+		ID:          9,
+		SiteURL:     "https://example.com/manga/9",
+		BannerImage: bannerSrv.URL + "/banner.jpg",
+	}})
+
+	req, _ := http.NewRequest("GET", fmt.Sprintf("/api/folders/%d/anilist", folder.ID), nil)
+	req.AddCookie(cookie)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status %d body %s", rr.Code, rr.Body.String())
+	}
+	cached, err := server.Store().GetFolderAnilist(folder.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cached.BannerFetched {
+		t.Fatal("failed download should stay unfetched")
+	}
+}
+
+func TestHandleGetFolderAnilist_RefreshErrorLeavesNull(t *testing.T) {
+	server, db, _ := testutil.SetupTestServer(t)
+	router := server.Router()
+	cookie := testutil.GetAuthCookie(t, server, "user", "pw", "user")
+	folder, _ := server.Store().CreateFolder("/library/Refresh Fail", "Refresh Fail", nil)
+	_, err := db.Exec(`INSERT INTO folder_anilist_cache (folder_id, anilist_id, site_url, created_at)
+		VALUES (?, ?, ?, datetime('now'))`, folder.ID, 8, "https://example.com/manga/8")
+	if err != nil {
+		t.Fatalf("insert legacy cache: %v", err)
+	}
+	server.SetAnilistSearcher(&mockAnilistSearcher{err: errors.New("anilist down")})
+
+	req, _ := http.NewRequest("GET", fmt.Sprintf("/api/folders/%d/anilist", folder.ID), nil)
+	req.AddCookie(cookie)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d body=%s", rr.Code, rr.Body.String())
+	}
+	cached, err := server.Store().GetFolderAnilist(folder.ID)
+	if err != nil {
+		t.Fatalf("GetFolderAnilist: %v", err)
+	}
+	if cached.BannerFetched {
+		t.Error("BannerFetched: failed refresh should leave the banner unfetched")
 	}
 }

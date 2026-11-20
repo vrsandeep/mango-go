@@ -26,6 +26,21 @@ func TestGenerateThumbnail(t *testing.T) {
 		}
 	})
 
+	t.Run("WebP", func(t *testing.T) {
+		webpB64 := "UklGRiQAAABXRUJQVlA4IBgAAAAwAQCdASoBAAEAAwA0JaQAA3AA/vuUAAA="
+		data, err := base64.StdEncoding.DecodeString(webpB64)
+		if err != nil {
+			t.Fatal(err)
+		}
+		thumb, err := library.GenerateThumbnail(data)
+		if err != nil {
+			t.Fatalf("GenerateThumbnail failed with webp: %v", err)
+		}
+		if !strings.HasPrefix(thumb, "data:image/jpeg;base64,") {
+			t.Fatalf("thumbnail %q", thumb)
+		}
+	})
+
 	t.Run("Error case with invalid data", func(t *testing.T) {
 		invalidData := []byte("this is not an image")
 		_, err := library.GenerateThumbnail(invalidData)

@@ -31,7 +31,7 @@ make clean          # Remove ./build and ./internal/assets/web/dist
 
 **Prerequisites**: `esbuild` and `npx`/Prettier must be on PATH for asset bundling. `CGO_ENABLED=1` is required (go-fitz, go-sqlite3 use CGO). On Alpine/musl Docker builds, set `GO_BUILD_TAGS=musl`.
 
-**Config**: Copy `config.yml` template to project root and set `library_path` to your manga directory. Env overrides use `MANGO_` prefix (e.g. `MANGO_PORT=9090`).
+**Config**: Copy `config.yml` to the project root and set `library.path` to your manga directory. `app_data.path` (default `./data`) holds generated files; series banners are written to `banners/` inside it. Env overrides use the `MANGO_` prefix (e.g. `MANGO_PORT=9090`, `MANGO_APP_DATA_PATH=./data`).
 
 ## Architecture
 

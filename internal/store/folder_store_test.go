@@ -792,11 +792,44 @@ func TestGetFolderWithInvalidID(t *testing.T) {
 	}
 }
 
+func TestUpdateFolderBanner(t *testing.T) {
+	db := testutil.SetupTestDB(t)
+	s := store.New(db)
+	folder, err := s.CreateFolder("/library/Banner", "Banner", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.UpdateFolderBanner(99999, "banners/banner-banner-ab12c.jpg"); err != store.ErrFolderNotFound {
+		t.Fatalf("missing folder: %v", err)
+	}
+	if err := s.UpdateFolderBanner(folder.ID, "banners/banner-banner-ab12c.jpg"); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.GetFolder(folder.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Banner != "banners/banner-banner-ab12c.jpg" {
+		t.Fatalf("banner %q", got.Banner)
+	}
+	if err := s.UpdateFolderBanner(folder.ID, ""); err != nil {
+		t.Fatal(err)
+	}
+	got, err = s.GetFolder(folder.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Banner != "" {
+		t.Fatalf("cleared banner %q", got.Banner)
+	}
+}
+
 func TestUpdateFolderThumbnail(t *testing.T) {
 	db := testutil.SetupTestDB(t)
 	s := store.New(db)
 
-	newURL := "http://example.com/cover.png"
+	newURL := "http://example.com/thumbnail.png"
 
 	folder, err := s.CreateFolder("/library/Thumbnail Test", "Thumbnail Test", nil)
 	if err != nil {
@@ -806,7 +839,7 @@ func TestUpdateFolderThumbnail(t *testing.T) {
 	// test with non existing series ID
 	err = s.UpdateFolderThumbnail(999, newURL)
 	if err != store.ErrFolderNotFound {
-		t.Errorf("Expected no error when updating cover URL for non-existent series, got %v", err)
+		t.Errorf("Expected folder not found when updating thumbnail for a missing folder, got %v", err)
 	}
 
 	// populateDB(t, db)

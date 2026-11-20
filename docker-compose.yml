@@ -9,6 +9,7 @@ services:
       - GIN_MODE=release
       # Override the database and library paths to point to the mounted volumes.
       - MANGO_DATABASE_PATH=/app/data/mango.db
+      - MANGO_APP_DATA_PATH=/app/data
       - MANGO_LIBRARY_PATH=/manga # optional
       - MANGO_PLUGINS_PATH=/app/plugins # Path to plugins directory inside container
       # You can also override the port, e.g.,
