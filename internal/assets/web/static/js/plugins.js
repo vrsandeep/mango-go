@@ -16,6 +16,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     sort: { key: 'chapter', dir: 'desc' },
   };
 
+  const escapeHtml = text =>
+    String(text ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+
+  const safeMediaURL = value => {
+    const url = String(value || '');
+    if (url.startsWith('/') && !url.startsWith('//')) return escapeHtml(url);
+    if (url.startsWith('http://') || url.startsWith('https://')) return escapeHtml(url);
+    return '';
+  };
+
   let searchTimeout;
   let lastSelectedRowIndex = null;
 
@@ -80,7 +95,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const providers = await response.json();
       if (providers) {
         providerSelect.innerHTML = providers
-          .map(p => `<option value="${p.id}">${p.name}</option>`)
+          .map(p => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)}</option>`)
           .join('');
         state.selectedProvider = providerSelect.value;
       }
@@ -165,11 +180,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     results.forEach(series => {
       const card = document.createElement('div');
       card.className = 'item-card';
+      const title = escapeHtml(series.title);
       card.innerHTML = `
         <div class="thumbnail-container">
-          <img class="thumbnail" src="${series.cover_url}" loading="lazy" alt="${series.title}">
+          <img class="thumbnail" src="${safeMediaURL(series.cover_url)}" loading="lazy" alt="${title}">
         </div>
-        <div class="item-title">${series.title}</div>
+        <div class="item-title">${title}</div>
       `;
       card.addEventListener('click', () => handleSeriesSelect(series));
       searchResultsGrid.appendChild(card);
@@ -225,14 +241,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       const row = document.createElement('tr');
       row.dataset.chapterIdentifier = chapter.identifier;
       row.dataset.index = index;
-      const title = chapter.title || `Vol. ${chapter.volume || '?'} Ch. ${chapter.chapter || '?'}`;
+      const title = escapeHtml(
+        chapter.title || `Vol. ${chapter.volume || '?'} Ch. ${chapter.chapter || '?'}`
+      );
       row.innerHTML = `
         <td title="${title}">${title}</td>
-        <td>${chapter.pages}</td>
-        <td>${chapter.volume}</td>
-        <td>${chapter.chapter}</td>
-        <td>${chapter.language}</td>
-        <td>${new Date(chapter.published_at).toLocaleDateString()}</td>
+        <td>${escapeHtml(chapter.pages)}</td>
+        <td>${escapeHtml(chapter.volume)}</td>
+        <td>${escapeHtml(chapter.chapter)}</td>
+        <td>${escapeHtml(chapter.language)}</td>
+        <td>${escapeHtml(new Date(chapter.published_at).toLocaleDateString())}</td>
       `;
       if (state.selectedChapterRows.has(chapter.identifier)) {
         row.classList.add('selected');

@@ -12,11 +12,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
 
-  // Thumbnails are same-origin paths or http(s) URLs. Anything else is dropped.
+  // Thumbnails are same-origin paths, http(s) URLs, or the JPEG data URIs the scanner stores.
   const safeMediaURL = value => {
     const url = String(value || '');
     if (url.startsWith('/') && !url.startsWith('//')) return escapeHtml(url);
     if (url.startsWith('http://') || url.startsWith('https://')) return escapeHtml(url);
+    if (url.startsWith('data:image/jpeg;base64,')) return escapeHtml(url);
     return '';
   };
 
@@ -369,7 +370,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Calculate progress for the folder
     const progressPercent =
       folder.total_chapters > 0 ? (folder.read_chapters / folder.total_chapters) * 100 : 0;
-    const ratingBadge = folder.rating ? `<div class="rating-badge">★ ${escapeHtml(folder.rating)}</div>` : '';
+    const ratingBadge = folder.rating
+      ? `<div class="rating-badge">★ ${escapeHtml(folder.rating)}</div>`
+      : '';
     const thumb = safeMediaURL(folder.thumbnail) || '/static/images/logo.svg';
     const name = escapeHtml(folder.name);
     card.innerHTML = `

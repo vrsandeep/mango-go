@@ -79,6 +79,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   const handleWebSocket = () => {
+    if (currentUser.role !== 'admin') return;
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     ws = new WebSocket(`${protocol}//${window.location.host}/ws/admin/progress`);
 

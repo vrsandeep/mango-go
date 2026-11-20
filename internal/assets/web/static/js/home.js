@@ -6,6 +6,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const homeContainer = document.getElementById('home-container');
 
+  const escapeHtml = text =>
+    String(text ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+
+  const safeMediaURL = value => {
+    const url = String(value || '');
+    if (url.startsWith('/') && !url.startsWith('//')) return escapeHtml(url);
+    if (url.startsWith('http://') || url.startsWith('https://')) return escapeHtml(url);
+    if (url.startsWith('data:image/jpeg;base64,')) return escapeHtml(url);
+    return '';
+  };
+
   const createCard = item => {
     const card = document.createElement('a');
     card.className = 'item-card';
@@ -17,15 +33,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       ? `/reader/series/${item.series_id}/chapters/${item.chapter_id}`
       : `/library/folder/${item.series_id}`;
 
-    const coverSrc = item.cover_art || '';
-    const title = isChapter ? item.chapter_title.split(/[\\/]/).pop() : item.series_title;
-    const subTitle = isChapter ? item.series_title : '';
+    const coverSrc = safeMediaURL(item.cover_art);
+    const title = escapeHtml(
+      isChapter ? item.chapter_title.split(/[\\/]/).pop() : item.series_title
+    );
+    const subTitle = isChapter ? escapeHtml(item.series_title) : '';
 
     let progressBarHTML = '';
     // Only show progress for chapter cards, not series cards
     // Always show progress bar container for chapter cards (like library), even if progress is 0
     if (isChapter) {
-      const progressPercent = item.progress_percent || 0;
+      const progressPercent = Number(item.progress_percent) || 0;
       progressBarHTML = `
         <div class="progress-bar-container">
           <div class="progress-bar" style="width: ${progressPercent}%;"></div>
@@ -34,8 +52,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     let badgeHTML = '';
-    if (item.new_chapter_count > 1) {
-      badgeHTML = `<div class="badge">+${item.new_chapter_count}</div>`;
+    const newCount = Number(item.new_chapter_count) || 0;
+    if (newCount > 1) {
+      badgeHTML = `<div class="badge">+${newCount}</div>`;
     }
 
     card.innerHTML = `

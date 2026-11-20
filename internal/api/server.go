@@ -69,7 +69,7 @@ func (s *Server) Router() http.Handler {
 		r.Get("/banners/{name}", s.handleGetBanner)
 
 		r.Route("/api", func(r chi.Router) {
-			r.Get("/config", s.handleGetConfig)
+			r.With(s.AdminOnlyMiddleware).Get("/config", s.handleGetConfig)
 			r.Get("/home", s.handleGetHomePageData)
 
 			// Browse Routes
@@ -169,7 +169,8 @@ func (s *Server) Router() http.Handler {
 	})
 
 	// WebSocket route. Browsers send the session cookie on this same-origin request.
-	r.With(s.AuthMiddleware).Get("/ws/admin/progress", func(w http.ResponseWriter, r *http.Request) {
+	// Admin only: scan messages include library file names.
+	r.With(s.AuthMiddleware, s.AdminOnlyMiddleware).Get("/ws/admin/progress", func(w http.ResponseWriter, r *http.Request) {
 		s.app.WsHub().ServeWs(w, r)
 	})
 
