@@ -10,6 +10,10 @@ import (
 	"github.com/vrsandeep/mango-go/internal/core"
 )
 
+// pluginCallTimeout is how long a plugin function may run.
+// Plugin HTTP timeouts are configured up to 60s, so this must be longer than that.
+const pluginCallTimeout = 90 * time.Second
+
 // PluginRuntime manages a goja VM for a plugin.
 type PluginRuntime struct {
 	vm        *goja.Runtime
@@ -219,7 +223,7 @@ func (r *PluginRuntime) CallWithContext(ctx context.Context, functionName string
 										Cause:    err,
 									}
 									return
-								case <-time.After(30 * time.Second):
+								case <-time.After(pluginCallTimeout):
 									errChan <- &PluginError{
 										PluginID:  manifestID,
 										Function:  functionName,
@@ -248,11 +252,11 @@ func (r *PluginRuntime) CallWithContext(ctx context.Context, functionName string
 					Message:   "timeout",
 					IsTimeout: true,
 				}
-			case <-time.After(30 * time.Second):
+			case <-time.After(pluginCallTimeout):
 				return nil, &PluginError{
 					PluginID:  manifestID,
 					Function:  functionName,
-					Message:   "timeout after 30 seconds",
+					Message:   "timeout after 90 seconds",
 					IsTimeout: true,
 				}
 			}

@@ -21,6 +21,9 @@ func NewClient(timeout time.Duration, allowLoopback bool) *http.Client {
 		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 			return Dial(ctx, network, addr, allowLoopback)
 		},
+		// A custom dialer disables HTTP/2 unless this is set. Cloudflare APIs such as
+		// MangaDex stall or fall behind on HTTP/1.1.
+		ForceAttemptHTTP2:     true,
 		TLSHandshakeTimeout:   10 * time.Second,
 		ResponseHeaderTimeout: 30 * time.Second,
 		IdleConnTimeout:       30 * time.Second,
@@ -38,6 +41,10 @@ func NewClient(timeout time.Duration, allowLoopback bool) *http.Client {
 	}
 }
 
+// ipv6FallbackDelay matches the standard dual-stack dial: IPv4 starts immediately,
+// and IPv6 starts if IPv4 has not connected. A missing IPv6 route must not stall the request.
+const ipv6FallbackDelay = 300 * time.Millisecond
+
 // Dial resolves addr and connects only to an allowed IP.
 // It dials that IP so a later DNS answer cannot retarget the connection.
 func Dial(ctx context.Context, network, addr string, allowLoopback bool) (net.Conn, error) {
@@ -49,12 +56,102 @@ func Dial(ctx context.Context, network, addr string, allowLoopback bool) (net.Co
 	if err != nil {
 		return nil, err
 	}
-	dialer := &net.Dialer{Timeout: 10 * time.Second}
+	var allowed []net.IP
 	var lastErr error
 	for _, ip := range ips {
 		if !IPAllowed(ip, allowLoopback) {
 			lastErr = fmt.Errorf("connection to a local or private address is not allowed")
 			continue
+		}
+		allowed = append(allowed, ip)
+	}
+	if len(allowed) == 0 {
+		if lastErr == nil {
+			lastErr = fmt.Errorf("no addresses for host")
+		}
+		return nil, lastErr
+	}
+	return dialAllowed(ctx, network, allowed, port)
+}
+
+// dialAllowed connects to the first address that answers.
+// IPv4 is attempted immediately. IPv6 starts shortly after, and the first success is kept.
+func dialAllowed(ctx context.Context, network string, ips []net.IP, port string) (net.Conn, error) {
+	var v4, v6 []net.IP
+	for _, ip := range ips {
+		if ip.To4() != nil {
+			v4 = append(v4, ip)
+		} else {
+			v6 = append(v6, ip)
+		}
+	}
+	primary, secondary := v4, v6
+	if len(primary) == 0 {
+		primary = v6
+		secondary = nil
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	type dialResult struct {
+		conn net.Conn
+		err  error
+	}
+	results := make(chan dialResult, 2)
+	go func() {
+		conn, err := dialSequential(ctx, network, primary, port)
+		results <- dialResult{conn, err}
+	}()
+	waitFor := 1
+	if len(secondary) > 0 {
+		waitFor = 2
+		go func() {
+			timer := time.NewTimer(ipv6FallbackDelay)
+			defer timer.Stop()
+			select {
+			case <-ctx.Done():
+				results <- dialResult{err: ctx.Err()}
+				return
+			case <-timer.C:
+			}
+			conn, err := dialSequential(ctx, network, secondary, port)
+			results <- dialResult{conn, err}
+		}()
+	}
+
+	var conn net.Conn
+	var lastErr error
+	for i := 0; i < waitFor; i++ {
+		res := <-results
+		if res.conn != nil {
+			if conn == nil {
+				conn = res.conn
+				cancel()
+			} else {
+				res.conn.Close()
+			}
+			continue
+		}
+		if lastErr == nil {
+			lastErr = res.err
+		}
+	}
+	if conn != nil {
+		return conn, nil
+	}
+	if lastErr == nil {
+		lastErr = fmt.Errorf("no addresses for host")
+	}
+	return nil, lastErr
+}
+
+func dialSequential(ctx context.Context, network string, ips []net.IP, port string) (net.Conn, error) {
+	dialer := &net.Dialer{Timeout: 10 * time.Second}
+	var lastErr error
+	for _, ip := range ips {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
 		}
 		conn, err := dialer.DialContext(ctx, network, net.JoinHostPort(ip.String(), port))
 		if err == nil {

@@ -52,7 +52,7 @@ func (s *Server) Router() http.Handler {
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Logger)    // Logs requests to the console
 	r.Use(middleware.Recoverer) // Recovers from panics
-	r.Use(middleware.Timeout(60 * time.Second))
+	r.Use(middleware.Timeout(90 * time.Second))
 
 	// API routes
 	r.Post("/api/users/login", s.handleLogin)
