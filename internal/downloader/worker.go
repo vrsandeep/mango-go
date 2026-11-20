@@ -4,7 +4,6 @@ import (
 	"archive/zip"
 	"bytes"
 	"fmt"
-	"io"
 	"log"
 	"math"
 	"net/http"
@@ -19,6 +18,7 @@ import (
 
 	"github.com/vrsandeep/mango-go/internal/core"
 	"github.com/vrsandeep/mango-go/internal/downloader/providers"
+	"github.com/vrsandeep/mango-go/internal/httpguard"
 	"github.com/vrsandeep/mango-go/internal/library"
 	"github.com/vrsandeep/mango-go/internal/models"
 	"github.com/vrsandeep/mango-go/internal/store"
@@ -148,34 +148,12 @@ func processDownload(app *core.App, st *store.Store, job *models.DownloadQueueIt
 		// Respectful delay between page downloads
 		time.Sleep(250 * time.Millisecond)
 
-		// Create HTTP request
-		// Note: If the URL is a proxy URL (from plugins), it will already include
-		// the necessary headers via query parameters
-		req, err := http.NewRequest("GET", pageURL, nil)
-		if err != nil {
-			return fmt.Errorf("failed to create request for page %d: %w", i+1, err)
-		}
-
-		// Use HTTP client with timeout
-		client := &http.Client{
-			Timeout: 30 * time.Second,
-		}
-
-		resp, err := client.Do(req)
+		targetURL, pageData, resp, err := fetchPage(pageURL)
 		if err != nil {
 			return fmt.Errorf("failed to download page %d: %w", i+1, err)
 		}
 		defer resp.Body.Close()
-
-		// Check response status
-		if resp.StatusCode != http.StatusOK {
-			return fmt.Errorf("failed to download page %d: server returned status %d", i+1, resp.StatusCode)
-		}
-
-		pageData, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return fmt.Errorf("failed to read page %d data: %w", i+1, err)
-		}
+		pageURL = targetURL
 
 		// Check if page data is empty
 		if len(pageData) == 0 {
@@ -258,6 +236,62 @@ func processDownload(app *core.App, st *store.Store, job *models.DownloadQueueIt
 	}
 
 	return nil
+}
+
+// fetchPage downloads one chapter page. Proxy URLs returned by plugins are
+// unwrapped so the worker does not call the public proxy without a session.
+func fetchPage(pageURL string) (string, []byte, *http.Response, error) {
+	target, headers := unwrapProxyURL(pageURL)
+	if err := httpguard.ValidateURL(target, false); err != nil {
+		return "", nil, nil, err
+	}
+	req, err := http.NewRequest(http.MethodGet, target, nil)
+	if err != nil {
+		return "", nil, nil, err
+	}
+	for key, values := range headers {
+		for _, value := range values {
+			req.Header.Add(key, value)
+		}
+	}
+	resp, err := httpguard.NewClient(30*time.Second, false).Do(req)
+	if err != nil {
+		return "", nil, nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close()
+		return "", nil, nil, fmt.Errorf("server returned status %d", resp.StatusCode)
+	}
+	data, err := httpguard.ReadBody(resp.Body, 20<<20)
+	if err != nil {
+		resp.Body.Close()
+		return "", nil, nil, err
+	}
+	return target, data, resp, nil
+}
+
+// unwrapProxyURL extracts the upstream image URL and the allowed headers
+// from /api/proxy/resource links. Other URLs are returned unchanged.
+func unwrapProxyURL(raw string) (string, http.Header) {
+	parsed, err := url.Parse(raw)
+	if err != nil || !strings.HasSuffix(parsed.Path, "/api/proxy/resource") {
+		return raw, nil
+	}
+	target := parsed.Query().Get("url")
+	if target == "" {
+		return raw, nil
+	}
+	headers := make(http.Header)
+	if referer := parsed.Query().Get("referer"); referer != "" {
+		headers.Set("Referer", referer)
+	}
+	if userAgent := parsed.Query().Get("user-agent"); userAgent != "" {
+		headers.Set("User-Agent", userAgent)
+	}
+	if origin := parsed.Query().Get("origin"); origin != "" {
+		headers.Set("Origin", origin)
+	}
+	return target, headers
 }
 
 // getDownloadPath calculates the file path where a downloaded chapter will be saved.

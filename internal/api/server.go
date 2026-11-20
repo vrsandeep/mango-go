@@ -58,10 +58,11 @@ func (s *Server) Router() http.Handler {
 	r.Post("/api/users/login", s.handleLogin)
 	r.Get("/api/version", s.handleGetVersion)
 
-	// Resource Proxy (for resources that require special headers, e.g., Referer for webtoons)
-	r.Get("/api/proxy/resource", s.handleProxyResource)
 	r.Group(func(r chi.Router) {
 		r.Use(s.AuthMiddleware)
+
+		// Image proxy. Requires a session so a remote page cannot run here.
+		r.Get("/api/proxy/resource", s.handleProxyResource)
 
 		r.Post("/api/users/logout", s.handleLogout)
 		r.Get("/api/users/me", s.handleGetMe)

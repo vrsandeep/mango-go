@@ -67,6 +67,9 @@ func (m *MockPluginManagerForRepo) ListPlugins() []plugins.PluginInfo {
 }
 
 func TestRepositoryService_FetchRepository(t *testing.T) {
+	plugins.SetAllowLoopbackHTTPForTests(true)
+	t.Cleanup(func() { plugins.SetAllowLoopbackHTTPForTests(false) })
+
 	t.Run("Success", func(t *testing.T) {
 		// Setup mock server
 		manifest := models.RepositoryManifest{
@@ -164,6 +167,9 @@ func TestRepositoryService_FetchRepository(t *testing.T) {
 }
 
 func TestRepositoryService_GetAvailablePlugins(t *testing.T) {
+	plugins.SetAllowLoopbackHTTPForTests(true)
+	t.Cleanup(func() { plugins.SetAllowLoopbackHTTPForTests(false) })
+
 	t.Run("Success with API Version Filtering", func(t *testing.T) {
 		// Create repository in database
 		app := testutil.SetupTestApp(t)
@@ -253,6 +259,9 @@ func TestRepositoryService_GetAvailablePlugins(t *testing.T) {
 }
 
 func TestRepositoryService_InstallPlugin(t *testing.T) {
+	plugins.SetAllowLoopbackHTTPForTests(true)
+	t.Cleanup(func() { plugins.SetAllowLoopbackHTTPForTests(false) })
+
 	t.Run("Success", func(t *testing.T) {
 		pluginDir := t.TempDir()
 		app := testutil.SetupTestApp(t)
@@ -515,6 +524,9 @@ exports.getPageURLs = async () => [];
 }
 
 func TestRepositoryService_CheckForUpdates(t *testing.T) {
+	plugins.SetAllowLoopbackHTTPForTests(true)
+	t.Cleanup(func() { plugins.SetAllowLoopbackHTTPForTests(false) })
+
 	t.Run("Success with Updates", func(t *testing.T) {
 		app := testutil.SetupTestApp(t)
 		storeInstance := store.New(app.DB())
@@ -696,6 +708,9 @@ func TestRepositoryService_CheckForUpdates(t *testing.T) {
 }
 
 func TestRepositoryService_AutoUpdatePlugins(t *testing.T) {
+	plugins.SetAllowLoopbackHTTPForTests(true)
+	t.Cleanup(func() { plugins.SetAllowLoopbackHTTPForTests(false) })
+
 	pluginDir := t.TempDir()
 	app := testutil.SetupTestApp(t)
 	app.SetConfig(&config.Config{
@@ -790,6 +805,9 @@ func TestRepositoryService_AutoUpdatePlugins(t *testing.T) {
 }
 
 func TestRepositoryService_AutoUpdatePluginsRejectsConcurrentRuns(t *testing.T) {
+	plugins.SetAllowLoopbackHTTPForTests(true)
+	t.Cleanup(func() { plugins.SetAllowLoopbackHTTPForTests(false) })
+
 	app := testutil.SetupTestApp(t)
 	storeInstance := store.New(app.DB())
 
@@ -841,6 +859,9 @@ func TestRepositoryService_AutoUpdatePluginsRejectsConcurrentRuns(t *testing.T) 
 }
 
 func TestRepositoryService_AutoUpdatePluginsRecordsFailures(t *testing.T) {
+	plugins.SetAllowLoopbackHTTPForTests(true)
+	t.Cleanup(func() { plugins.SetAllowLoopbackHTTPForTests(false) })
+
 	pluginDir := t.TempDir()
 	app := testutil.SetupTestApp(t)
 	app.SetConfig(&config.Config{
@@ -919,5 +940,24 @@ func TestRepositoryService_AutoUpdatePluginsRecordsFailures(t *testing.T) {
 	}
 	if installed.InstalledVersion != "1.0.0" {
 		t.Errorf("Expected installed version to stay 1.0.0, got %s", installed.InstalledVersion)
+	}
+}
+
+func TestFetchRepositoryRejectsPrivateURLs(t *testing.T) {
+	plugins.SetAllowLoopbackHTTPForTests(false)
+	t.Cleanup(func() { plugins.SetAllowLoopbackHTTPForTests(false) })
+
+	app := testutil.SetupTestApp(t)
+	repoService := plugins.NewRepositoryService(app, store.New(app.DB()), new(MockPluginManagerForRepo))
+	for _, raw := range []string{
+		"http://127.0.0.1/repo.json",
+		"http://10.1.2.3/repo.json",
+		"http://169.254.169.254/latest",
+		"file:///etc/passwd",
+		"http://user:pass@example.com/repo.json",
+	} {
+		if _, err := repoService.FetchRepository(raw); err == nil {
+			t.Fatalf("%s was fetched", raw)
+		}
 	}
 }

@@ -78,7 +78,12 @@ func (s *Server) handleAddChaptersToQueue(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	err := s.store.AddChaptersToQueue(payload.SeriesTitle, payload.ProviderID, payload.Chapters)
+	user := getUserFromContext(r)
+	if user == nil {
+		RespondWithError(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+	err := s.store.AddChaptersToQueueForUser(user.ID, payload.SeriesTitle, payload.ProviderID, payload.Chapters)
 	if err != nil {
 		RespondWithError(w, http.StatusInternalServerError, "Failed to add chapters to download queue")
 		return
@@ -90,7 +95,7 @@ func (s *Server) handleAddChaptersToQueue(w http.ResponseWriter, r *http.Request
 }
 
 func (s *Server) handleGetDownloadQueue(w http.ResponseWriter, r *http.Request) {
-	items, err := s.store.GetDownloadQueue()
+	items, err := s.store.GetDownloadQueueFor(actorFromRequest(r))
 	if err != nil {
 		RespondWithError(w, http.StatusInternalServerError, "Failed to retrieve download queue")
 		return
@@ -107,19 +112,24 @@ func (s *Server) handleQueueAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	actor := actorFromRequest(r)
 	switch payload.Action {
 	case "pause_all":
-		downloader.PauseDownloads()
-		s.store.PauseAllQueueItems()
+		if actor.Admin {
+			downloader.PauseDownloads()
+		}
+		s.store.PauseAllQueueItemsFor(actor)
 	case "resume_all":
-		downloader.ResumeDownloads()
-		s.store.ResumeAllQueueItems()
+		if actor.Admin {
+			downloader.ResumeDownloads()
+		}
+		s.store.ResumeAllQueueItemsFor(actor)
 	case "retry_failed":
-		s.store.ResetFailedQueueItems()
+		s.store.ResetFailedQueueItemsFor(actor)
 	case "delete_completed":
-		s.store.DeleteCompletedQueueItems()
-	case "empty_queue": // New action
-		s.store.EmptyQueue()
+		s.store.DeleteCompletedQueueItemsFor(actor)
+	case "empty_queue":
+		s.store.EmptyQueueFor(actor)
 	default:
 		RespondWithError(w, http.StatusBadRequest, "Invalid action")
 		return
@@ -139,6 +149,11 @@ func (s *Server) handleQueueItemAction(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+
+	if err := s.store.QueueItemVisible(actorFromRequest(r), itemID); err != nil {
+		RespondWithError(w, http.StatusNotFound, "Queue item not found")
 		return
 	}
 

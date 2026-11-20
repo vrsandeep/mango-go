@@ -15,15 +15,26 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/nfnt/resize"
+	"github.com/vrsandeep/mango-go/internal/httpguard"
 	_ "golang.org/x/image/webp"
 )
 
 const FolderName = "banners"
 
 const maxBannerBytes = 20 << 20
+
+// allowBannerLoopback is set by tests that download from httptest servers.
+var allowBannerLoopback atomic.Bool
+
+// SetAllowLoopbackForTests permits banner downloads to dial loopback.
+// Production leaves this false.
+func SetAllowLoopbackForTests(allow bool) {
+	allowBannerLoopback.Store(allow)
+}
 
 // Uploaded banners must be a landscape image so they can sit behind the folder title.
 // Wider uploads are scaled down to MaxWidth, unless that would make the image shorter than MinHeight.
@@ -90,7 +101,11 @@ func Save(dir, seriesName, sourceURL string) (string, error) {
 		return "", fmt.Errorf("banner source is not a URL")
 	}
 
-	client := &http.Client{Timeout: 30 * time.Second}
+	allowLoopback := allowBannerLoopback.Load()
+	if err := httpguard.ValidateURL(sourceURL, allowLoopback); err != nil {
+		return "", err
+	}
+	client := httpguard.NewClient(30*time.Second, allowLoopback)
 	resp, err := client.Get(sourceURL)
 	if err != nil {
 		return "", err
@@ -100,8 +115,12 @@ func Save(dir, seriesName, sourceURL string) (string, error) {
 		return "", fmt.Errorf("banner download returned %s", resp.Status)
 	}
 
+	body, err := httpguard.ReadBody(resp.Body, maxBannerBytes)
+	if err != nil {
+		return "", err
+	}
 	ext := extFor(resp.Header.Get("Content-Type"), sourceURL)
-	return writeFile(dir, seriesName, ext, io.LimitReader(resp.Body, maxBannerBytes))
+	return writeFile(dir, seriesName, ext, bytes.NewReader(body))
 }
 
 // SaveBytes stores an uploaded banner in dir after checking its dimensions.

@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
+	"github.com/vrsandeep/mango-go/internal/api"
 	"github.com/vrsandeep/mango-go/internal/testutil"
 )
 
@@ -60,6 +62,9 @@ func setupMockResourceServer() *httptest.Server {
 }
 
 func TestHandleProxyResource(t *testing.T) {
+	api.SetProxyLoopbackForTests(true)
+	t.Cleanup(func() { api.SetProxyLoopbackForTests(false) })
+
 	server, _, _ := testutil.SetupTestServer(t)
 	router := server.Router()
 	cookie := testutil.CookieForUser(t, server, "testuser", "password", "user")
@@ -88,52 +93,40 @@ func TestHandleProxyResource(t *testing.T) {
 		}
 	})
 
-	t.Run("Success - JSON Resource", func(t *testing.T) {
+	t.Run("Rejects JSON Resource", func(t *testing.T) {
 		jsonURL := mockResourceServer.URL + "/api/data.json"
 		req, _ := http.NewRequest("GET", fmt.Sprintf("/api/proxy/resource?url=%s", jsonURL), nil)
 		req.AddCookie(cookie)
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 
-		if status := rr.Code; status != http.StatusOK {
-			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
-		}
-		if contentType := rr.Header().Get("Content-Type"); contentType != "application/json" {
-			t.Errorf("handler returned wrong content type: got %v want %v", contentType, "application/json")
-		}
-		if cacheControl := rr.Header().Get("Cache-Control"); !strings.Contains(cacheControl, "max-age=3600") {
-			t.Errorf("handler should set 1-hour cache for JSON, got: %v", cacheControl)
+		if status := rr.Code; status != http.StatusUnsupportedMediaType {
+			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusUnsupportedMediaType)
 		}
 	})
 
-	t.Run("Success - HTML Resource", func(t *testing.T) {
+	t.Run("Rejects HTML Resource", func(t *testing.T) {
 		htmlURL := mockResourceServer.URL + "/page.html"
 		req, _ := http.NewRequest("GET", fmt.Sprintf("/api/proxy/resource?url=%s", htmlURL), nil)
 		req.AddCookie(cookie)
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 
-		if status := rr.Code; status != http.StatusOK {
-			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
-		}
-		if contentType := rr.Header().Get("Content-Type"); contentType != "text/html" {
-			t.Errorf("handler returned wrong content type: got %v want %v", contentType, "text/html")
+		if status := rr.Code; status != http.StatusUnsupportedMediaType {
+			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusUnsupportedMediaType)
 		}
 	})
 
-	t.Run("Success - Custom Headers via JSON", func(t *testing.T) {
+	t.Run("Ignores Caller Supplied Cookie And Custom Headers", func(t *testing.T) {
 		protectedURL := mockResourceServer.URL + "/protected"
-		headersJSON := `{"X-Custom-Header":"secret-value"}`
+		headersJSON := `{"X-Custom-Header":"secret-value","Cookie":"session=stolen"}`
 		req, _ := http.NewRequest("GET", fmt.Sprintf("/api/proxy/resource?url=%s&headers=%s", protectedURL, headersJSON), nil)
 		req.AddCookie(cookie)
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 
-		if status := rr.Code; status != http.StatusOK {
-			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
-		}
-		if body := rr.Body.String(); body != "Protected content" {
-			t.Errorf("handler returned wrong body: got %v want %v", body, "Protected content")
+		if status := rr.Code; status != http.StatusBadGateway {
+			t.Errorf("handler returned wrong status code: got %v want %v body %s", status, http.StatusBadGateway, rr.Body.String())
 		}
 	})
 
@@ -149,68 +142,30 @@ func TestHandleProxyResource(t *testing.T) {
 		}
 	})
 
-	t.Run("Success - No Auth Cookie (External Request)", func(t *testing.T) {
+	t.Run("Rejects Missing Session", func(t *testing.T) {
 		imageURL := mockResourceServer.URL + "/image.jpg"
-		req, _ := http.NewRequest("GET", fmt.Sprintf("/api/proxy/resource?url=%s&referer=https://example.com/", imageURL), nil)
-		// No cookie added - endpoint should work without authentication
-		// Set RemoteAddr to simulate external (non-localhost) request
-		req.RemoteAddr = "192.168.1.100:54321"
-		rr := httptest.NewRecorder()
-		router.ServeHTTP(rr, req)
-
-		if status := rr.Code; status != http.StatusOK {
-			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
-		}
-		if contentType := rr.Header().Get("Content-Type"); contentType != "image/jpeg" {
-			t.Errorf("handler returned wrong content type: got %v want %v", contentType, "image/jpeg")
-		}
-		if body := rr.Body.String(); body != "fake-image-data" {
-			t.Errorf("handler returned wrong body: got %v want %v", body, "fake-image-data")
+		for _, addr := range []string{"192.168.1.100:54321", "", "127.0.0.1:54321", "[::1]:54321"} {
+			req, _ := http.NewRequest("GET", fmt.Sprintf("/api/proxy/resource?url=%s&referer=https://example.com/", imageURL), nil)
+			req.RemoteAddr = addr
+			rr := httptest.NewRecorder()
+			router.ServeHTTP(rr, req)
+			if status := rr.Code; status != http.StatusUnauthorized {
+				t.Errorf("addr %q status = %d, want %d", addr, status, http.StatusUnauthorized)
+			}
 		}
 	})
 
-	t.Run("Success - Localhost Request Without Auth", func(t *testing.T) {
-		imageURL := mockResourceServer.URL + "/image.jpg"
-		req, _ := http.NewRequest("GET", fmt.Sprintf("/api/proxy/resource?url=%s&referer=https://example.com/", imageURL), nil)
-		// No cookie added - localhost requests should work without auth
-		// httptest doesn't set RemoteAddr, so empty RemoteAddr is treated as localhost
-		rr := httptest.NewRecorder()
-		router.ServeHTTP(rr, req)
-
-		if status := rr.Code; status != http.StatusOK {
-			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
-		}
-		if contentType := rr.Header().Get("Content-Type"); contentType != "image/jpeg" {
-			t.Errorf("handler returned wrong content type: got %v want %v", contentType, "image/jpeg")
-		}
-		if body := rr.Body.String(); body != "fake-image-data" {
-			t.Errorf("handler returned wrong body: got %v want %v", body, "fake-image-data")
-		}
-	})
-
-	t.Run("Success - Localhost Request With Explicit 127.0.0.1", func(t *testing.T) {
-		imageURL := mockResourceServer.URL + "/image.jpg"
-		req, _ := http.NewRequest("GET", fmt.Sprintf("/api/proxy/resource?url=%s&referer=https://example.com/", imageURL), nil)
-		// Set RemoteAddr to 127.0.0.1 to explicitly test localhost detection
-		req.RemoteAddr = "127.0.0.1:54321"
-		rr := httptest.NewRecorder()
-		router.ServeHTTP(rr, req)
-
-		if status := rr.Code; status != http.StatusOK {
-			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
-		}
-	})
-
-	t.Run("Success - Localhost Request With Explicit [::1]", func(t *testing.T) {
-		imageURL := mockResourceServer.URL + "/image.jpg"
-		req, _ := http.NewRequest("GET", fmt.Sprintf("/api/proxy/resource?url=%s&referer=https://example.com/", imageURL), nil)
-		// Set RemoteAddr to IPv6 localhost to test IPv6 localhost detection
-		req.RemoteAddr = "[::1]:54321"
-		rr := httptest.NewRecorder()
-		router.ServeHTTP(rr, req)
-
-		if status := rr.Code; status != http.StatusOK {
-			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+	t.Run("Rejects Private And Link Local Targets", func(t *testing.T) {
+		api.SetProxyLoopbackForTests(false)
+		t.Cleanup(func() { api.SetProxyLoopbackForTests(true) })
+		for _, raw := range []string{"http://127.0.0.1/secret", "http://10.1.2.3/x", "http://169.254.169.254/latest", "http://[::1]/x"} {
+			req, _ := http.NewRequest("GET", "/api/proxy/resource?url="+url.QueryEscape(raw), nil)
+			req.AddCookie(cookie)
+			rr := httptest.NewRecorder()
+			router.ServeHTTP(rr, req)
+			if status := rr.Code; status != http.StatusBadRequest {
+				t.Errorf("%s status = %d, want %d", raw, status, http.StatusBadRequest)
+			}
 		}
 	})
 
@@ -263,20 +218,19 @@ func TestHandleProxyResource(t *testing.T) {
 		testCases := []struct {
 			url          string
 			expectedType string
+			ok           bool
 			name         string
 		}{
-			{"/image.png", "image/png", "PNG"},
-			{"/data.json", "application/json", "JSON"},
-			{"/style.css", "text/css", "CSS"},
-			{"/script.js", "application/javascript", "JavaScript"},
-			{"/unknown.xyz", "application/octet-stream", "Unknown"},
+			{"/image.png", "image/png", true, "PNG"},
+			{"/data.json", "", false, "JSON"},
+			{"/style.css", "", false, "CSS"},
+			{"/script.js", "", false, "JavaScript"},
+			{"/unknown.xyz", "", false, "Unknown"},
 		}
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				// Create a mock endpoint that explicitly doesn't set Content-Type
 				mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					// Set Content-Type to empty to force inference
 					w.Header().Set("Content-Type", "")
 					w.WriteHeader(http.StatusOK)
 					w.Write([]byte("test"))
@@ -289,16 +243,16 @@ func TestHandleProxyResource(t *testing.T) {
 				rr := httptest.NewRecorder()
 				router.ServeHTTP(rr, req)
 
+				if !tc.ok {
+					if status := rr.Code; status != http.StatusUnsupportedMediaType {
+						t.Errorf("status = %d, want %d", status, http.StatusUnsupportedMediaType)
+					}
+					return
+				}
 				if status := rr.Code; status != http.StatusOK {
 					t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
 				}
-				// Get content type and strip charset if present
-				contentType := rr.Header().Get("Content-Type")
-				if strings.Contains(contentType, ";") {
-					contentType = strings.Split(contentType, ";")[0]
-					contentType = strings.TrimSpace(contentType)
-				}
-				if contentType != tc.expectedType {
+				if contentType := rr.Header().Get("Content-Type"); contentType != tc.expectedType {
 					t.Errorf("handler inferred wrong content type for %s: got %v want %v", tc.url, contentType, tc.expectedType)
 				}
 			})
@@ -328,46 +282,82 @@ func TestHandleProxyResource(t *testing.T) {
 				return
 			}
 
+			w.Header().Set("Content-Type", "image/jpeg")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte("Success"))
 		}))
 		defer mockServer.Close()
 
-		imageURL := mockServer.URL + "/test"
+		imageURL := mockServer.URL + "/test.jpg"
 		req, _ := http.NewRequest("GET", fmt.Sprintf("/api/proxy/resource?url=%s&referer=https://test.com/&user-agent=TestBot/1.0&origin=https://test.com", imageURL), nil)
 		req.AddCookie(cookie)
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 
 		if status := rr.Code; status != http.StatusOK {
-			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+			t.Errorf("handler returned wrong status code: got %v want %v body %s", status, http.StatusOK, rr.Body.String())
 		}
 		if body := rr.Body.String(); body != "Success" {
 			t.Errorf("handler returned wrong body: got %v want %v", body, "Success")
 		}
 	})
+
+	t.Run("Rejects Redirects", func(t *testing.T) {
+		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, "http://10.1.2.3/secret", http.StatusFound)
+		}))
+		defer mockServer.Close()
+
+		req, _ := http.NewRequest("GET", fmt.Sprintf("/api/proxy/resource?url=%s/image.jpg", mockServer.URL), nil)
+		req.AddCookie(cookie)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+		if status := rr.Code; status != http.StatusBadGateway {
+			t.Errorf("status = %d, want %d", status, http.StatusBadGateway)
+		}
+	})
+
+	t.Run("Rejects Oversized Body", func(t *testing.T) {
+		previous := api.MaxProxyBodyForTests()
+		api.SetMaxProxyBodyForTests(4)
+		t.Cleanup(func() { api.SetMaxProxyBodyForTests(previous) })
+
+		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "image/png")
+			w.Write([]byte("12345"))
+		}))
+		defer mockServer.Close()
+
+		req, _ := http.NewRequest("GET", fmt.Sprintf("/api/proxy/resource?url=%s/x.png", mockServer.URL), nil)
+		req.AddCookie(cookie)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+		if status := rr.Code; status != http.StatusBadGateway {
+			t.Errorf("status = %d, want %d", status, http.StatusBadGateway)
+		}
+	})
 }
 
 func TestInferContentType(t *testing.T) {
-	// This tests the helper function indirectly through the proxy handler
+	api.SetProxyLoopbackForTests(true)
+	t.Cleanup(func() { api.SetProxyLoopbackForTests(false) })
+
 	testCases := []struct {
 		urlSuffix    string
 		expectedType string
+		ok           bool
 		name         string
 	}{
-		{".jpg", "image/jpeg", "JPEG"},
-		{".jpeg", "image/jpeg", "JPEG alt"},
-		{".png", "image/png", "PNG"},
-		{".gif", "image/gif", "GIF"},
-		{".webp", "image/webp", "WebP"},
-		{".svg", "image/svg+xml", "SVG"},
-		{".json", "application/json", "JSON"},
-		{".xml", "application/xml", "XML"},
-		{".html", "text/html", "HTML"},
-		{".htm", "text/html", "HTML alt"},
-		{".css", "text/css", "CSS"},
-		{".js", "application/javascript", "JavaScript"},
-		{".xyz", "application/octet-stream", "Unknown"},
+		{".jpg", "image/jpeg", true, "JPEG"},
+		{".jpeg", "image/jpeg", true, "JPEG alt"},
+		{".png", "image/png", true, "PNG"},
+		{".gif", "image/gif", true, "GIF"},
+		{".webp", "image/webp", true, "WebP"},
+		{".svg", "", false, "SVG"},
+		{".json", "", false, "JSON"},
+		{".html", "", false, "HTML"},
+		{".js", "", false, "JavaScript"},
+		{".xyz", "", false, "Unknown"},
 	}
 
 	server, _, _ := testutil.SetupTestServer(t)
@@ -376,9 +366,7 @@ func TestInferContentType(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Create a mock server that explicitly doesn't set Content-Type
 			mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				// Set Content-Type to empty to force inference
 				w.Header().Set("Content-Type", "")
 				w.WriteHeader(http.StatusOK)
 				w.Write([]byte("test"))
@@ -391,16 +379,16 @@ func TestInferContentType(t *testing.T) {
 			rr := httptest.NewRecorder()
 			router.ServeHTTP(rr, req)
 
+			if !tc.ok {
+				if status := rr.Code; status != http.StatusUnsupportedMediaType {
+					t.Errorf("%s status = %d, want %d", tc.urlSuffix, status, http.StatusUnsupportedMediaType)
+				}
+				return
+			}
 			if status := rr.Code; status != http.StatusOK {
 				t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
 			}
-			// Get content type and strip charset if present
-			contentType := rr.Header().Get("Content-Type")
-			if strings.Contains(contentType, ";") {
-				contentType = strings.Split(contentType, ";")[0]
-				contentType = strings.TrimSpace(contentType)
-			}
-			if contentType != tc.expectedType {
+			if contentType := rr.Header().Get("Content-Type"); contentType != tc.expectedType {
 				t.Errorf("handler inferred wrong content type for %s: got %v want %v", tc.urlSuffix, contentType, tc.expectedType)
 			}
 		})

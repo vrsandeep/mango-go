@@ -57,6 +57,13 @@ func (s *Server) handleBrowseFolder(w http.ResponseWriter, r *http.Request) {
 	if folder != nil && folder.Banner != "" {
 		folder.Banner = banners.PublicURL(folder.Banner)
 	}
+	s.redactFolder(folder)
+	for _, sub := range subfolders {
+		s.redactFolder(sub)
+	}
+	for _, chapter := range chapters {
+		s.redactChapter(chapter)
+	}
 
 	// Combine results into a single response payload
 	response := map[string]interface{}{
@@ -82,6 +89,9 @@ func (s *Server) handleGetBreadcrumb(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		RespondWithError(w, http.StatusInternalServerError, "Failed to retrieve breadcrumb path")
 		return
+	}
+	for _, folder := range breadcrumb {
+		s.redactFolder(folder)
 	}
 	RespondWithJSON(w, http.StatusOK, breadcrumb)
 }
@@ -293,19 +303,11 @@ func (s *Server) handleListAllFolders(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Convert to a simple list format with relative paths
-	libraryPath := s.app.Config().Library.Path
 	var folderList []map[string]interface{}
 	for _, folder := range folders {
-		// Convert full path to relative path
-		relativePath := folder.Path
-		if strings.HasPrefix(folder.Path, libraryPath) {
-			relativePath = strings.TrimPrefix(folder.Path, libraryPath)
-			relativePath = strings.TrimPrefix(relativePath, "/")
-		}
-
 		folderList = append(folderList, map[string]interface{}{
 			"id":   folder.ID,
-			"path": relativePath,
+			"path": s.libraryRelative(folder.Path),
 			"name": folder.Name,
 		})
 	}
@@ -328,19 +330,11 @@ func (s *Server) handleSearchFolders(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var results []map[string]interface{}
-	libraryPath := s.app.Config().Library.Path
 
 	for _, folder := range folders {
-		// Convert full path to relative path
-		relativePath := folder.Path
-		if strings.HasPrefix(folder.Path, libraryPath) {
-			relativePath = strings.TrimPrefix(folder.Path, libraryPath)
-			relativePath = strings.TrimPrefix(relativePath, "/")
-		}
-
 		results = append(results, map[string]interface{}{
 			"id":   folder.ID,
-			"path": relativePath,
+			"path": s.libraryRelative(folder.Path),
 			"name": folder.Name,
 		})
 	}

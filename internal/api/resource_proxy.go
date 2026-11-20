@@ -2,65 +2,101 @@ package api
 
 import (
 	"encoding/json"
-	"io"
 	"log"
 	"net/http"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"time"
+
+	"github.com/vrsandeep/mango-go/internal/httpguard"
 )
 
-// handleProxyResource proxies a resource request with appropriate headers
-// This is useful for resources that require specific headers (e.g., Referer for webtoons)
-// or to bypass CORS restrictions
-//
+// maxProxyBody is the largest image the resource proxy will return (20 MiB).
+var maxProxyBody int64 = 20 << 20
+
+// MaxProxyBodyForTests returns the current proxy body cap.
+func MaxProxyBodyForTests() int64 { return maxProxyBody }
+
+// SetMaxProxyBodyForTests replaces the proxy body cap. Tests restore the previous value.
+func SetMaxProxyBodyForTests(n int64) { maxProxyBody = n }
+
+// allowProxyLoopback is set by tests that proxy httptest servers.
+var allowProxyLoopback atomic.Bool
+
+// SetProxyLoopbackForTests permits the resource proxy to dial loopback.
+// Production leaves this false.
+func SetProxyLoopbackForTests(allow bool) {
+	allowProxyLoopback.Store(allow)
+}
+
+// handleProxyResource fetches an image for a logged-in client.
+// Plugins use it when a host requires a Referer or User-Agent.
 // Query parameters:
-//   - url: (required) The resource URL to proxy
-//   - referer: (optional) Referer header value
-//   - user-agent: (optional) User-Agent header value
-//   - origin: (optional) Origin header value
-//   - headers: (optional) JSON object with additional custom headers
+//   - url: (required) image URL
+//   - referer, user-agent, origin: optional request headers
 func (s *Server) handleProxyResource(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
-
-	// Get the resource URL from query parameter
 	resourceURL := query.Get("url")
 	if resourceURL == "" {
 		RespondWithError(w, http.StatusBadRequest, "Missing 'url' parameter")
 		return
 	}
-
-	// Validate URL
-	parsedURL, err := url.Parse(resourceURL)
-	if err != nil {
-		RespondWithError(w, http.StatusBadRequest, "Invalid URL")
+	if err := httpguard.ValidateURL(resourceURL, allowProxyLoopback.Load()); err != nil {
+		RespondWithError(w, http.StatusBadRequest, "URL is not allowed")
 		return
 	}
 
-	// Security: Only allow http/https URLs
-	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
-		RespondWithError(w, http.StatusBadRequest, "Only http and https URLs are allowed")
-		return
+	// Do not follow redirects. A public image must not pivot to another host.
+	client := httpguard.NewClient(30*time.Second, allowProxyLoopback.Load())
+	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		return http.ErrUseLastResponse
 	}
 
-	// Security: Optional - restrict to allowed domains (can be configured)
-	// For now, we allow all domains but could add a whitelist
-
-	// Create HTTP client with timeout
-	client := &http.Client{
-		Timeout: 30 * time.Second,
-	}
-
-	// Create request
 	req, err := http.NewRequest("GET", resourceURL, nil)
 	if err != nil {
 		log.Printf("Error creating proxy request: %v", err)
 		RespondWithError(w, http.StatusInternalServerError, "Failed to create request")
 		return
 	}
+	setProxyRequestHeaders(req, query)
 
-	// Set headers from query parameters
-	// Common headers as individual query params
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("Error fetching proxied resource: %v", err)
+		RespondWithError(w, http.StatusBadGateway, "Failed to fetch resource")
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("Proxied resource returned status %d", resp.StatusCode)
+		RespondWithError(w, http.StatusBadGateway, "Resource server returned error")
+		return
+	}
+
+	contentType, ok := allowedImageType(resp.Header.Get("Content-Type"), resourceURL)
+	if !ok {
+		RespondWithError(w, http.StatusUnsupportedMediaType, "Only image resources can be proxied")
+		return
+	}
+
+	body, err := httpguard.ReadBody(resp.Body, maxProxyBody)
+	if err != nil {
+		log.Printf("Error reading proxied resource: %v", err)
+		RespondWithError(w, http.StatusBadGateway, "Failed to read resource")
+		return
+	}
+
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Cache-Control", "private, max-age=86400")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Write(body)
+}
+
+// setProxyRequestHeaders copies the three headers plugins need.
+// Cookie, Authorization, Host, and any other caller-supplied header are ignored.
+func setProxyRequestHeaders(req *http.Request, query url.Values) {
 	if referer := query.Get("referer"); referer != "" {
 		req.Header.Set("Referer", referer)
 	}
@@ -70,96 +106,63 @@ func (s *Server) handleProxyResource(w http.ResponseWriter, r *http.Request) {
 	if origin := query.Get("origin"); origin != "" {
 		req.Header.Set("Origin", origin)
 	}
-
-	// Parse additional headers from JSON query parameter
-	if headersJSON := query.Get("headers"); headersJSON != "" {
-		var customHeaders map[string]string
-		if err := json.Unmarshal([]byte(headersJSON), &customHeaders); err == nil {
-			for key, value := range customHeaders {
-				req.Header.Set(key, value)
-			}
-		} else {
-			log.Printf("Warning: Failed to parse headers JSON: %v", err)
+	raw := query.Get("headers")
+	if raw == "" {
+		return
+	}
+	var extra map[string]string
+	if err := json.Unmarshal([]byte(raw), &extra); err != nil {
+		log.Printf("Warning: Failed to parse headers JSON: %v", err)
+		return
+	}
+	for key, value := range extra {
+		switch strings.ToLower(key) {
+		case "referer", "user-agent", "origin":
+			req.Header.Set(key, value)
 		}
-	}
-
-	// Execute the request
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Printf("Error fetching proxied resource: %v", err)
-		RespondWithError(w, http.StatusBadGateway, "Failed to fetch resource")
-		return
-	}
-	defer resp.Body.Close()
-
-	// Check response status
-	if resp.StatusCode != http.StatusOK {
-		log.Printf("Proxied resource returned status %d for URL: %s", resp.StatusCode, resourceURL)
-		RespondWithError(w, http.StatusBadGateway, "Resource server returned error")
-		return
-	}
-
-	// Copy content type from the original response
-	contentType := resp.Header.Get("Content-Type")
-	// Trim any charset or other parameters
-	if strings.Contains(contentType, ";") {
-		contentType = strings.Split(contentType, ";")[0]
-		contentType = strings.TrimSpace(contentType)
-	}
-	if contentType == "" {
-		// Try to infer from extension
-		contentType = inferContentType(resourceURL)
-	}
-
-	// Copy relevant headers from the response
-	w.Header().Set("Content-Type", contentType)
-
-	// Set cache headers based on content type
-	if strings.HasPrefix(contentType, "image/") {
-		// Images can be cached longer
-		w.Header().Set("Cache-Control", "public, max-age=86400") // 1 day
-	} else if strings.HasPrefix(contentType, "application/json") {
-		// JSON responses should have shorter cache
-		w.Header().Set("Cache-Control", "public, max-age=3600") // 1 hour
-	} else {
-		// Default cache for other content types
-		w.Header().Set("Cache-Control", "public, max-age=3600") // 1 hour
-	}
-
-	// Copy the resource data to the response
-	_, err = io.Copy(w, resp.Body)
-	if err != nil {
-		log.Printf("Error copying proxied resource data: %v", err)
-		// Response already started, can't send error
-		return
 	}
 }
 
-// inferContentType tries to infer content type from URL extension
-func inferContentType(url string) string {
-	lowerURL := strings.ToLower(url)
-	switch {
-	case strings.HasSuffix(lowerURL, ".jpg") || strings.HasSuffix(lowerURL, ".jpeg"):
-		return "image/jpeg"
-	case strings.HasSuffix(lowerURL, ".png"):
-		return "image/png"
-	case strings.HasSuffix(lowerURL, ".gif"):
-		return "image/gif"
-	case strings.HasSuffix(lowerURL, ".webp"):
-		return "image/webp"
-	case strings.HasSuffix(lowerURL, ".svg"):
-		return "image/svg+xml"
-	case strings.HasSuffix(lowerURL, ".json"):
-		return "application/json"
-	case strings.HasSuffix(lowerURL, ".xml"):
-		return "application/xml"
-	case strings.HasSuffix(lowerURL, ".html") || strings.HasSuffix(lowerURL, ".htm"):
-		return "text/html"
-	case strings.HasSuffix(lowerURL, ".css"):
-		return "text/css"
-	case strings.HasSuffix(lowerURL, ".js"):
-		return "application/javascript"
+// allowedImageType accepts JPEG, PNG, GIF, and WebP. SVG and HTML are rejected
+// because they can carry script when served from this origin.
+func allowedImageType(header, rawURL string) (string, bool) {
+	contentType := strings.ToLower(strings.TrimSpace(header))
+	if i := strings.Index(contentType, ";"); i >= 0 {
+		contentType = strings.TrimSpace(contentType[:i])
+	}
+	switch contentType {
+	case "image/jpeg", "image/jpg":
+		return "image/jpeg", true
+	case "image/png", "image/gif", "image/webp":
+		return contentType, true
+	}
+	if contentType != "" && contentType != "application/octet-stream" {
+		return "", false
+	}
+	switch inferImageType(rawURL) {
+	case "image/jpeg", "image/png", "image/gif", "image/webp":
+		return inferImageType(rawURL), true
 	default:
-		return "application/octet-stream"
+		return "", false
+	}
+}
+
+func inferImageType(rawURL string) string {
+	path := rawURL
+	if parsed, err := url.Parse(rawURL); err == nil {
+		path = parsed.Path
+	}
+	lower := strings.ToLower(path)
+	switch {
+	case strings.HasSuffix(lower, ".jpg"), strings.HasSuffix(lower, ".jpeg"):
+		return "image/jpeg"
+	case strings.HasSuffix(lower, ".png"):
+		return "image/png"
+	case strings.HasSuffix(lower, ".gif"):
+		return "image/gif"
+	case strings.HasSuffix(lower, ".webp"):
+		return "image/webp"
+	default:
+		return ""
 	}
 }

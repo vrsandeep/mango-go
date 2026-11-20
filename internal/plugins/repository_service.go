@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	"github.com/vrsandeep/mango-go/internal/core"
+	"github.com/vrsandeep/mango-go/internal/httpguard"
 	"github.com/vrsandeep/mango-go/internal/models"
 	"github.com/vrsandeep/mango-go/internal/store"
 )
@@ -21,8 +21,10 @@ type RepositoryService struct {
 	app     *core.App
 	store   *store.Store
 	manager PluginManagerInterface
-	client  *http.Client
 }
+
+// maxRepositoryBody is the largest repository manifest or plugin file that will be stored (32 MiB).
+const maxRepositoryBody = 32 << 20
 
 // NewRepositoryService creates a new repository service
 func NewRepositoryService(app *core.App, storeInstance *store.Store, manager PluginManagerInterface) *RepositoryService {
@@ -30,27 +32,33 @@ func NewRepositoryService(app *core.App, storeInstance *store.Store, manager Plu
 		app:     app,
 		store:   storeInstance,
 		manager: manager,
-		client: &http.Client{
-			Timeout: 30 * time.Second,
-		},
 	}
+}
+
+// fetchRemote downloads an http or https URL.
+// Private and link-local addresses are refused, and the body must fit in maxRepositoryBody.
+func (rs *RepositoryService) fetchRemote(rawURL string) ([]byte, error) {
+	allowLoopback := allowLoopbackHTTP.Load()
+	if err := httpguard.ValidateURL(rawURL, allowLoopback); err != nil {
+		return nil, err
+	}
+	client := httpguard.NewClient(30*time.Second, allowLoopback)
+	resp, err := client.Get(rawURL)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("download returned status %d", resp.StatusCode)
+	}
+	return httpguard.ReadBody(resp.Body, maxRepositoryBody)
 }
 
 // FetchRepository fetches and parses a repository manifest from a URL
 func (rs *RepositoryService) FetchRepository(url string) (*models.RepositoryManifest, error) {
-	resp, err := rs.client.Get(url)
+	data, err := rs.fetchRemote(url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch repository: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("repository returned status %d", resp.StatusCode)
-	}
-
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read repository data: %w", err)
 	}
 
 	var manifest models.RepositoryManifest
@@ -355,22 +363,11 @@ func (rs *RepositoryService) AutoUpdatePlugins() (*models.PluginAutoUpdateResult
 	return result, nil
 }
 
-// downloadFile downloads a file from a URL
+// downloadFile downloads a plugin file from a URL.
 func (rs *RepositoryService) downloadFile(url string) ([]byte, error) {
-	resp, err := rs.client.Get(url)
+	data, err := rs.fetchRemote(url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to download file: %w", err)
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("download returned status %d", resp.StatusCode)
-	}
-
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read file: %w", err)
-	}
-
 	return data, nil
 }
