@@ -96,7 +96,7 @@ func TestHandleGetFolderAnilist_CacheMiss(t *testing.T) {
 func TestHandleGetFolderAnilist_CacheHit(t *testing.T) {
 	server, router, cookie := setupAnilistTestData(t)
 	folder, _ := server.Store().CreateFolder("/library/Cached", "Cached", nil)
-	_ = server.Store().SetFolderAnilist(folder.ID, 12345, "https://anilist.co/manga/12345", "https://cover.example/large.jpg", "Romaji Title", "English Title", "banners/cached-banner-ab12c.jpg", true)
+	_ = server.Store().SetFolderAnilist(folder.ID, 12345, "https://example.com/manga/12345", "https://example.com/large.jpg", "Romaji Title", "English Title", "banners/cached-banner-ab12c.jpg", true)
 
 	req, _ := http.NewRequest("GET", fmt.Sprintf("/api/folders/%d/anilist", folder.ID), nil)
 	req.AddCookie(cookie)
@@ -124,13 +124,13 @@ func TestHandleGetFolderAnilist_CacheHit(t *testing.T) {
 	if resp.ID != 12345 {
 		t.Errorf("id: got %d, want 12345", resp.ID)
 	}
-	if resp.SiteURL != "https://anilist.co/manga/12345" {
+	if resp.SiteURL != "https://example.com/manga/12345" {
 		t.Errorf("siteUrl: got %q", resp.SiteURL)
 	}
 	if resp.Title == nil || resp.Title.Romaji != "Romaji Title" || resp.Title.English != "English Title" {
 		t.Errorf("title: got %+v", resp.Title)
 	}
-	if resp.CoverImage == nil || resp.CoverImage.Large != "https://cover.example/large.jpg" {
+	if resp.CoverImage == nil || resp.CoverImage.Large != "https://example.com/large.jpg" {
 		t.Errorf("coverImage: got %+v", resp.CoverImage)
 	}
 	if resp.BannerImage != "/banners/cached-banner-ab12c.jpg" {
@@ -218,9 +218,9 @@ func TestHandlePostFolderAnilist_MockReturnsMedia_Success(t *testing.T) {
 	folder, _ := server.Store().CreateFolder("/library/My Manga", "My Manga", nil)
 	mockMedia := &anilist.Media{
 		ID:          99999,
-		SiteURL:     "https://anilist.co/manga/99999",
+		SiteURL:     "https://example.com/manga/99999",
 		Title:       &anilist.Title{Romaji: "Mock Romaji", English: "Mock English"},
-		CoverImage:  &anilist.CoverImage{Large: "https://cover.example/mock.jpg"},
+		CoverImage:  &anilist.CoverImage{Large: "https://example.com/mock.jpg"},
 		BannerImage: "",
 	}
 	server.SetAnilistSearcher(&mockAnilistSearcher{media: mockMedia})
@@ -251,13 +251,13 @@ func TestHandlePostFolderAnilist_MockReturnsMedia_Success(t *testing.T) {
 	if resp.ID != 99999 {
 		t.Errorf("id: got %d, want 99999", resp.ID)
 	}
-	if resp.SiteURL != "https://anilist.co/manga/99999" {
+	if resp.SiteURL != "https://example.com/manga/99999" {
 		t.Errorf("siteUrl: got %q", resp.SiteURL)
 	}
 	if resp.Title == nil || resp.Title.Romaji != "Mock Romaji" {
 		t.Errorf("title: got %+v", resp.Title)
 	}
-	if resp.CoverImage == nil || resp.CoverImage.Large != "https://cover.example/mock.jpg" {
+	if resp.CoverImage == nil || resp.CoverImage.Large != "https://example.com/mock.jpg" {
 		t.Errorf("coverImage: got %+v", resp.CoverImage)
 	}
 	if resp.BannerImage != "" {
@@ -284,7 +284,7 @@ func TestHandlePostFolderAnilist_MockReturnsMedia_Success(t *testing.T) {
 func TestHandlePostFolderAnilist_Unauthorized(t *testing.T) {
 	server, router, _ := setupAnilistTestData(t)
 	folder, _ := server.Store().CreateFolder("/library/NoAuth", "NoAuth", nil)
-	server.SetAnilistSearcher(&mockAnilistSearcher{media: &anilist.Media{ID: 1, SiteURL: "https://anilist.co/manga/1"}})
+	server.SetAnilistSearcher(&mockAnilistSearcher{media: &anilist.Media{ID: 1, SiteURL: "https://example.com/manga/1"}})
 
 	req, _ := http.NewRequest("POST", fmt.Sprintf("/api/folders/%d/anilist", folder.ID), nil)
 	// no cookie
@@ -307,7 +307,7 @@ func TestHandlePostFolderAnilist_StoresBannerImage(t *testing.T) {
 	defer bannerSrv.Close()
 	server.SetAnilistSearcher(&mockAnilistSearcher{media: &anilist.Media{
 		ID:          55,
-		SiteURL:     "https://anilist.co/manga/55",
+		SiteURL:     "https://example.com/manga/55",
 		BannerImage: bannerSrv.URL + "/banner.jpg",
 	}})
 
@@ -343,7 +343,7 @@ func TestHandleGetFolderAnilist_RefreshesNullBanner(t *testing.T) {
 	cookie := testutil.GetAuthCookie(t, server, "user", "pw", "user")
 	folder, _ := server.Store().CreateFolder("/library/Legacy Banner", "Legacy Banner", nil)
 	_, err := db.Exec(`INSERT INTO folder_anilist_cache (folder_id, anilist_id, site_url, created_at)
-		VALUES (?, ?, ?, datetime('now'))`, folder.ID, 42, "https://anilist.co/manga/42")
+		VALUES (?, ?, ?, datetime('now'))`, folder.ID, 42, "https://example.com/manga/42")
 	if err != nil {
 		t.Fatalf("insert legacy cache: %v", err)
 	}
@@ -355,9 +355,9 @@ func TestHandleGetFolderAnilist_RefreshesNullBanner(t *testing.T) {
 	defer bannerSrv.Close()
 	server.SetAnilistSearcher(&mockAnilistSearcher{media: &anilist.Media{
 		ID:          42,
-		SiteURL:     "https://anilist.co/manga/42",
+		SiteURL:     "https://example.com/manga/42",
 		Title:       &anilist.Title{Romaji: "Legacy Romaji", English: "Legacy English"},
-		CoverImage:  &anilist.CoverImage{Large: "https://cover.example/legacy.jpg"},
+		CoverImage:  &anilist.CoverImage{Large: "https://example.com/legacy.jpg"},
 		BannerImage: bannerSrv.URL + "/banner.jpg",
 	}})
 
@@ -385,7 +385,7 @@ func TestHandleGetFolderAnilist_RefreshesNullBanner(t *testing.T) {
 	if !cached.BannerFetched || !strings.HasPrefix(cached.BannerPath, "banners/") {
 		t.Errorf("cache after refresh: fetched=%v path=%q", cached.BannerFetched, cached.BannerPath)
 	}
-	if cached.TitleRomaji != "Legacy Romaji" || cached.CoverImageURL != "https://cover.example/legacy.jpg" {
+	if cached.TitleRomaji != "Legacy Romaji" || cached.CoverImageURL != "https://example.com/legacy.jpg" {
 		t.Errorf("refresh did not keep title and cover: %+v", cached)
 	}
 }
@@ -401,7 +401,7 @@ func TestHandlePostFolderAnilist_DownloadsBanner(t *testing.T) {
 	defer srv.Close()
 	server.SetAnilistSearcher(&mockAnilistSearcher{media: &anilist.Media{
 		ID:          77,
-		SiteURL:     "https://anilist.co/manga/77",
+		SiteURL:     "https://example.com/manga/77",
 		BannerImage: srv.URL + "/banner.jpg",
 	}})
 
@@ -427,7 +427,7 @@ func TestHandleGetFolderAnilist_RefreshDownloadFailureLeavesNull(t *testing.T) {
 	cookie := testutil.GetAuthCookie(t, server, "user", "pw", "user")
 	folder, _ := server.Store().CreateFolder("/library/Download Fail", "Download Fail", nil)
 	_, err := db.Exec(`INSERT INTO folder_anilist_cache (folder_id, anilist_id, site_url, created_at)
-		VALUES (?, ?, ?, datetime('now'))`, folder.ID, 9, "https://anilist.co/manga/9")
+		VALUES (?, ?, ?, datetime('now'))`, folder.ID, 9, "https://example.com/manga/9")
 	if err != nil {
 		t.Fatalf("insert legacy cache: %v", err)
 	}
@@ -437,7 +437,7 @@ func TestHandleGetFolderAnilist_RefreshDownloadFailureLeavesNull(t *testing.T) {
 	defer bannerSrv.Close()
 	server.SetAnilistSearcher(&mockAnilistSearcher{media: &anilist.Media{
 		ID:          9,
-		SiteURL:     "https://anilist.co/manga/9",
+		SiteURL:     "https://example.com/manga/9",
 		BannerImage: bannerSrv.URL + "/banner.jpg",
 	}})
 
@@ -463,7 +463,7 @@ func TestHandleGetFolderAnilist_RefreshErrorLeavesNull(t *testing.T) {
 	cookie := testutil.GetAuthCookie(t, server, "user", "pw", "user")
 	folder, _ := server.Store().CreateFolder("/library/Refresh Fail", "Refresh Fail", nil)
 	_, err := db.Exec(`INSERT INTO folder_anilist_cache (folder_id, anilist_id, site_url, created_at)
-		VALUES (?, ?, ?, datetime('now'))`, folder.ID, 8, "https://anilist.co/manga/8")
+		VALUES (?, ?, ?, datetime('now'))`, folder.ID, 8, "https://example.com/manga/8")
 	if err != nil {
 		t.Fatalf("insert legacy cache: %v", err)
 	}

@@ -278,7 +278,7 @@ func TestRemove(t *testing.T) {
 	if err := banners.Remove(dir, rel); err != nil {
 		t.Fatal(err)
 	}
-	if err := banners.Remove(dir, "https://cdn.example/banner.jpg"); err != nil {
+	if err := banners.Remove(dir, "https://example.com/banner.jpg"); err != nil {
 		t.Fatal(err)
 	}
 }

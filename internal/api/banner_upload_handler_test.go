@@ -214,7 +214,7 @@ func TestHandleRestoreFolderBanner(t *testing.T) {
 	if uploaded.Code != http.StatusOK {
 		t.Fatalf("upload status %d body %s", uploaded.Code, uploaded.Body.String())
 	}
-	if err := server.Store().SetFolderAnilist(folder.ID, 1, "https://anilist.co/manga/1", "", "", "", "banners/blue-lock-banner-ab12c.jpg", true); err != nil {
+	if err := server.Store().SetFolderAnilist(folder.ID, 1, "https://example.com/manga/1", "", "", "", "banners/blue-lock-banner-ab12c.jpg", true); err != nil {
 		t.Fatal(err)
 	}
 
