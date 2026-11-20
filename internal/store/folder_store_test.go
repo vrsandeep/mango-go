@@ -829,7 +829,7 @@ func TestUpdateFolderThumbnail(t *testing.T) {
 	db := testutil.SetupTestDB(t)
 	s := store.New(db)
 
-	newURL := "http://example.com/cover.png"
+	newURL := "http://example.com/thumbnail.png"
 
 	folder, err := s.CreateFolder("/library/Thumbnail Test", "Thumbnail Test", nil)
 	if err != nil {
@@ -839,7 +839,7 @@ func TestUpdateFolderThumbnail(t *testing.T) {
 	// test with non existing series ID
 	err = s.UpdateFolderThumbnail(999, newURL)
 	if err != store.ErrFolderNotFound {
-		t.Errorf("Expected no error when updating cover URL for non-existent series, got %v", err)
+		t.Errorf("Expected folder not found when updating thumbnail for a missing folder, got %v", err)
 	}
 
 	// populateDB(t, db)

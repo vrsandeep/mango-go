@@ -131,3 +131,33 @@ func (s *Server) handleUploadFolderBanner(w http.ResponseWriter, r *http.Request
 		"bannerImage": banners.PublicURL(rel),
 	})
 }
+
+// handleRestoreFolderBanner drops a custom banner so the AniList banner is shown again.
+func (s *Server) handleRestoreFolderBanner(w http.ResponseWriter, r *http.Request) {
+	folderID, err := strconv.ParseInt(chi.URLParam(r, "folderID"), 10, 64)
+	if err != nil || folderID <= 0 {
+		RespondWithError(w, http.StatusBadRequest, "Invalid folder ID")
+		return
+	}
+	folder, err := s.store.GetFolder(folderID)
+	if err != nil {
+		if err == store.ErrFolderNotFound {
+			RespondWithError(w, http.StatusNotFound, "Folder not found")
+			return
+		}
+		RespondWithError(w, http.StatusInternalServerError, "Failed to restore banner")
+		return
+	}
+	if folder.Banner != "" {
+		_ = banners.Remove(s.bannersDir(), folder.Banner)
+	}
+	if err := s.store.UpdateFolderBanner(folderID, ""); err != nil {
+		RespondWithError(w, http.StatusInternalServerError, "Failed to restore banner")
+		return
+	}
+	image := ""
+	if cached, err := s.store.GetFolderAnilist(folderID); err == nil {
+		image = banners.PublicURL(cached.BannerPath)
+	}
+	RespondWithJSON(w, http.StatusOK, map[string]string{"bannerImage": image})
+}

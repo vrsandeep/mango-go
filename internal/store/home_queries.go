@@ -11,7 +11,7 @@ import (
 
 // GetContinueReading fetches chapters the user has started but not finished, only one per series.
 func (s *Store) GetContinueReading(userID int64, limit int) ([]*models.HomeSectionItem, error) {
-	// --COALESCE(f.custom_cover_url, f.thumbnail, '') as cover_art,
+	// cover_art is the chapter thumbnail, falling back to the folder thumbnail.
 	query := `
 		SELECT *
 		FROM (

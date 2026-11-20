@@ -195,7 +195,7 @@ func (s *Store) updateSingleFolderThumbnail(folderID int64) {
 	}
 }
 
-// firstChapterThumbnail is the generated cover of the first chapter in the folder tree.
+// firstChapterThumbnail is the generated thumbnail of the first chapter in the folder tree.
 func (s *Store) firstChapterThumbnail(folderID int64) (string, error) {
 	query := `
 		WITH RECURSIVE folder_tree(id) AS (
@@ -240,7 +240,7 @@ func (s *Store) firstChapterThumbnail(folderID int64) (string, error) {
 	return chapters[0].Thumbnail.String, nil
 }
 
-// RestoreFolderThumbnail replaces a folder cover with the first chapter's generated thumbnail.
+// RestoreFolderThumbnail replaces a folder thumbnail with the first chapter's generated thumbnail.
 // An empty result means the folder has no chapter thumbnail to restore.
 func (s *Store) RestoreFolderThumbnail(folderID int64) (string, error) {
 	if _, err := s.GetFolder(folderID); err != nil {

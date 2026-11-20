@@ -545,7 +545,7 @@ body.light-theme .anilist-button:hover {
   background: var(--card-bg);
 }
 
-.upload-preview-cover {
+.upload-preview-thumbnail {
   max-height: 280px;
   object-fit: contain;
 }
@@ -1094,7 +1094,7 @@ body.light-theme .anilist-button:hover {
   color: var(--accent-color);
 }
 
-/* Narrow modal for cover-only edit */
+/* Narrow modal for thumbnail-only edit */
 .modal-narrow {
   max-width: 400px;
 }

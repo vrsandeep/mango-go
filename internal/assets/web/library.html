@@ -77,7 +77,7 @@
                             <i class="ph-bold ph-circle"></i> All Unread
                         </button>
                     </div>
-                    <button class="edit-btn" id="edit-folder-btn" style="display: none;" title="Edit Cover">
+                    <button class="edit-btn" id="edit-folder-btn" style="display: none;" title="Edit Thumbnail">
                         <i class="ph-bold ph-image"></i>
                     </button>
                     <button class="edit-btn" id="upload-banner-btn" style="display: none;" title="Upload banner">
@@ -123,20 +123,20 @@
         <div class="pagination-container" id="pagination-container"></div>
     </main>
 
-    <!-- Cover Upload Modal (cover only) -->
+    <!-- Thumbnail Upload Modal -->
     <div class="modal-overlay" id="edit-folder-modal">
         <div class="modal-content modal-narrow">
             <div class="modal-header">
-                <h2>Edit Cover</h2>
+                <h2>Edit Thumbnail</h2>
                 <button class="modal-close-btn" id="modal-close-btn">&times;</button>
             </div>
             <div class="modal-body">
                 <p class="banner-size-hint">JPEG, PNG, or WebP. A portrait image is resized to 200 pixels wide, and a landscape image to 300 pixels tall.</p>
                 <div class="file-upload-area">
-                    <input type="file" id="cover-file-input" accept="image/png, image/jpeg, image/webp">
-                    <label for="cover-file-input" class="file-upload-label">
+                    <input type="file" id="thumbnail-file-input" accept="image/png, image/jpeg, image/webp">
+                    <label for="thumbnail-file-input" class="file-upload-label">
                         <i class="ph-bold ph-upload"></i>
-                        <span>Choose Cover Image</span>
+                        <span>Choose Thumbnail Image</span>
                     </label>
                     <div class="selected-file-info" id="selected-file-info" style="display: none;">
                         <i class="ph-bold ph-file-image"></i>
@@ -145,16 +145,16 @@
                             <i class="ph-bold ph-x"></i>
                         </button>
                     </div>
-                    <img id="cover-preview" class="upload-preview upload-preview-cover" alt="Selected cover preview" hidden>
+                    <img id="thumbnail-preview" class="upload-preview upload-preview-thumbnail" alt="Selected thumbnail preview" hidden>
                 </div>
-                <p class="banner-size-error" id="cover-upload-error" hidden></p>
+                <p class="banner-size-error" id="thumbnail-upload-error" hidden></p>
                 <button id="modal-save-btn" class="upload-btn">
                     <i class="ph-bold ph-upload"></i>
-                    Upload Cover
+                    Upload Thumbnail
                 </button>
             </div>
             <div class="modal-footer">
-                <button type="button" id="cover-reset-btn" class="cancel-btn">Reset to original</button>
+                <button type="button" id="thumbnail-reset-btn" class="cancel-btn">Reset to original</button>
                 <button id="modal-cancel-btn" class="cancel-btn">Cancel</button>
             </div>
         </div>
@@ -191,6 +191,7 @@
                 </button>
             </div>
             <div class="modal-footer">
+                <button type="button" id="banner-reset-btn" class="cancel-btn">Reset to original</button>
                 <button id="banner-cancel-btn" class="cancel-btn">Cancel</button>
             </div>
         </div>

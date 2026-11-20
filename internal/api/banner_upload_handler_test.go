@@ -200,6 +200,49 @@ func TestHandleUploadFolderBanner(t *testing.T) {
 	})
 }
 
+func TestHandleRestoreFolderBanner(t *testing.T) {
+	server, _, _ := testutil.SetupTestServer(t)
+	appData := t.TempDir()
+	server.SetAppDataPath(appData)
+	router := server.Router()
+	cookie := testutil.CookieForUser(t, server, "restoreuser", "password", "user")
+	folder, err := server.Store().CreateFolder("/library/Blue Lock", "Blue Lock", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	uploaded := postBanner(t, router, cookie, folder.ID, bannerJPEG(1200, 400))
+	if uploaded.Code != http.StatusOK {
+		t.Fatalf("upload status %d body %s", uploaded.Code, uploaded.Body.String())
+	}
+	if err := server.Store().SetFolderAnilist(folder.ID, 1, "https://anilist.co/manga/1", "", "", "", "banners/blue-lock-banner-ab12c.jpg", true); err != nil {
+		t.Fatal(err)
+	}
+
+	req, _ := http.NewRequest("DELETE", fmt.Sprintf("/api/folders/%d/banner", folder.ID), nil)
+	req.AddCookie(cookie)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status %d body %s", rr.Code, rr.Body.String())
+	}
+	var resp struct {
+		BannerImage string `json:"bannerImage"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp.BannerImage != "/banners/blue-lock-banner-ab12c.jpg" {
+		t.Fatalf("bannerImage %q", resp.BannerImage)
+	}
+	got, err := server.Store().GetFolder(folder.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Banner != "" {
+		t.Fatalf("custom banner still set: %q", got.Banner)
+	}
+}
+
 func TestSetAppDataPathNilServer(t *testing.T) {
 	(&api.Server{}).SetAppDataPath(t.TempDir())
 }

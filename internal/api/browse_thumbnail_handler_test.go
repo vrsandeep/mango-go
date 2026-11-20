@@ -13,7 +13,7 @@ import (
 	"github.com/vrsandeep/mango-go/internal/testutil"
 )
 
-func TestHandleUploadFolderCover(t *testing.T) {
+func TestHandleUploadFolderThumbnail(t *testing.T) {
 	server, db, _ := testutil.SetupTestServer(t)
 	router := server.Router()
 	cookie := testutil.CookieForUser(t, server, "testuser", "password", "user")
@@ -23,7 +23,7 @@ func TestHandleUploadFolderCover(t *testing.T) {
 	createMultipartBody := func() (bytes.Buffer, string) {
 		var body bytes.Buffer
 		writer := multipart.NewWriter(&body)
-		part, err := writer.CreateFormFile("cover_file", "test.jpg")
+		part, err := writer.CreateFormFile("thumbnail_file", "test.jpg")
 		if err != nil {
 			t.Fatalf("Failed to create form file: %v", err)
 		}
@@ -42,7 +42,7 @@ func TestHandleUploadFolderCover(t *testing.T) {
 	}
 
 	t.Run("Success", func(t *testing.T) {
-		// 1. Setup a folder in the database to upload a cover for.
+		// 1. Setup a folder in the database to upload a thumbnail for.
 		folder, err := s.CreateFolder("/upload_test", "Upload Test", nil)
 		if err != nil {
 			t.Fatalf("Failed to create test folder: %v", err)
@@ -52,7 +52,7 @@ func TestHandleUploadFolderCover(t *testing.T) {
 		body, contentType := createMultipartBody()
 
 		// 3. Create and execute the HTTP request.
-		req, _ := http.NewRequest("POST", fmt.Sprintf("/api/folders/%d/cover", folder.ID), &body)
+		req, _ := http.NewRequest("POST", fmt.Sprintf("/api/folders/%d/thumbnail", folder.ID), &body)
 		req.AddCookie(cookie)
 		req.Header.Set("Content-Type", contentType)
 
@@ -82,7 +82,7 @@ func TestHandleUploadFolderCover(t *testing.T) {
 		nonExistentID := int64(99999)
 		body, contentType := createMultipartBody()
 
-		req, _ := http.NewRequest("POST", fmt.Sprintf("/api/folders/%d/cover", nonExistentID), &body)
+		req, _ := http.NewRequest("POST", fmt.Sprintf("/api/folders/%d/thumbnail", nonExistentID), &body)
 		req.AddCookie(cookie)
 		req.Header.Set("Content-Type", contentType)
 
@@ -97,7 +97,7 @@ func TestHandleUploadFolderCover(t *testing.T) {
 
 	t.Run("InvalidFolderID", func(t *testing.T) {
 		body, contentType := createMultipartBody()
-		req, _ := http.NewRequest("POST", "/api/folders/invalid/cover", &body)
+		req, _ := http.NewRequest("POST", "/api/folders/invalid/thumbnail", &body)
 		req.AddCookie(cookie)
 		req.Header.Set("Content-Type", contentType)
 

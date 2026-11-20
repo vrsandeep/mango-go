@@ -32,15 +32,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   const autocompleteSuggestions = document.getElementById('autocomplete-suggestions');
   const modalSaveBtn = document.getElementById('modal-save-btn');
   const modalCancelBtn = document.getElementById('modal-cancel-btn');
-  const coverFileInput = document.getElementById('cover-file-input');
+  const thumbnailFileInput = document.getElementById('thumbnail-file-input');
   const selectedFileInfo = document.getElementById('selected-file-info');
   const fileName = document.getElementById('file-name');
   const removeFileBtn = document.getElementById('remove-file-btn');
-  const coverUploadError = document.getElementById('cover-upload-error');
-  const coverResetBtn = document.getElementById('cover-reset-btn');
-  const coverPreview = document.getElementById('cover-preview');
+  const thumbnailUploadError = document.getElementById('thumbnail-upload-error');
+  const thumbnailResetBtn = document.getElementById('thumbnail-reset-btn');
+  const thumbnailPreview = document.getElementById('thumbnail-preview');
   const bannerPreview = document.getElementById('banner-preview');
-  let coverPreviewURL = '';
+  const bannerResetBtn = document.getElementById('banner-reset-btn');
+  let thumbnailPreviewURL = '';
   let bannerPreviewURL = '';
   const totalCountEl = document.getElementById('total-count');
   const markAllReadBtn = document.getElementById('mark-all-read-btn');
@@ -87,7 +88,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     folderBanner.style.removeProperty('--folder-banner-image');
   };
 
-  // bannerUrl is an AniList banner. thumbUrl is the folder cover, used blurred
+  // bannerUrl is an AniList banner. thumbUrl is the folder thumbnail, used blurred
   // when AniList has no banner.
   const applyFolderBanner = (bannerUrl, thumbUrl) => {
     if (!folderBanner) return;
@@ -355,7 +356,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const ratingBadge = folder.rating ? `<div class="rating-badge">★ ${folder.rating}</div>` : '';
     card.innerHTML = `
             <div class="thumbnail-container">
-                <img class="thumbnail" src="${folder.thumbnail || '/static/images/logo.svg'}" loading="lazy" alt="Cover for ${folder.name}">
+                <img class="thumbnail" src="${folder.thumbnail || '/static/images/logo.svg'}" loading="lazy" alt="Thumbnail for ${folder.name}">
                 ${ratingBadge}
             </div>
             <div class="item-title" title="${folder.name}">${folder.name}</div>
@@ -375,7 +376,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const title = chapter.path.split(/[\\\\/]/).pop();
     card.innerHTML = `
             <div class="thumbnail-container">
-                <img class="thumbnail" src="${chapter.thumbnail || ''}" loading="lazy" alt="Cover for ${title}">
+                <img class="thumbnail" src="${chapter.thumbnail || ''}" loading="lazy" alt="Thumbnail for ${title}">
             </div>
             <div class="item-title" title="${title}">${title}</div>
             <div class="progress-bar-container">
@@ -696,14 +697,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadFolderContents();
   };
 
-  const showCoverError = message => {
-    coverUploadError.hidden = false;
-    coverUploadError.textContent = message;
+  const showThumbnailError = message => {
+    thumbnailUploadError.hidden = false;
+    thumbnailUploadError.textContent = message;
   };
 
-  const clearCoverError = () => {
-    coverUploadError.hidden = true;
-    coverUploadError.textContent = '';
+  const clearThumbnailError = () => {
+    thumbnailUploadError.hidden = true;
+    thumbnailUploadError.textContent = '';
   };
 
   const setUploadPreview = (img, currentURL, file) => {
@@ -720,29 +721,29 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   const handleSaveChanges = async () => {
-    const file = coverFileInput.files[0];
+    const file = thumbnailFileInput.files[0];
     if (!file) {
-      showCoverError('Choose a cover image before uploading.');
+      showThumbnailError('Choose a thumbnail image before uploading.');
       return;
     }
-    clearCoverError();
+    clearThumbnailError();
 
     const formData = new FormData();
-    formData.append('cover_file', file);
+    formData.append('thumbnail_file', file);
 
     try {
-      const response = await fetch(`/api/folders/${state.currentFolderId}/cover`, {
+      const response = await fetch(`/api/folders/${state.currentFolderId}/thumbnail`, {
         method: 'POST',
         body: formData, // The browser will set the Content-Type header automatically
       });
 
       if (response.ok) {
-        closeCoverModal();
-        toast.success('Cover uploaded successfully!');
-        loadFolderContents(); // Reload to show the new cover
+        closeThumbnailModal();
+        toast.success('Thumbnail uploaded successfully!');
+        loadFolderContents(); // Reload to show the new thumbnail
       } else {
         const errorData = await response.json();
-        toast.error(`Error uploading cover: ${errorData.error}`);
+        toast.error(`Error uploading thumbnail: ${errorData.error}`);
       }
     } catch (err) {
       toast.error('An unexpected error occurred during upload.');
@@ -767,54 +768,55 @@ document.addEventListener('DOMContentLoaded', async () => {
   editFolderBtn.addEventListener('click', () => {
     if (state.currentFolderId) {
       editFolderModal.style.display = 'flex';
-      coverFileInput.value = ''; // Clear previous selection
+      thumbnailFileInput.value = ''; // Clear previous selection
       selectedFileInfo.style.display = 'none'; // Hide file info
-      coverPreviewURL = setUploadPreview(coverPreview, coverPreviewURL, null);
-      clearCoverError();
+      thumbnailPreviewURL = setUploadPreview(thumbnailPreview, thumbnailPreviewURL, null);
+      clearThumbnailError();
       // Update save button text to be more intuitive
-      modalSaveBtn.innerHTML = '<i class="ph-bold ph-upload"></i> Upload Cover';
+      modalSaveBtn.innerHTML = '<i class="ph-bold ph-upload"></i> Upload Thumbnail';
     }
   });
 
   // Handle file selection
-  coverFileInput.addEventListener('change', e => {
+  thumbnailFileInput.addEventListener('change', e => {
     const file = e.target.files[0];
     if (file) {
       fileName.textContent = file.name;
       selectedFileInfo.style.display = 'flex';
-      coverPreviewURL = setUploadPreview(coverPreview, coverPreviewURL, file);
+      thumbnailPreviewURL = setUploadPreview(thumbnailPreview, thumbnailPreviewURL, file);
     } else {
       selectedFileInfo.style.display = 'none';
-      coverPreviewURL = setUploadPreview(coverPreview, coverPreviewURL, null);
+      thumbnailPreviewURL = setUploadPreview(thumbnailPreview, thumbnailPreviewURL, null);
     }
   });
 
   // Handle remove file button
   removeFileBtn.addEventListener('click', () => {
-    coverFileInput.value = '';
+    thumbnailFileInput.value = '';
     selectedFileInfo.style.display = 'none';
-    coverPreviewURL = setUploadPreview(coverPreview, coverPreviewURL, null);
-    clearCoverError();
+    thumbnailPreviewURL = setUploadPreview(thumbnailPreview, thumbnailPreviewURL, null);
+    clearThumbnailError();
   });
 
-  coverResetBtn.addEventListener('click', async () => {
+  thumbnailResetBtn.addEventListener('click', async () => {
     if (!state.currentFolderId) return;
-    clearCoverError();
+    clearThumbnailError();
     try {
-      const response = await fetch(`/api/folders/${state.currentFolderId}/cover`, { method: 'DELETE' });
+      const response = await fetch(`/api/folders/${state.currentFolderId}/thumbnail`, {
+        method: 'DELETE',
+      });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        showCoverError(payload.error || 'Could not restore the original cover.');
+        showThumbnailError(payload.error || 'Could not restore the original thumbnail.');
         return;
       }
-      closeCoverModal();
+      closeThumbnailModal();
       loadFolderContents();
     } catch {
-      showCoverError('Could not restore the original cover.');
+      showThumbnailError('Could not restore the original thumbnail.');
     }
   });
-  const bannerRequirement =
-    'Banner must be at least 800×300 pixels and wider than it is tall.';
+  const bannerRequirement = 'Banner must be at least 800×300 pixels and wider than it is tall.';
 
   const readImageSize = file =>
     new Promise((resolve, reject) => {
@@ -887,6 +889,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     bannerSizeError.textContent = '';
   });
 
+  bannerResetBtn.addEventListener('click', async () => {
+    if (!state.currentFolderId) return;
+    bannerSizeError.hidden = true;
+    bannerSizeError.textContent = '';
+    try {
+      const response = await fetch(`/api/folders/${state.currentFolderId}/banner`, {
+        method: 'DELETE',
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        showBannerError(payload.error || 'Could not restore the original banner.');
+        return;
+      }
+      customBanner = '';
+      closeBannerModal();
+      if (payload.bannerImage) {
+        applyFolderBanner(payload.bannerImage, '');
+      } else {
+        applyFolderBanner('', document.getElementById('folder-thumb')?.src || '');
+      }
+    } catch (err) {
+      showBannerError('Could not restore the original banner.');
+    }
+  });
+
   bannerCancelBtn.addEventListener('click', closeBannerModal);
   bannerModalCloseBtn.addEventListener('click', closeBannerModal);
   bannerUploadModal.addEventListener('click', e => {
@@ -933,24 +960,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  const closeCoverModal = () => {
+  const closeThumbnailModal = () => {
     editFolderModal.style.display = 'none';
-    coverPreviewURL = setUploadPreview(coverPreview, coverPreviewURL, null);
-    clearCoverError();
+    thumbnailPreviewURL = setUploadPreview(thumbnailPreview, thumbnailPreviewURL, null);
+    clearThumbnailError();
   };
-  modalCancelBtn.addEventListener('click', closeCoverModal);
+  modalCancelBtn.addEventListener('click', closeThumbnailModal);
   modalSaveBtn.addEventListener('click', handleSaveChanges);
-  modalCloseBtn.addEventListener('click', closeCoverModal);
+  modalCloseBtn.addEventListener('click', closeThumbnailModal);
 
   // Close modal when clicking outside
   editFolderModal.addEventListener('click', e => {
-    if (e.target === editFolderModal) closeCoverModal();
+    if (e.target === editFolderModal) closeThumbnailModal();
   });
 
   // Close modal when pressing ESC key
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && editFolderModal.style.display === 'flex') {
-      closeCoverModal();
+      closeThumbnailModal();
     }
     if (e.key === 'Escape' && bannerUploadModal.style.display === 'flex') {
       closeBannerModal();

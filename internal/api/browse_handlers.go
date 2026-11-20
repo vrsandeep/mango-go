@@ -190,8 +190,8 @@ func (s *Server) handleMarkFolderAs(w http.ResponseWriter, r *http.Request) {
 	RespondWithJSON(w, http.StatusOK, map[string]string{"status": "success"})
 }
 
-// handleUploadFolderCover handles requests to upload a cover image for a folder.
-func (s *Server) handleUploadFolderCover(w http.ResponseWriter, r *http.Request) {
+// handleUploadFolderThumbnail handles requests to upload a thumbnail image for a folder.
+func (s *Server) handleUploadFolderThumbnail(w http.ResponseWriter, r *http.Request) {
 	folderID, err := strconv.ParseInt(chi.URLParam(r, "folderID"), 10, 64)
 	if err != nil {
 		RespondWithError(w, http.StatusBadRequest, "Invalid folder ID")
@@ -201,7 +201,7 @@ func (s *Server) handleUploadFolderCover(w http.ResponseWriter, r *http.Request)
 	// Limit the upload size to prevent abuse (e.g., 10MB)
 	r.Body = http.MaxBytesReader(w, r.Body, 10*1024*1024)
 
-	file, _, err := r.FormFile("cover_file")
+	file, _, err := r.FormFile("thumbnail_file")
 	if err != nil {
 		RespondWithError(w, http.StatusBadRequest, "Invalid file upload")
 		return
@@ -225,15 +225,15 @@ func (s *Server) handleUploadFolderCover(w http.ResponseWriter, r *http.Request)
 			RespondWithError(w, http.StatusNotFound, "Folder not found")
 			return
 		}
-		RespondWithError(w, http.StatusInternalServerError, "Failed to save new cover")
+		RespondWithError(w, http.StatusInternalServerError, "Failed to save new thumbnail")
 		return
 	}
 
-	RespondWithJSON(w, http.StatusOK, map[string]string{"message": "Cover updated successfully."})
+	RespondWithJSON(w, http.StatusOK, map[string]string{"message": "Thumbnail updated successfully."})
 }
 
-// handleRestoreFolderCover puts the folder thumbnail back to the first chapter's generated image.
-func (s *Server) handleRestoreFolderCover(w http.ResponseWriter, r *http.Request) {
+// handleRestoreFolderThumbnail puts the folder thumbnail back to the first chapter's generated image.
+func (s *Server) handleRestoreFolderThumbnail(w http.ResponseWriter, r *http.Request) {
 	folderID, err := strconv.ParseInt(chi.URLParam(r, "folderID"), 10, 64)
 	if err != nil || folderID <= 0 {
 		RespondWithError(w, http.StatusBadRequest, "Invalid folder ID")
@@ -245,7 +245,7 @@ func (s *Server) handleRestoreFolderCover(w http.ResponseWriter, r *http.Request
 			RespondWithError(w, http.StatusNotFound, "Folder not found")
 			return
 		}
-		RespondWithError(w, http.StatusInternalServerError, "Failed to restore cover")
+		RespondWithError(w, http.StatusInternalServerError, "Failed to restore thumbnail")
 		return
 	}
 	RespondWithJSON(w, http.StatusOK, map[string]string{"thumbnail": thumb})
