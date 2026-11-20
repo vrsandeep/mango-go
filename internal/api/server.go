@@ -25,7 +25,6 @@ type Server struct {
 	store           *store.Store
 	homeStore       HomeStore
 	anilistSearcher AnilistSearcher
-	bannerSave      func(seriesName, sourceURL string) (string, error)
 }
 
 // Store returns the store instance.

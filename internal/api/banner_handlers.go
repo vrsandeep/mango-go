@@ -28,18 +28,13 @@ func (s *Server) SetAppDataPath(path string) {
 	s.app.Config().AppData.Path = path
 }
 
-// SetBannerSaver overrides banner downloads in tests.
-func (s *Server) SetBannerSaver(save func(seriesName, sourceURL string) (string, error)) {
-	s.bannerSave = save
-}
-
 // localBanner downloads a remote banner into the app data banners directory.
 // The bool is false when a download was required and failed, so the row stays unfetched.
 func (s *Server) localBanner(seriesName, sourceURL string) (string, bool) {
 	if sourceURL == "" {
 		return "", true
 	}
-	path, err := s.saveBanner(seriesName, sourceURL)
+	path, err := banners.Save(s.bannersDir(), seriesName, sourceURL)
 	if err != nil {
 		log.Printf("banner download for %q: %v", seriesName, err)
 		return "", false
@@ -49,13 +44,6 @@ func (s *Server) localBanner(seriesName, sourceURL string) (string, bool) {
 
 func (s *Server) bannersDir() string {
 	return filepath.Join(s.appDataPath(), banners.FolderName)
-}
-
-func (s *Server) saveBanner(seriesName, sourceURL string) (string, error) {
-	if s.bannerSave != nil {
-		return s.bannerSave(seriesName, sourceURL)
-	}
-	return banners.Save(s.bannersDir(), seriesName, sourceURL)
 }
 
 func (s *Server) handleGetBanner(w http.ResponseWriter, r *http.Request) {
